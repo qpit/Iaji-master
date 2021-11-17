@@ -102,7 +102,7 @@ class TemporalModeFunction():
         duration = None
         period_increase = 1
         while duration is None:
-            t = np.linspace(-initial_period/2*period_increase/2, initial_period/2*period_increase/2, 1e6)
+            t = np.linspace(-initial_period/2*period_increase/2, initial_period/2*period_increase/2, int(1e6))
             coefficients = self.function(*parameters, t)
             t_duration = t[np.where(np.abs(coefficients) >= np.max(np.abs(coefficients))*CHARACTERISTIC_DURATION_FACTOR)]
             duration = np.abs(t_duration[-1] - t_duration[0])
