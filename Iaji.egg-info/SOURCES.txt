@@ -1,3 +1,5 @@
+LICENSE
+README.md
 setup.py
 Iaji/__init__.py
 Iaji.egg-info/PKG-INFO
