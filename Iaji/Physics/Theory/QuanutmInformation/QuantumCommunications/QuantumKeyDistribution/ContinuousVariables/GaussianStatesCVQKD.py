@@ -227,18 +227,19 @@ class QKDSystem:
             #entries of the covariance matrix
             parameter_names = list(vars(self.parameters).keys())
             parameter_names.sort()
-            CM_numeric = np.empty((3, 3), dtype=object)
-            for j in range(3):
-                for k in range(3):
+            shape = np.shape(self.covariance_matrix_EB.expression_symbolic)
+            CM_numeric = np.empty(shape, dtype=object)
+            for j in range(shape[0]):
+                for k in range(shape[1]):
                         CM_numeric[j, k] = sympy.lambdify(parameter_names, fromNamesToVariables(str(CM[j, k])))
             self.covariance_matrix_EB.expression_numeric = CM_numeric
         else:
             if self.covariance_matrix_EB.expression_symbolic is None:
                 self.computeCovarianceMatrixEB(form='symbolic')
             parameter_values = [p.value for p in self.parameters.toList()]
-            CM = np.zeros((3, 3))
-            for j in range(3):
-                for k in range(3):
+            CM = np.zeros(np.shape(self.covariance_matrix.expression_symbolic))
+            for j in range(4):
+                for k in range(4):
                     CM[j, k] = self.covariance_matrix_EB.expression_numeric(*parameter_values)
         return CM
     
@@ -257,37 +258,47 @@ class QKDSystem:
         The value of the secret key rate of the system : float 
         """
         if form=='symbolic':
+            attribute = 'symbol'
+        else:
+            attribute = 'value'
             #Load all the QKD parameters into shorter-named variables
             #Load the needed variances and covariances
-            R_B = self.parameters.R_B.symbol
-            [n_q, n_p] = [self.parameters.n_q.symbol, self.parameters.n_p.symbol]
-            V_p_B, C_p = [self.covariances_PM.V_p_B.symbol, self.covariances_PM.C_p.symbol]
-            V_q_B, C_q = [self.covariances_PM.V_q_B.symbol, self.covariances_PM.C_q.symbol]
-            beta = self.beta.symbol
-            #Compute the Shannon's mutual information of the modulated (squeezed) signal quadrature measured at the receiver's homodyne detector 'p' 
-            #and the modulation signal (QKD symbols) prepared at the transmitter 
-            I_AB = QIUtils.mutualInformation(variance_1=V_p_B, variance_2=2*n_p, covariance=C_p) #[bit]
-            I_AB += QIUtils.mutualInformation(variance_1=V_q_B, variance_2=2*n_q, covariance=C_q)
-            #Compute the entanglement-based covariance matrix of the system
+        R_B = getattr(self.parameters.R_B, attribute)
+        [n_q, n_p] = [getattr(self.parameters.n_q, attribute), getattr(self.parameters.n_p, attribute)]
+        V_p_B, C_p = [getattr(self.covariances_PM.V_p_B, attribute), getattr(self.covariances_PM.C_p, attribute)]
+        V_q_B, C_q = [getattr(self.covariances_PM.V_q_B, attribute), getattr(self.covariances_PM.C_q, attribute)]
+        beta = getattr(self.beta, attribute)
+        #Compute the Shannon's mutual information of the modulated (squeezed) signal quadrature measured at the receiver's homodyne detector 'p' 
+        #and the modulation signal (QKD symbols) prepared at the transmitter 
+        I_AB = QIUtils.mutualInformation(variance_1=V_p_B, variance_2=2*n_p, covariance=C_p) #[bit]
+        I_AB += QIUtils.mutualInformation(variance_1=V_q_B, variance_2=2*n_q, covariance=C_q)
+        #Compute the entanglement-based covariance matrix of the system
+        if form == 'symbolic':     
             CM = self.covariance_matrix_EB.expression_symbolic
-            #Compute the entanglement-based covariance matrix after asymmetric homodyne detection of the receiver's mode, along the 'p' quadrature
             CM_B = vacuum_symbolic(3)
-            CM_B[0:4, 0:4] = CM
-            CM_B = CM_B.pick_modes(1, 3, 2)
-            CM_B = CM_B.bs(2, 3, R=R_B)
-            CM_B = CM_B.homodyne_detection(2, 'p').homodyne_detection(2, 'x')
-            if print_warnings and CM_B.physicality<0:
-                print("\nWarning in keyRate(): the entanglement-based covariance matrix after homodyne detection of the receiver's mode is unphysical.")
-            #Compute the von Neumann entropy of the quantum states described by the covariance matrix with and without homodyne detection at the receiver
-            S = QIUtils.VonNeumannEntropy(CM, print_warnings=print_warnings) #without homodyne detection
-            S_B = QIUtils.VonNeumannEntropy(CM_B, print_warnings=print_warnings) #with homodyne detection
-            #Compute the Holevo information
-            holevo_information = S - S_B
-            
-            #Compute the secret key rate
-            R = beta*I_AB - holevo_information
-            R = sympy.simplify(R)
-            self.secret_key_rate.expression_symbolic = R 
+        else:
+            CM = self.computeCovarianceMatrixEB(form='numeric')
+            CM_B = vacuum(3)
+        #Compute the entanglement-based covariance matrix after asymmetric homodyne detection of the receiver's mode, along the 'p' quadrature     
+        CM_B[0:4, 0:4] = CM
+        CM_B = CM_B.pick_modes(1, 3, 2)
+        CM_B = CM_B.bs(2, 3, R=R_B)
+        CM_B = CM_B.homodyne_detection(2, 'p').homodyne_detection(2, 'x')
+        if print_warnings and CM_B.physicality<0:
+            print("\nWarning in keyRate(): the entanglement-based covariance matrix after homodyne detection of the receiver's mode is unphysical.")
+        #Compute the von Neumann entropy of the quantum states described by the covariance matrix with and without homodyne detection at the receiver
+        S = QIUtils.VonNeumannEntropy(CM, print_warnings=print_warnings) #without homodyne detection
+        return S
+        S_B = QIUtils.VonNeumannEntropy(CM_B, print_warnings=print_warnings) #with homodyne detection
+        #Compute the Holevo information
+        holevo_information = S - S_B
+        
+        #Compute the secret key rate
+        R = beta*I_AB - holevo_information
+        R = sympy.simplify(R)
+        if form == 'symbolic':
+            attribute = 'expression_symbolic'
+        setattr(self.secret_key_rate, attribute, R)    
         return R 
     
 

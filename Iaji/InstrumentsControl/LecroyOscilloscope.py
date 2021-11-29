@@ -14,7 +14,8 @@ class LecroyOscilloscope:
         if connect:
             try:
                 self.connect()
-                self.setup_horizontal(sampling_rate, duration, trigger_source)
+                if sampling_rate and duration:
+                    self.setup_horizontal(sampling_rate, duration, trigger_source)
             except ConnectionError: 
                 print("WARNING: it was not possible to connect to the oscilloscope "+self.name)
                 return

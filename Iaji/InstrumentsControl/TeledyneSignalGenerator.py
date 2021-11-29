@@ -15,7 +15,7 @@ class TeledyneSignalGeneratorChannel:
         if connect:
             try:
                 self.connect()
-                if waveform:
+                if waveform and frequency and amplitude and offset:
                     self.setup(waveform, frequency, amplitude, offset)
             except ConnectionError: 
                 print("WARNING: it was not possible to connect to the signal generator "+self.name)

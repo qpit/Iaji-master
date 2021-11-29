@@ -10,6 +10,7 @@ covariance matrices, and calculating the Von Neumann entropy of a Gaussian state
 """
 import numpy as np
 import numpy.linalg
+from uncertainties import ufloat
 from uncertainties import umath
 import sympy
 sympy.init_printing()
@@ -149,9 +150,11 @@ def mutualInformation(variance_1, variance_2, covariance):
     mutual_information: float (>0)
         Shannon's mutual information of the two independent variables.
     """
-    try:
+    if variance_1 is ufloat:
         I = -1/2*umath.log(1-covariance**2/(variance_1*variance_2))
-    except:
+    elif variance_1 is float:
+        I = -1/2*np.log(1-covariance**2/(variance_1*variance_2))
+    else:
         I = -1/2*sympy.log(1-covariance**2/(variance_1*variance_2)) 
         I = sympy.simplify(I)
     return I
