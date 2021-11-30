@@ -1,5 +1,6 @@
 """
-This module describes a Lecroy Oscilloscope, remotely controlled with vx1ii protocol
+This module describes a Lecroy Oscilloscope, remotely controlled with vx1ii protocol.
+For a list of commands, refer to http://cdn.teledynelecroy.com/files/manuals/maui-remote-control-and-automation-manual.pdf
 """
 #%%
 import vxi11
@@ -8,13 +9,14 @@ from .Exceptions import ConnectionError
 print_separator = '\n-------------------------------------------'
 #%%
 class LecroyOscilloscope:
-    def __init__(self, IP_address, sampling_rate, duration, name="no name", trigger_source="LINE", connect=True):
+    def __init__(self, IP_address, sampling_rate=None, duration=None, name="no name", trigger_source="LINE", connect=True):
         self.name = name
         self.IP_address = IP_address
         if connect:
             try:
                 self.connect()
-                self.setup_horizontal(sampling_rate, duration, trigger_source)
+                if sampling_rate and duration:
+                    self.setup_horizontal(sampling_rate, duration, trigger_source)
             except ConnectionError: 
                 print("WARNING: it was not possible to connect to the oscilloscope "+self.name)
                 return
@@ -27,8 +29,6 @@ class LecroyOscilloscope:
 
     def setup_horizontal(self, sampling_rate, duration, trigger_source="LINE"):
         """
-        Refer to the manual at http://cdn.teledynelecroy.com/files/manuals/maui-remote-control-and-automation-manual.pdf
-
         for a list of commands and parameters    
 
         for a list of commands and parameters.  
