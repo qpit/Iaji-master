@@ -38,12 +38,8 @@ def symplecticOmega(n_modes, form='symbolic'):
         the basic symplectic matrix, of dimension (2*'n_modes')X(2*'n_modes') 
     """
     #Construct the generator of the symplectic Omega
-    if form == 'symbolic':
-        omega = sympy.Matrix([[0, 1], [-1, 0]])
-        Omega = sympy.eye(2*n_modes)
-    else:
-        omega = [[0, 1], [-1, 0]]
-        Omega = np.eye(2*n_modes)
+    omega = [[0, 1], [-1, 0]]
+    Omega = np.eye(2*n_modes)
     #Construct the larger symplectic matrix
     for j in range(n_modes):
         Omega[2*j:2*j+1+1, 2*j:2*j+1+1] = omega
@@ -70,29 +66,22 @@ def symplecticEigenvalues(covariance_matrix):
     """
     N = int(covariance_matrix.shape[0]/2) #number of modes of the bosonic field.
     Omega = symplecticOmega(N)    
-    if type(covariance_matrix) is CovarianceMatrix:
-        #Symbolic computation
-        #Construct the symplectic matrix corresponding the input covariance matrix   
-        #covariance_matrix_symplectic = sympy.sqrt(covariance_matrix.T * Omega.T * Omega * covariance_matrix).doit()
-        #return covariance_matrix_symplectic
-        covariance_matrix_symplectic = CovarianceMatrix(sympy.I*Omega*covariance_matrix)
-        #Compute the symplectic eigenvalues of the input covariance matrix
-        symplectic_eigenvalues = covariance_matrix_symplectic.eigenvals()
-        symplectic_eigenvalues = list(symplectic_eigenvalues.keys())
-        symplectic_eigenvalues = [sympy.simplify(sympy.re(eig)) for eig in symplectic_eigenvalues[::2]]
-    elif type(covariance_matrix) in [numpy.ndarray, covariancematrix, vacuum]:
-        covariance_matrix = np.asarray(covariance_matrix, dtype=float)   
-        #Construct the symplectic matrix corresponding the input covariance matrix  
-        N = int(covariance_matrix.shape[0]/2) #number of modes of the bosonic field.
-        #Construct the basic symplectic matrix
-        Omega = np.asarray(symplecticOmega(N), dtype=float) 
-        covariance_matrix_symplectic = 1j*Omega @ covariance_matrix
-        #Compute the symplectic eigenvalues of the input covariance matrix
-        symplectic_eigenvalues = [np.real(s) for s in np.linalg.eig(covariance_matrix_symplectic)[0] if np.real(s)>=0]
-        return symplectic_eigenvalues 
-    else:
-        raise TypeError('Type of covariance_matrix can only be quik.qip.nmodes_symbolic.CovarianceMatrix or numpy.ndarray')
-    return symplectic_eigenvalues
+    covariance_matrix = np.asarray(covariance_matrix, dtype=float)   
+    #Construct the symplectic matrix corresponding the input covariance matrix  
+    N = int(covariance_matrix.shape[0]/2) #number of modes of the bosonic field.
+    #Construct the basic symplectic matrix
+    Omega = np.asarray(symplecticOmega(N, form="numeric"), dtype=float)
+    C_symplectic = 1j*Omega @ covariance_matrix
+    #Compute the symplectic eigenvalues of the input covariance matrix
+    symplectic_eigenvalues = np.abs(np.linalg.eig(C_symplectic)[0])
+    symplectic_eigenvalues = symplectic_eigenvalues[::3]
+    for j in range(N):
+        s = symplectic_eigenvalues[j]
+        if np.isclose(s, 1):
+            symplectic_eigenvalues[j] = 1
+    if np.any(symplectic_eigenvalues < 1):   
+        print("unphysical covariance matrix")
+    return np.array(symplectic_eigenvalues)
 #%%
 def VonNeumannEntropy(covariance_matrix, print_warnings=False):
     """
@@ -110,20 +99,12 @@ def VonNeumannEntropy(covariance_matrix, print_warnings=False):
     S: float
         von Neumann entropy of the Gaussian state with input covariance matrix.
     """
-    ni = symplecticEigenvalues(covariance_matrix) #symplectic eigenvalues of the covariance matrix
-    if type(covariance_matrix) is CovarianceMatrix:
-        S = 0
-        for j in range(len(ni)):
-            ni_temp = ni[j]
-            S += ((ni_temp+1)/2)*sympy.log((ni_temp+1)/2) - ((ni_temp-1)/2)*sympy.log((ni_temp-1)/2)
-        S = sympy.simplify(S)
-    elif type(covariance_matrix) in [numpy.ndarray, covariancematrix, vacuum]:            
-        g = ((ni+1)/2)*np.log((ni+1)/2) - ((ni-1)/2)*np.log((ni-1)/2) #composite function of the symplectic eigenvalues
-        S = np.sum(g) #von Neumann entropy
-        if print_warnings and S<0:
-            print("Warning in vonNeumannEntropy(): the calculated entropy is negative.")
-    else:
-        raise TypeError('Type of covariance_matrix can only be quik.qip.nmodes_symbolic.CovarianceMatrix or numpy.ndarray')
+    ni = symplecticEigenvalues(covariance_matrix) #symplectic eigenvalues of the covariance matrixvacuum]:   
+    g = ((ni+1)/2)*np.log2((ni+1)/2) - ((ni-1)/2)*np.log2((ni-1)/2) #composite function of the symplectic eigenvalues
+    g = [g_0 for g_0 in g if str(g_0) != "nan"]
+    S = np.sum(g) #von Neumann entropy
+    if print_warnings and S<0:
+        print("Warning in vonNeumannEntropy(): the calculated entropy is negative.")
     return S
 #%%
 def mutualInformation(variance_1, variance_2, covariance):
@@ -150,14 +131,7 @@ def mutualInformation(variance_1, variance_2, covariance):
     mutual_information: float (>0)
         Shannon's mutual information of the two independent variables.
     """
-    if variance_1 is ufloat:
-        I = -1/2*umath.log(1-covariance**2/(variance_1*variance_2))
-    elif variance_1 is float:
-        I = -1/2*np.log(1-covariance**2/(variance_1*variance_2))
-    else:
-        I = -1/2*sympy.log(1-covariance**2/(variance_1*variance_2)) 
-        I = sympy.simplify(I)
-    return I
+    return -1/2*np.log2(1-covariance**2/(variance_1*variance_2))
 #%%
 #Validity check functions
 def isPositiveDefinite(matrix):
@@ -221,6 +195,7 @@ def isCovarianceMatrix(matrix):
         return isPositiveSemiDefinite(matrix) and np.allclose(matrix, matrix.T, atol = tolerance) and not np.isclose(np.linalg.det(matrix), 0, atol=tolerance)
     except:
         raise TypeError
+        
 
 #%%
 #Define exceptions
