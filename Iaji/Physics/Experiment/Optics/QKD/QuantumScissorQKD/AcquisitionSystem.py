@@ -17,7 +17,7 @@ class AcquisitionSystem:
     def acquire(self, channel_names): #TODO
         self.scope.start_acquisition(store_all_traces=False)
         for channel_name in channel_names:
-            channel_names
+            
             pass
 
 
