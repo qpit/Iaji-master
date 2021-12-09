@@ -110,8 +110,8 @@ class HighFinesseCavityLock:
         self.pid1.input = 'iq0'
         self.pid1.output_direct = 'off'
         self.pid1.inputfilter = [0, 0, 0, 0]
-        self.pid1.p = 4.0039e-02
-        self.pid1.i = 0
+        self.pid1.p = -1.0039e-02
+        self.pid1.i = -1e-2
         self.pid1.ival = 0
 
     def setup_PID2(self):
