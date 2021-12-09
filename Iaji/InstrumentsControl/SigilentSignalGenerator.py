@@ -16,7 +16,7 @@ class SigilentSignalGenerator:
             self.connect()
         except ConnectionError: 
             print("WARNING: it was not possible to connect to the signal generator "+self.name)
-        self.channels = [SigilentSignalGeneratorChannel(instrument=self.instrument, name=channel_names[j], channel=j+1) for j in range(2)]
+        self.channels = dict(zip(channel_names, [SigilentSignalGeneratorChannel(instrument=self.instrument, name=channel_names[j], channel_number=j+1) for j in range(2)]))
         
     def connect(self):
         try:
@@ -26,10 +26,10 @@ class SigilentSignalGenerator:
             raise ConnectionError
 #%%
 class SigilentSignalGeneratorChannel:
-    def __init__(self, instrument, name="no name", channel=1):
+    def __init__(self, instrument, channel_number, name="no name"):
         self.instrument = instrument
         self.name = name
-        self.channel = "C"+str(int(channel))
+        self.number = int(channel_number)
     
             
     def set_parameter(self, parameter_name, parameter_value):
@@ -49,57 +49,57 @@ class SigilentSignalGeneratorChannel:
             raise InvalidParameterError(error_message)
     
     def set_waveform(self, waveform):
-        setup_string = self.channel \
+        command_string = "C"+str(self.number) \
                        + ":BSWV "\
                        + "WVTP," + waveform 
-        self.instrument.write(setup_string)
+        self.instrument.write(command_string)
         self.waveform = waveform
-        return setup_string
+        return command_string
     
     def set_frequency(self, frequency):
-        setup_string = self.channel \
+        command_string = "C"+str(self.number) \
                        + ":BSWV "\
                       + "FRQ," + str(frequency)
-        self.instrument.write(setup_string)
+        self.instrument.write(command_string)
         self.frequency = frequency
-        return setup_string
+        return command_string
 
     def set_amplitude(self, amplitude):
-        setup_string = self.channel \
+        command_string = "C"+str(self.number) \
                        + ":BSWV "\
                        + "AMP," + str(amplitude)
-        self.instrument.write(setup_string)
+        self.instrument.write(command_string)
         self.amplitude = amplitude
-        return setup_string
+        return command_string
     
     def set_offset(self, offset):
-        setup_string = self.channel \
+        command_string = "C"+str(self.number) \
                        + ":BSWV "\
                        + "OFST," + str(offset)
-        self.instrument.write(setup_string)
+        self.instrument.write(command_string)
         self.offset = offset
-        return setup_string
+        return command_string
     
     def set_duty_cycle(self, duty_cycle):
         if self.waveform != "SQUARE":
             print("WARNING: did not set duty cycle to signal generator '"+self.name+"' because its waveform is not 'SQUARE'. It is "+self.waveform)
             return            
-        setup_string = self.channel \
+        command_string = "C"+str(self.number) \
                        + ":BSWV "\
                        + "OFST," + str(duty_cycle) 
-        self.instrument.write(setup_string)
+        self.instrument.write(command_string)
         self.duty_cycle = duty_cycle
-        return setup_string
+        return command_string
                    
         
     def turn_off(self):
-        self.instrument.write(self.channel+":OUTP off")
-        print(self.channel+":OUTP off")
+        self.instrument.write("C"+str(self.number)+":OUTP off")
+        print("C"+str(self.number)+":OUTP off")
         self.output = "off"
 
         
     def turn_on(self):
-        self.instrument.write(self.channel+":OUTP on")
+        self.instrument.write("C"+str(self.number)+":OUTP on")
         self.output = "on"
         
     
