@@ -59,14 +59,14 @@ class LecroyOscilloscope:
         horizontal_setup = self.get_horizontal_setup()
         vertical_setup = channel.get_vertical_setup()
 
-        self.instrument.write("C" + channel.number + ":ASET")
+        self.instrument.write("C" + str(channel.number) + ":ASET")
         if setup_type is "horizontal":
             channel.setup_vertical(voltage_range=vertical_setup["full range"],
                                 offset=vertical_setup["offset"])
         elif setup_type is "vertical":
             self.setup_horizontal(duration=horizontal_setup["duration"])
         else:
-            pass
+            raise InvalidParameterError("The setup type is not valid. See documentation for valid arguments.")
         if keep_trigger_settings:
             self.setup_trigger(trigger_type=trigger_setup["trigger type"], \
                                trigger_source=trigger_setup["trigger source"], \
@@ -183,8 +183,11 @@ class LecroyOscilloscope:
         :return:
         """
         channel_number = self.channels[channel_name].number
-        self.instrument.write('STO ' + "C"+str(channel_number) + ', FILE')
+        command_string = 'STO ' + "C"+str(channel_number) + ', FILE'
+        self.instrument.write(command_string)
         self.instrument.ask('*OPC?')
+        return command_string
+
 
     #-----------------------------------------------------------------------------------------------------------
     #File management

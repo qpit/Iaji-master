@@ -67,7 +67,7 @@ class PhaseController:
         # Define some useful variables
         self.scanning_frequency = 5  # Hz
         self.modulation_frequency = 25e6  # [Hz]
-        self.phase_LO = 0
+        self.phase = 0
         self.error_signal_amplitude_scanned = 0
         self.error_signal_amplitude = 0
         self.auxiliary_input_amplitude_scanned = 0
@@ -215,7 +215,7 @@ class PhaseController:
         self.asg_control.output_direct = self.control_signal_output
         self.is_scanning = True
 
-    def set_iq_phase(self):
+    def set_demodulation_phase(self):
         was_not_scanning = not self.is_scanning
 
         self.scan()
@@ -390,11 +390,11 @@ class PhaseController:
        # print("Error signal amplitude during ringing check: %0.3f"%self.get_signal_amplitude(signal_name=self.error_signal))
         return self.get_signal_amplitude(signal_name=self.error_signal) >= relative_threshold * self.error_signal_amplitude_scanned
 
-    def set_LO_phase(self, x):
-        theta = x * np.pi / 180
-        self.phase_LO = theta
-        self.pid_AC.p = self.pid_DC_p_initial * np.cos(theta)
-        self.pid_DC.p = self.pid_DC_p_initial * np.sin(theta)
+    def set_phase(self, phase):
+        phase_rad = phase * np.pi / 180
+        self.phase = phase_rad
+        self.pid_AC.p = self.pid_DC_p_initial * np.cos(phase_rad)
+        self.pid_DC.p = self.pid_DC_p_initial * np.sin(phase_rad)
 
     def calibrate(self):
         self.remove_offset_pid_DC()
@@ -403,7 +403,7 @@ class PhaseController:
         time.sleep(0.2)
         self.setup_pid_AC()
         time.sleep(0.2)
-        self.set_iq_phase()
+        self.set_demodulation_phase()
         time.sleep(0.2)
         self.set_iq_qfactor()
         time.sleep(0.2)
