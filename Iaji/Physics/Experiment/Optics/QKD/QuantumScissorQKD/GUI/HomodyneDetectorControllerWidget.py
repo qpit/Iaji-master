@@ -2,7 +2,7 @@
 This module defines the GUI of the HomodyneDetectorController module.
 """
 #%%
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QRect
 from PyQt5.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -23,6 +23,8 @@ from PyQt5.QtWidgets import (
     QSpinBox,
     QTimeEdit,
     QVBoxLayout,
+    QBoxLayout,
+    QGridLayout,
     QWidget,
 )
 
@@ -68,39 +70,47 @@ class PhaseControllerWidget(QWidget):
     def __init__(self, phase_controller, name="Phase Controller Widget"):
         super().__init__()
         self.phase_controller = phase_controller
+        self.name = name
         self.setWindowTitle(name)
         #Define the layout
         self.layout = QVBoxLayout()
         #Define phase control layout
+        self.control_layout = QVBoxLayout()
+        #Set title to layoug
+        self.control_label = QLabel()
+        self.control_label.setText(self.name)
+        self.control_layout.addWidget(self.control_label, Qt.AlignCenter)
         #Define push buttons
-        self.layout_control = QVBoxLayout()
+        self.control_buttons_layout = QGridLayout()
         self.button_names = ["scan", "lock", "unlock", "calibrate", "remove offset from DC error signal", "set demodulation phase", "set iq factors"]
         self.button_callbacks = dict(zip(self.button_names, [self.button_scan_callback, self.button_lock_callback, self.button_unlock_callback, \
                                  self.button_calibrate_callback, self.button_remove_offset_pid_DC_callback, \
                                  self.button_set_demodulation_phase_callback, self.button_set_iq_qfactor_callback]))
         self.buttons = {}
-        for name in self.button_names:
+        n_rows = 3
+        for j in range(len(self.button_names)):
+            name = self.button_names[j]
             button = QPushButton(name)
             button.clicked.connect(self.button_callbacks[name])
-            self.layout_control.addWidget(button)
+            self.control_buttons_layout.addWidget(button, int(j/n_rows), int(np.mod(j, n_rows)))
             self.buttons[name] = button
-        self.layout.addLayout(self.layout_control)
+        self.control_layout.addLayout(self.control_buttons_layout)
         # Define a label to show the phase
         self.label_phase = QLabel()
         self.label_phase.setText("Phase: %0.2f deg"%(self.phase_controller.phase * 180 / np.pi))
-        self.layout_control.addWidget(self.label_phase)
+        self.control_layout.addWidget(self.label_phase)
         # Define a slider to set the LO phase
         self.slider_set_phase = QSlider(Qt.Horizontal)
         self.slider_set_phase.setRange(0, 180)
         self.slider_set_phase.setSingleStep(0.01)
         self.slider_set_phase.valueChanged.connect(self.slider_set_phase_value_changed_callback)
-        self.layout_control.addWidget(self.slider_set_phase)
+        self.control_layout.addWidget(self.slider_set_phase)
+        self.layout.addLayout(self.control_layout)
         #Define a monitor scope layout and widget
-        self.layout_scope = QVBoxLayout()
+        self.scope_layout = QVBoxLayout()
         self.scope_widget = self.phase_controller.redpitaya.scope._module_widget
-        self.layout_scope.addWidget(self.scope_widget)
-        self.layout.addLayout(self.layout_scope)
-
+        self.scope_layout.addWidget(self.scope_widget)
+        self.layout.addLayout(self.scope_layout)
 
         self.setLayout(self.layout)
 

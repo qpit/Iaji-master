@@ -60,11 +60,9 @@ class HighFinesseCavityLock:
         time.sleep(1)
         self.pyrpl_obj = pyrpl_obj
         self.redpitaya = self.pyrpl_obj.rp
-        self.error_signal_input = 'in1'  # typically the broadband output of the hodyne detector
-        self.auxiliary_input = 'in2'  # typically the DC output of the homodyne detector
-        self.error_signal = 'iq0'
-        self.control_signal_coarse = 'out1'
-        self.control_signal_fine = 'out2'
+        #Setup modules and signals
+        self.assign_modules()
+        self.assign_input_output()
         # Define some useful variables
         self.scanning_frequency = 60  # Hz
         self.modulation_frequency = 28.5e6
@@ -74,82 +72,87 @@ class HighFinesseCavityLock:
         self.is_scanning = False
         self.is_locking = False
         time.sleep(0.05)
-        # Set up asgs
-        self.asg0 =self.redpitaya.asg0
-        self.asg1 =self.redpitaya.asg1
-        self.setup_ASG0()
-        # Set up scope
+        #Set up scope
         self.scope =self.redpitaya.scope
         self.setup_scope()
-        # Set up PIDs
-        self.pid0 =self.redpitaya.pid0
-        self.pid1 =self.redpitaya.pid1
-        self.pid2 =self.redpitaya.pid2
-        self.setup_PID0()
-        # self.setup_PID1()
-        # self.setup_PID2()
+        #Set up PIDs
+        self.setup_pid_coarse()
+        self.setup_pid_fine()
         # Setup  iq
-        self.iq0 =self.redpitaya.iq0
-        self.setup_IQ0()
-
+        self.setup_iq()
+        #Setup asgs
+        self.setup_asg_coarse()
+        self.setup_asg_fine()
         # Set locks off
         self.unlock()
         self.figures_count = 0
 
-    def setup_PID0(self):
-        self.pid0.input = self.error_signal
-        self.pid0.output_direct = 'off'
-        # self.pid0.inputfilter = [2e3, 2e3, 0, 0]
+    def assign_modules(self, asg_coarse="asg0", iq="iq0", pid_coarse="pid0"):
+        self.asg_coarse = getattr(self.redpitaya, asg_carse)
+        self.asg_fine = getattr(self.redpiatya, "asg" + str(0 + 1 * (asg_coarse == "asg0")))
+        self.iq = getattr(self.redpitaya, iq)
+        self.error_signal = iq
+        self.pid_coarse = getattr(self.redpitaya, pid)
+        self.pid_fine = getattr(self.redpiatya, "pid"+ str(0+1*(pid_coarse=="pid0")))
+
+    def assign_input_output(self, error_signal_input="in1", control_signal_output_coarse="out1"):
+        #Input
+        self.error_signal_input = error_signal_input
+        self.auxiliary_input = "in" + str(1+1*(error_signal_input=="in1"))
+        #Output
+        self.control_signal_output_coarse = control_signal_output_coarse
+        self.control_signal_output_fine = "out" + str(1+1*(control_signal_output=="out1"))
+
+    def setup_pid_coarse(self):
+        self.pid_coarse.input = self.error_signal
+        self.pid_coarse.output_direct = 'off'
+        # self.pid_coarse.inputfilter = [2e3, 2e3, 0, 0]
         # Set the initial proportional value such that the curve fits in a fraction of the scope range
-        self.pid0.setpoint = 0
-        self.pid0.p = 4.8828e-04
-        self.pid0.i = 2.8255e-01
-        self.pid0.ival = 0
+        self.pid_coarse.setpoint = 0
+        self.pid_coarse.p = 4.8828e-04
+        self.pid_coarse.i = 2.8255e-01
+        self.pid_coarse.ival = 0
 
-    def setup_PID1(self):
-        self.pid1.input = 'iq0'
-        self.pid1.output_direct = 'off'
-        self.pid1.inputfilter = [0, 0, 0, 0]
-        self.pid1.p = -1.0039e-02
-        self.pid1.i = -1e-2
-        self.pid1.ival = 0
+    def setup_pid_fine(self):
+        self.pid_fine.input = self.iq.name
+        self.pid_fine.output_direct = 'off'
+        self.pid_fine.inputfilter = [0, 0, 0, 0]
+        self.pid_fine.p = -1.0039e-02
+        self.pid_fine.i = -1e-2
+        self.pid_fine.ival = 0
 
-    def setup_PID2(self):
-        self.pid2.input = self.error_signal
-        self.pid2.output_direct = 'off'
-        self.pid2.inputfilter = [2e3, 2e3, 0, 0]
-        self.pid2.p = 1
-        self.pid2.i = 0
-        self.pid2.ival = 0
 
-    def enable_PID0(self):
-        self.pid0.output_direct = self.control_signal_coarse
+    def enable_pid_coarse(self):
+        self.pid_coarse.output_direct = self.control_signal_output_coarse
 
-    def setup_ASG0(self):
-        self.asg0.waveform = 'ramp'
-        self.asg0.amplitude = 1
-        self.asg0.trigger_source = 'immediately'
-        self.asg0.offset = 0
-        self.asg0.frequency = self.scanning_frequency
+    def enable_pid_fine(self):
+        self.pid_fine.output_direct = self.control_signal_output_fine
 
-    def setup_ASG1(self):
-        self.asg1.waveform = 'ramp'
-        self.asg1.amplitude = 1
-        self.asg1.trigger_source = 'immediately'
-        self.asg1.offset = 0
-        self.asg1.frequency = self.scanning_frequency
+    def setup_asg_coarse(self):
+        self.asg_coarse.waveform = 'ramp'
+        self.asg_coarse.amplitude = 1
+        self.asg_coarse.trigger_source = 'immediately'
+        self.asg_coarse.offset = 0
+        self.asg_coarse.frequency = self.scanning_frequency
 
-    def setup_IQ0(self):
-       # self.iq0.free()
-        self.iq0.input = self.error_signal_input
-        self.iq0.acbandwidth = 0.8 * self.modulation_frequency
-        self.iq0.bandwidth = [2e3, 2e3]
-        self.iq0.quadrature_factor = 100
-        self.iq0.gain = 0
-        self.iq0.amplitude = 0.5
-        self.iq0.phase = 0
-        self.iq0.output_direct = 'off'
-        self.iq0.output_signal = 'quadrature'
+    def setup_asg_fine(self):
+        self.asg_fine.waveform = 'ramp'
+        self.asg_fine.amplitude = 1
+        self.asg_fine.trigger_source = 'immediately'
+        self.asg_fine.offset = 0
+        self.asg_fine.frequency = self.scanning_frequency
+
+    def setup_iq(self):
+       # self.iq.free()
+        self.iq.input = self.error_signal_input
+        self.iq.acbandwidth = 0.8 * self.modulation_frequency
+        self.iq.bandwidth = [2e4, 2e4]
+        self.iq.quadrature_factor = 100
+        self.iq.gain = 0
+        self.iq.amplitude = 0.5
+        self.iq.phase = 0
+        self.iq.output_direct = 'off'
+        self.iq.output_signal = 'quadrature'
 
     def setup_scope(self):
         self.scope.duration = 0.002
@@ -158,7 +161,7 @@ class HighFinesseCavityLock:
         self.scope.trigger_delay = 0
         # self.scope.average = False
         self.scope.input1 = self.error_signal_input
-        self.scope.input2 = self.control_signal_coarse
+        self.scope.input2 = self.control_signal_output_coarse
 
     def get_scope_curve(self, channel=1, fast=True):
         """
@@ -182,31 +185,31 @@ class HighFinesseCavityLock:
         return trace
 
     def unlock(self, signal_type='all'):
-        self.pid0.output_direct = 'off'
+        self.pid_coarse.output_direct = 'off'
         self.turn_off_scan(signal_type)
         self.is_locking = False
 
     def turn_off_scan(self, signal_type='all'):
         if signal_type == 'coarse':
-            self.asg0.output_direct = 'off'
+            self.asg_coarse.output_direct = 'off'
         elif signal_type == 'fine':
-            self.asg1.output_direct = 'off'
+            self.asg_fine.output_direct = 'off'
         else:
-            self.asg0.output_direct = 'off'
-            self.asg1.output_direct = 'off'
+            self.asg_coarse.output_direct = 'off'
+            self.asg_fine.output_direct = 'off'
         self.scope.trigger_source = 'immediately'
         self.is_scanning = False
 
     def scan(self, scan_type='coarse'):
         # self.unlock(signal_type=signal_type)
         if scan_type == 'coarse':
-            self.setup_ASG0()
-            self.asg0.output_direct = self.control_signal_coarse
-            self.scope.trigger_source = "asg0"
+            self.setup_asg_coarse()
+            self.asg_coarse.output_direct = self.control_signal_output_coarse
+            self.scope.trigger_source = self.asg_coarse.name
         else:
-            self.setup_ASG1()
-            self.asg1.output_direct = self.control_signal_fine
-            self.scope.trigger_source = "asg1"
+            self.setup_asg_fine()
+            self.asg_fine.output_direct = self.control_signal_output_fine
+            self.scope.trigger_source = self.asg_fine.name
         self.is_scanning = True
 
     def set_iq_phase(self):
@@ -219,7 +222,7 @@ class HighFinesseCavityLock:
         x_phase = np.linspace(0, 175, 36)
         amplitudes = np.zeros(36)
         for i, k in enumerate(x_phase):
-            self.iq0.phase = k
+            self.iq.phase = k
             trace = self.get_scope_curve(channel=2)
             amplitudes[i] = np.max(trace) - np.min(trace)
         getattr(self, self.error_signal).phase = x_phase[np.argmax(amplitudes)]  # set the error signal iq module phase
@@ -228,7 +231,7 @@ class HighFinesseCavityLock:
             self.turn_off_scan()
 
     def flip_phase(self):
-        self.iq0.phase = np.mod(self.iq0.phase + 180, 360)
+        self.iq.phase = np.mod(self.iq.phase + 180, 360)
 
     def get_signal_amplitude(self, signal_name=None, fast_acquisition=True):
         """¨
@@ -277,14 +280,12 @@ class HighFinesseCavityLock:
             pass
         # Lock
         # coarse
-        self.pid0.ival = 0
-        self.pid0.input = self.error_signal
-        self.pid0.output_direct = self.control_signal_coarse
+        self.pid_coarse.ival = 0
+        self.enable_pid_coarse()
 
         # fine
-        self.pid1.ival = 0
-        self.pid1.input = self.error_signal
-        self.pid1.output_direct = self.control_signal_fine
+        self.pid_fine.ival = 0
+        self.enable_pid_fine()
         self.scope.duration = 0.04
         return
 
@@ -294,8 +295,8 @@ class HighFinesseCavityLock:
         INPUTS
         -----------
             search_type : str
-                - 'coarse': uses self.control_signal_coarse to look for resonance (should be used first)
-                - 'fine': uses self.control_signal_fine to look for resonance (should be used after 'coarse')
+                - 'coarse': uses self.control_signal_output_coarse to look for resonance (should be used first)
+                - 'fine': uses self.control_signal_output_fine to look for resonance (should be used after 'coarse')
             relative_threshold : float (in [0, 1])
                 The search stops if the current signal level is greater or equal than the resonance height times relative_threshold.
         OUTPUTS
@@ -311,11 +312,11 @@ class HighFinesseCavityLock:
         asg = None
         scope_duration = None
         if search_type == 'coarse':
-            asg = self.asg0
+            asg = self.asg_coarse
             scope_duration = 0.002
             step = 0.000122071
         else:
-            asg = self.asg1
+            asg = self.asg_fine
             scope_duration = 0.2
             step = 0.001
         self.scope.duration = scope_duration

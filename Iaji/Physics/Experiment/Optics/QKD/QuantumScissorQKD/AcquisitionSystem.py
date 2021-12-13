@@ -10,6 +10,7 @@ import shutil
 from Iaji.InstrumentsControl.LecroyOscilloscope import LecroyOscilloscope
 from qopt import lecroy as LecroyReader
 import numpy as np
+import threading
 #%%
 class AcquisitionSystem:
     def __init__(self, scope_IP_address, channel_names=["C1", "C2", "C3", "C4"], name="Acquisition System", save_directory=os.getcwd()):
