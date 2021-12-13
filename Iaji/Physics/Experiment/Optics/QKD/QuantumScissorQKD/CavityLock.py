@@ -19,9 +19,9 @@ class CavityLock:
         self.pyrpl_obj = None
         self.pyrpl_GUI = None
         self.lockbox = None
-        self.high_finesse_lock = None
         if connect:
             self.connect_to_redpitaya(show_pyrpl_GUI=show_pyrpl_GUI)
+            self.high_finesse_lock = HighFinesseCavityLock(self.pyrpl_obj)
      
     def connect_to_redpitaya(self, show_pyrpl_GUI=True):
         self.pyrpl_obj = pyrpl.Pyrpl(config=self.redpitaya_config_filename)
@@ -35,10 +35,8 @@ class CavityLock:
         self.lockbox.lock()
 
     def lock_high_finesse(self):
-        if not self.high_finesse_lock:
-            self.high_finesse_lock = HighFinesseCavityLock(self.pyrpl_obj)
         self.high_finesse_lock.scan()
-        self.high_finesse_lock.set_iq_phase()
+        self.high_finesse_lock.set_demodulation_phase()
         self.high_finesse_lock.lock()
 
     def scan(self):
@@ -46,6 +44,15 @@ class CavityLock:
 
     def unlock(self):
         self.lockbox.unlock()
+
+    def set_demodulation_phase(self):
+        self.high_finesse_lock.set_demodulation_phase()
+
+    def calibrate_high_finesse(self):
+        self.high_finesse_lock.calibrate()
+
+    def flip_phase(self):
+        self.high_finesse_lock.flip_phase()
 #%%
 class HighFinesseCavityLock:
     """
@@ -88,12 +95,12 @@ class HighFinesseCavityLock:
         self.figures_count = 0
 
     def assign_modules(self, asg_coarse="asg0", iq="iq0", pid_coarse="pid0"):
-        self.asg_coarse = getattr(self.redpitaya, asg_carse)
-        self.asg_fine = getattr(self.redpiatya, "asg" + str(0 + 1 * (asg_coarse == "asg0")))
+        self.asg_coarse = getattr(self.redpitaya, asg_coarse)
+        self.asg_fine = getattr(self.redpitaya, "asg" + str(0 + 1 * (asg_coarse == "asg0")))
         self.iq = getattr(self.redpitaya, iq)
         self.error_signal = iq
-        self.pid_coarse = getattr(self.redpitaya, pid)
-        self.pid_fine = getattr(self.redpiatya, "pid"+ str(0+1*(pid_coarse=="pid0")))
+        self.pid_coarse = getattr(self.redpitaya, pid_coarse)
+        self.pid_fine = getattr(self.redpitaya, "pid"+ str(0+1*(pid_coarse=="pid0")))
 
     def assign_input_output(self, error_signal_input="in1", control_signal_output_coarse="out1"):
         #Input
@@ -101,7 +108,7 @@ class HighFinesseCavityLock:
         self.auxiliary_input = "in" + str(1+1*(error_signal_input=="in1"))
         #Output
         self.control_signal_output_coarse = control_signal_output_coarse
-        self.control_signal_output_fine = "out" + str(1+1*(control_signal_output=="out1"))
+        self.control_signal_output_fine = "out" + str(1+1*(control_signal_output_coarse=="out1"))
 
     def setup_pid_coarse(self):
         self.pid_coarse.input = self.error_signal
@@ -212,7 +219,7 @@ class HighFinesseCavityLock:
             self.scope.trigger_source = self.asg_fine.name
         self.is_scanning = True
 
-    def set_iq_phase(self):
+    def set_demodulation_phase(self):
         was_not_scanning = not self.is_scanning
 
         self.scan()
@@ -268,7 +275,7 @@ class HighFinesseCavityLock:
         return signal_amplitude_scanned
 
     def calibrate(self):
-        self.set_iq_phase()
+        self.set_demodulation_phase()
         return
 
     def lock(self, keep_locked=True):
