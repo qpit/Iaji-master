@@ -19,6 +19,7 @@ class CavityLock:
         self.pyrpl_obj = None
         self.pyrpl_GUI = None
         self.lockbox = None
+        self.high_finesse_lock = None
         if connect:
             self.connect_to_redpitaya(show_pyrpl_GUI=show_pyrpl_GUI)
             self.high_finesse_lock = HighFinesseCavityLock(self.pyrpl_obj)
@@ -40,10 +41,10 @@ class CavityLock:
         self.high_finesse_lock.lock()
 
     def scan(self):
-        self.lockbox.sweep()
+        self.high_finesse_lock.scan()
 
     def unlock(self):
-        self.lockbox.unlock()
+        self.high_finesse_lock.unlock()
 
     def set_demodulation_phase(self):
         self.high_finesse_lock.set_demodulation_phase()
@@ -59,13 +60,14 @@ class HighFinesseCavityLock:
     This class describes a custom lock based on RedPitaya pyrpl, used to lock a high-finesse cavity.
     """
 
-    def __init__(self, pyrpl_obj):
+    def __init__(self, pyrpl_obj, name="High-finesse Cavity Lock"):
         """
 
         :param pyrpl_obj: pyrpl.Pyrpl object associated to the RedPitaya that performs the cavity lock
         """
         time.sleep(1)
         self.pyrpl_obj = pyrpl_obj
+        self.name = name
         self.redpitaya = self.pyrpl_obj.rp
         #Setup modules and signals
         self.assign_modules()

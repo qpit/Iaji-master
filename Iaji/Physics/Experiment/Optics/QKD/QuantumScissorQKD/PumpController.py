@@ -12,15 +12,15 @@ class PumpController:
         self.redpitaya_config_filename = redpitaya_config_filename
         self.redpitaya_name = redpitaya_name
         self.name = name
-        self.cavity_lock = CavityLock(redpitaya_config_filename=self.redpitaya_config_filename, name="Second Harmonic Generator Cavity Lock", redpitaya_name=self.redpitaya_name, show_pyrpl_GUI=True)
+        self.SHG_cavity_lock = CavityLock(redpitaya_config_filename=self.redpitaya_config_filename, name="Second Harmonic Generator Cavity Lock", redpitaya_name=self.redpitaya_name, show_pyrpl_GUI=True)
 
     def scan(self):
-        self.cavity_lock.scan()
+        self.SHG_cavity_lock.scan()
 
     def lock(self):
-        self.cavity_lock.lock()
+        self.SHG_cavity_lock.lock()
 
     def unlock(self):
-        self.cavity_lock.unlock()
+        self.SHG_cavity_lock.unlock()
 
 
