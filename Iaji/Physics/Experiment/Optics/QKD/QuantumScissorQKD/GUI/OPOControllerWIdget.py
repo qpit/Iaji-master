@@ -27,6 +27,7 @@ from PyQt5.QtWidgets import (
     QBoxLayout,
     QGridLayout,
     QWidget,
+    QTabWidget,
 )
 
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.OPOController import OPOController
@@ -53,14 +54,15 @@ class OPOControllerWidget(QWidget):
         self.name_label.setText(self.OPO_controller.name)
         self.name_label.setFont(self.label_font)
         self.layout.addWidget(self.name_label, Qt.AlignCenter)
-        #Insert the OPO cavity lock widget
+        #Define the OPO cavity lock widget
         self.cavity_lock_widget = CavityLockWidget(OPO_controller.cavity_lock, name=OPO_controller.cavity_lock.name)
-        self.layout.addWidget(self.cavity_lock_widget)
-        # Insert the OPO gain lock widget
+        #Define the OPO gain lock widget
         self.gain_lock_widget = GainLockWidget(OPO_controller.gain_lock, name=OPO_controller.gain_lock.name)
-        self.layout.addWidget(self.gain_lock_widget)
-
-
+        #Define a tab widget with two tabs (cavity, gain lock)
+        self.tab_widget = QTabWidget()
+        self.tab_widget.addTab(self.cavity_lock_widget, "OPO Cavity Lock")
+        self.tab_widget.addTab(self.gain_lock_widget, "OPO Gain Lock")
+        self.layout.addWidget(self.tab_widget)
 
         self.setLayout(self.layout)
 

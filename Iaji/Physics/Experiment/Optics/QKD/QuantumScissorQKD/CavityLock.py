@@ -12,10 +12,24 @@ import threading
 print_separator = "---------------------------------------"
 #%%
 class CavityLock:
-    def __init__(self, redpitaya_config_filename, name="Cavity Lock", redpitaya_name="Cavity Lock Redpitaya", connect=True, show_pyrpl_GUI=True):
+    def __init__(self, redpitaya_config_filename, name="Cavity Lock", redpitaya_name="Cavity Lock Redpitaya", connect=True, show_pyrpl_GUI=True, lock_type="regular"):
+        """
+
+        :param redpitaya_config_filename: str
+        :param name: str
+        :param redpitaya_name: str
+        :param connect: bool
+        :param show_pyrpl_GUI: bool
+        :param lock_type: str
+            Type of lock.
+            Valid arguments are:
+                - "regular"
+                - "high finesse"
+        """
         self.name = name
         self.redpitaya_name = redpitaya_name
         self.redpitaya_config_filename = redpitaya_config_filename
+        self.lock_type = lock_type
         self.pyrpl_obj = None
         self.pyrpl_GUI = None
         self.lockbox = None
@@ -23,37 +37,64 @@ class CavityLock:
         if connect:
             self.connect_to_redpitaya(show_pyrpl_GUI=show_pyrpl_GUI)
             self.high_finesse_lock = HighFinesseCavityLock(self.pyrpl_obj)
+            self.lockbox = self.pyrpl_obj.lockbox
+            self.scope = self.pyrpl_obj.rp.scope
      
     def connect_to_redpitaya(self, show_pyrpl_GUI=True):
         self.pyrpl_obj = pyrpl.Pyrpl(config=self.redpitaya_config_filename)
-        self.lockbox = self.pyrpl_obj.lockbox
-        self.scope = self.pyrpl_obj.rp.scope
         if show_pyrpl_GUI:
             self.pyrpl_GUI = QtGui.QApplication.instance()
 
 
     def lock(self):
-        self.lockbox.lock()
-
-    def lock_high_finesse(self):
-        self.high_finesse_lock.scan()
-        self.high_finesse_lock.set_demodulation_phase()
-        self.high_finesse_lock.lock()
+        if self.lock_type is "high finesse":
+            self.high_finesse_lock.scan()
+            self.high_finesse_lock.set_demodulation_phase()
+            self.high_finesse_lock.lock()
+        else:
+            self.lockbox.lock()
 
     def scan(self):
-        self.high_finesse_lock.scan()
+        if self.lock_type == "high finesse":
+            print("High finesse lock scan")
+            self.high_finesse_lock.scan()
+        else:
+            print("sweep")
+            self.lockbox.sweep()
 
     def unlock(self):
-        self.high_finesse_lock.unlock()
+        if self.lock_type == "high finesse":
+            self.high_finesse_lock.unlock()
+        else:
+            self.lockbox.lock
 
     def set_demodulation_phase(self):
-        self.high_finesse_lock.set_demodulation_phase()
+        if self.lock_type == "high finesse":
+            self.high_finesse_lock.set_demodulation_phase()
+        else:
+            self.lockbox.calibrate_all()
 
-    def calibrate_high_finesse(self):
-        self.high_finesse_lock.calibrate()
+    def calibrate(self):
+        if self.lock_type == "high finesse":
+            self.high_finesse_lock.calibrate()
+        else:
+            self.lockbox.calibrate_all()
 
     def flip_phase(self):
-        self.high_finesse_lock.flip_phase()
+        if self.lock_type == "high finesse":
+            self.high_finesse_lock.flip_phase()
+
+    def set_lock_type(self, lock_type):
+        """
+
+        :param lock_type: str
+            Type of lock.
+            Valid arguments are:
+                - "regular"
+                - "high finesse"
+        :return:
+        """
+        self.lock_type = lock_type
 #%%
 class HighFinesseCavityLock:
     """

@@ -39,3 +39,6 @@ class OPOController:
 
     def unlock_gain(self):
         self.gain_lock.unlock()
+
+    def calibrate_gain(self):
+        self.gain_lock.calibrate_lock()

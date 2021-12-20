@@ -30,6 +30,7 @@ from PyQt5.QtWidgets import (
 )
 
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.PhaseController import PhaseController
+from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.WidgetStyles import PhaseControllerWidgetStyle
 import numpy as np
 
 #%%
@@ -54,10 +55,6 @@ class PhaseControllerWidget(QWidget):
         self.phase_controller = phase_controller
         self.name = name
         self.setWindowTitle(name)
-        #Define style parameters
-        self.button_style_sheet = "QPushButton {background-color:#2196F3; color:white}"
-        self.button_font = QFont("Times New Roman", pointSize=13)
-        self.label_font = QFont("Times New Roman", pointSize=18)
         #Define the layout
         self.layout = QVBoxLayout()
         #Define phase control layout
@@ -66,7 +63,6 @@ class PhaseControllerWidget(QWidget):
         # Define widget title label
         self.name_label = QLabel()
         self.name_label.setText(self.phase_controller.name)
-        self.name_label.setFont(self.label_font)
         self.control_layout.addWidget(self.name_label, Qt.AlignCenter)
         #Define push buttons
         self.control_buttons_layout = QGridLayout()
@@ -80,15 +76,12 @@ class PhaseControllerWidget(QWidget):
             name = self.button_names[j]
             button = QPushButton(name)
             button.clicked.connect(self.button_callbacks[name])
-            button.setStyleSheet(self.button_style_sheet)
-            button.setFont(self.button_font)
             self.control_buttons_layout.addWidget(button, int(j/n_rows), int(np.mod(j, n_rows)))
             self.buttons[name] = button
         self.control_layout.addLayout(self.control_buttons_layout)
         # Define a label to show the phase
         self.label_phase = QLabel()
         self.label_phase.setText("Phase: %0.2f deg"%(self.phase_controller.phase * 180 / np.pi))
-        self.label_phase.setFont(QFont("Times New Roman", pointSize=15))
         self.control_layout.addWidget(self.label_phase)
         # Define a slider to set the LO phase
         self.slider_set_phase = QSlider(Qt.Horizontal)
@@ -104,6 +97,31 @@ class PhaseControllerWidget(QWidget):
         self.layout.addLayout(self.scope_layout)
 
         self.setLayout(self.layout)
+        self.style_sheets = PhaseControllerWidgetStyle().style_sheets
+        self.set_style(theme="dark")
+
+    def set_style(self, theme): #TODO
+        """
+        This function sets the visual appearance of the widget
+
+        :param theme: str
+            Visual theme.
+            Accepted values are:
+                - "light" - not implemented yet
+                - "dark"
+        :return:
+        """
+        self.setStyleSheet(self.style_sheets["main"][theme])
+        self.name_label.setStyleSheet(self.style_sheets["label"][theme])
+        self.label_phase.setStyleSheet(self.style_sheets["label"][theme])
+
+        for name in self.button_names:
+            self.buttons[name].setStyleSheet(self.style_sheets["button"][theme])
+
+        self.slider_set_phase.setStyleSheet(self.style_sheets["slider"][theme])
+
+
+
 
 
     def button_scan_callback(self):
