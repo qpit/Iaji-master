@@ -6,7 +6,7 @@ import sys
 #----------------------------------------------------------------------------------------------------------
 
 #Test application
-hd = HomodyneDetectorController(redpitaya_config_filename="O:\\LIST-QPIT\\Catlab\\Quantum-Scissors-QKD\\Software\\RedPitaya\\Pyrpl\\Config-files\\HD_Tx_lock", name="HD Controller Test")
+hd = HomodyneDetectorController(redpitaya_config_filename="O:\\LIST-QPIT\\Catlab\\Quantum-Scissors-QKD\\Software\\RedPitaya\\Pyrpl\\Config-files\\HD_Rx1_lock", name="HD Controller Test")
 app = QApplication(sys.argv)
 widget = HomodyneDetectorControllerWidget(hd)
 widget.show()
