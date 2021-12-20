@@ -104,9 +104,12 @@ def detectPhaseIQ(x, fs, f_low_pass, n_low_pass=501, n_hilbert=None):
     i = signal.filtfilt(b_low_pass, 1, input_signal*reference_signal)
     q = signal.filtfilt(b_low_pass, 1, input_signal*reference_signal_orthogonal)
     n_samples_excluded = int(np.ceil(n_low_pass/2))
+    i = i[n_samples_excluded-1:]
+    i = i[::int(fs/(2*f_low_pass))]
+    q = q[n_samples_excluded-1:]
+    q = q[::int(fs/(2*f_low_pass))]
     instantaneous_phase = np.unwrap(np.angle(i+1j*q))
-    instantaneous_phase = instantaneous_phase[n_samples_excluded-1:]
-    return instantaneous_phase[::int(fs/(2*f_low_pass))]
+    return instantaneous_phase
        
         
     

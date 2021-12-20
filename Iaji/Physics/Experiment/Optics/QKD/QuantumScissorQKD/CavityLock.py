@@ -66,7 +66,7 @@ class CavityLock:
         if self.lock_type == "high finesse":
             self.high_finesse_lock.unlock()
         else:
-            self.lockbox.lock
+            self.lockbox.unlock()
 
     def set_demodulation_phase(self):
         if self.lock_type == "high finesse":
@@ -193,7 +193,7 @@ class HighFinesseCavityLock:
         self.asg_fine.frequency = self.scanning_frequency
 
     def setup_iq(self):
-       # self.iq.free()
+        self.iq.free()
         self.iq.input = self.error_signal_input
         self.iq.acbandwidth = 0.8 * self.modulation_frequency
         self.iq.bandwidth = [2e4, 2e4]
@@ -275,7 +275,7 @@ class HighFinesseCavityLock:
             self.iq.phase = k
             trace = self.get_scope_curve(channel=2)
             amplitudes[i] = np.max(trace) - np.min(trace)
-        getattr(self, self.error_signal).phase = x_phase[np.argmax(amplitudes)]  # set the error signal iq module phase
+        self.iq.phase = x_phase[np.argmax(amplitudes)]  # set the error signal iq module phase
 
         if was_not_scanning:
             self.turn_off_scan()
@@ -321,21 +321,30 @@ class HighFinesseCavityLock:
         self.set_demodulation_phase()
         return
 
-    def lock(self, keep_locked=True):
+    def lock(self):
         self.unlock()
         # Search for resonance -coarse stage
-        try:
-          self.search_resonance(search_type='coarse', relative_threshold=0.5)
-        except ResonanceNotFoundError:
-            pass
+        self.search_resonance(search_type='coarse', relative_threshold=0.5)
         # Lock
         # coarse
+        self.pid_coarse.p = 5e-4
+        self.pid_coarse.i = 0.5
         self.pid_coarse.ival = 0
         self.enable_pid_coarse()
-
+        time.sleep(1)
         # fine
         self.pid_fine.ival = 0
+        self.pid_fine.p = 0
+        self.pid_fine.i = 0
         self.enable_pid_fine()
+        time.sleep(0.5)
+        self.pid_fine.p = -0.5
+        time.sleep(0.5)
+        self.pid_coarse.p = 0
+        time.sleep(0.5)
+        self.pid_fine.i = -1
+        time.sleep(0.5)
+        self.pid_coarse.i = 0
         self.scope.duration = 0.04
         return
 
