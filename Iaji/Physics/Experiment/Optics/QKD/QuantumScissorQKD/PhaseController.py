@@ -2,6 +2,8 @@
 import time
 import numpy as np
 import threading
+
+print_separator = "-------------------------------------------------------------------"
 #%%
 class PhaseController:
     """
