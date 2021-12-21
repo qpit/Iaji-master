@@ -1,7 +1,6 @@
 """
 This module defines the styles of different widgets belonging to this pckage
 """
-#%%
 
 class WidgetStyle:
     def __init__(self):
@@ -168,6 +167,48 @@ class GainLockWidgetStyle(WidgetStyle):
                                             }
                                             """
 
+class PIDControlWidgetStyle(WidgetStyle):
+    def __init__(self):
+        super().__init__()
+        self.style_sheets["main"]["dark"] = "background-color: #37474; color:white;"
+        self.style_sheets["button"]["dark"] = """
+                                              QPushButton
+                                              {
+                                              background-color: #1A237E; 
+                                              color: 'white'; 
+                                              border-color: 'white';
+                                              font-family: Times New Roman;
+                                              font-size: 13pt;
+                                              }
+                                              """
+        self.style_sheets["label"]["dark"] =  """
+                                            QLabel
+                                            {
+                                            background-color : #1A237E; 
+                                            color: 'white';
+                                            border-color: 'white'; 
+                                            font-family: Times New Roman ;
+                                            font-size: 15pt;
+                                            }
+                                            """
+        self.style_sheets["slider"]["dark"] = """
+                                              QSlider
+                                              {
+                                              background-color: #1A237E;
+                                              color: 'white';
+                                              border-color: 'white'
+                                              }
+                                              """
+        self.style_sheets["tabs"]["dark"] = """
+                                            QTabWidget
+                                            {
+                                            background-color: #1A237E;
+                                            color: 'white';
+                                            border-color: 'white'
+                                            font-family: Times New Roman;
+                                            font-size: 12pt
+                                            }
+                                            """
 
 
 

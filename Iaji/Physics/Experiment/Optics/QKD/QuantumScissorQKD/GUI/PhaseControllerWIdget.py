@@ -66,18 +66,16 @@ class PhaseControllerWidget(QWidget):
         self.control_layout.addWidget(self.name_label, Qt.AlignCenter)
         #Define push buttons
         self.control_buttons_layout = QGridLayout()
-        self.button_names = ["scan", "lock", "unlock", "calibrate", "remove offset from DC error signal", "set demodulation phase", "set iq factors"]
-        self.button_callbacks = dict(zip(self.button_names, [self.button_scan_callback, self.button_lock_callback, self.button_unlock_callback, \
-                                 self.button_calibrate_callback, self.button_remove_offset_pid_DC_callback, \
-                                 self.button_set_demodulation_phase_callback, self.button_set_iq_qfactor_callback]))
-        self.buttons = {}
-        n_rows = 3
-        for j in range(len(self.button_names)):
-            name = self.button_names[j]
+        control_button_names = ["scan", "lock", "unlock", "calibrate", "remove_offset_pid_DC", "set_demodulation_phase", "set_iq_qfactor"]
+        control_button_callbacks = dict(
+            zip(control_button_names, [getattr(self, "control_button_"+name+"_callback") for name in control_button_names]))
+        n_rows = 2
+        for j in range(len(control_button_names)):
+            name = control_button_names[j]
             button = QPushButton(name)
-            button.clicked.connect(self.button_callbacks[name])
-            self.control_buttons_layout.addWidget(button, int(j/n_rows), int(np.mod(j, n_rows)))
-            self.buttons[name] = button
+            button.clicked.connect(control_button_callbacks[name])
+            self.control_buttons_layout.addWidget(button, int(j / n_rows), int(np.mod(j, n_rows)))
+            setattr(self, "control_button_"+name, button)
         self.control_layout.addLayout(self.control_buttons_layout)
         # Define a label to show the phase
         self.label_phase = QLabel()
@@ -100,49 +98,36 @@ class PhaseControllerWidget(QWidget):
         self.style_sheets = PhaseControllerWidgetStyle().style_sheets
         self.set_style(theme="dark")
 
-    def set_style(self, theme): #TODO
-        """
-        This function sets the visual appearance of the widget
-
-        :param theme: str
-            Visual theme.
-            Accepted values are:
-                - "light" - not implemented yet
-                - "dark"
-        :return:
-        """
+    def set_style(self, theme):
         self.setStyleSheet(self.style_sheets["main"][theme])
-        self.name_label.setStyleSheet(self.style_sheets["label"][theme])
-        self.label_phase.setStyleSheet(self.style_sheets["label"][theme])
-
-        for name in self.button_names:
-            self.buttons[name].setStyleSheet(self.style_sheets["button"][theme])
-
-        self.slider_set_phase.setStyleSheet(self.style_sheets["slider"][theme])
+        for widget_type in ["label", "slider", "button", "radiobutton"]:
+            widgets = [getattr(self, name) for name in list(self.__dict__.keys()) if widget_type in name and "layout" not in name and "callback" not in name]
+            for widget in widgets:
+                widget.setStyleSheet(self.style_sheets[widget_type][theme])
 
 
 
 
 
-    def button_scan_callback(self):
+    def control_button_scan_callback(self):
         self.phase_controller.scan()
 
-    def button_lock_callback(self):
+    def control_button_lock_callback(self):
         self.phase_controller.lock()
 
-    def button_unlock_callback(self):
+    def control_button_unlock_callback(self):
         self.phase_controller.unlock()
 
-    def button_calibrate_callback(self):
+    def control_button_calibrate_callback(self):
         self.phase_controller.calibrate()
 
-    def button_remove_offset_pid_DC_callback(self):
+    def control_button_remove_offset_pid_DC_callback(self):
         self.phase_controller.remove_offset_pid_DC()
 
-    def button_set_demodulation_phase_callback(self):
+    def control_button_set_demodulation_phase_callback(self):
         self.phase_controller.set_iq_phase()
 
-    def button_set_iq_qfactor_callback(self):
+    def control_button_set_iq_qfactor_callback(self):
         self.phase_controller.set_iq_qfactor()
 
     def slider_set_phase_value_changed_callback(self, value):

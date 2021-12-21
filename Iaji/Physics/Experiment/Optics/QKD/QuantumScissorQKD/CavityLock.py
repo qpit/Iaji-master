@@ -47,7 +47,7 @@ class CavityLock:
 
 
     def lock(self):
-        if self.lock_type is "high finesse":
+        if self.lock_type == "high finesse":
             self.high_finesse_lock.scan()
             self.high_finesse_lock.set_demodulation_phase()
             self.high_finesse_lock.lock()
