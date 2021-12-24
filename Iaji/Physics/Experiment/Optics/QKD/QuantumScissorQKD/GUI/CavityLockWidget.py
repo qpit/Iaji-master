@@ -68,8 +68,34 @@ class CavityLockWidget(QWidget):
             setattr(self, "control_button_"+name, button)
         self.layout.addLayout(self.control_buttons_layout)
         # Create the PID widget
-        self.PID_layout = QVBoxLayout()
-        self.make_PID_widget()
+        self.PID_layout = QHBoxLayout()
+        self.PID_widget = PIDControlWidget()
+        self.high_finesse_PID_widget = HighFinessePIDWidget()
+        for stage in ["coarse", "fine"]:
+            getattr(self.high_finesse_PID_widget, "PID_"+stage+"_widget").P_doublespinbox.setRange(-2e3, 2e3)
+            getattr(self.high_finesse_PID_widget, "PID_" + stage + "_widget").I_doublespinbox.setRange(-1e4, 1e4)
+            getattr(self.high_finesse_PID_widget, "PID_" + stage + "_widget").I_value_doublespinbox.setRange(-4, 4)
+        for parameter in ["P", "I", "I_value"]:
+            self.high_finesse_PID_widget.PID_coarse_widget.set_parameter_changed_callback(parameter, \
+                                getattr(self, "high_finesse_PID_widget_coarse_"+parameter+"_doublespinbox_value_changed"))
+            self.high_finesse_PID_widget.PID_fine_widget.set_parameter_changed_callback(parameter, \
+                        getattr(self, "high_finesse_PID_widget_fine_" + parameter + "_doublespinbox_value_changed"))
+        for stage in ["coarse", "fine"]:
+            widget = getattr(self.high_finesse_PID_widget, "PID_"+stage+"_widget")
+            for parameter in ["P", "I", "I_value"]:
+                if parameter == "I_value":
+                    parameter_lower_case = "ival"
+                else:
+                    parameter_lower_case = parameter.lower()
+                getattr(widget, parameter+"_doublespinbox").setValue(getattr(getattr(self.cavity_lock.high_finesse_lock, "pid_"+stage), parameter_lower_case))
+                getattr(widget, parameter + "_doublespinbox").setSingleStep(2e-4)
+                getattr(widget, parameter + "_doublespinbox").setDecimals(4)
+        self.PID_layout.addWidget(self.PID_widget)
+        self.PID_layout.addWidget(self.high_finesse_PID_widget)
+        if self.cavity_lock.lock_type == "high finesse":
+            self.PID_widget.hide()
+        else:
+            self.high_finesse_PID_widget.hide()
         self.layout.addLayout(self.PID_layout)
         # Define a monitor scope layout and widget
         self.scope_layout = QVBoxLayout()
@@ -81,16 +107,6 @@ class CavityLockWidget(QWidget):
         self.set_style(theme="dark")
 
         self.setLayout(self.layout)
-
-    def make_PID_widget(self):
-        self.PID_layout = QVBoxLayout()
-        if self.cavity_lock.lock_type == "high finesse":
-            self.PID_widget = HighFinessePIDWidget()
-        else:
-            self.PID_widget = PIDControlWidget()
-        self.PID_layout.addWidget(self.PID_widget)
-        self.update()
-
 
     def control_button_scan_callback(self):
         self.cavity_lock.scan()
@@ -113,14 +129,42 @@ class CavityLockWidget(QWidget):
     def radiobutton_high_finesse_clicked(self):
         if self.radiobutton_high_finesse.isChecked():
             lock_type = "high finesse"
+            self.high_finesse_PID_widget.show()
+            self.PID_widget.hide()
         else:
             lock_type = "regular"
+            self.high_finesse_PID_widget.hide()
+            self.PID_widget.show()
+
         self.cavity_lock.set_lock_type(lock_type)
-        self.make_PID_widget()
+
+    def high_finesse_PID_widget_coarse_P_doublespinbox_value_changed(self, value):
+        self.cavity_lock.high_finesse_lock.pid_coarse.p = value
+        self.high_finesse_PID_widget.PID_coarse_widget.P_label.setText("P: %0.4f"%value)
+
+    def high_finesse_PID_widget_coarse_I_doublespinbox_value_changed(self, value):
+        self.cavity_lock.high_finesse_lock.pid_coarse.i = value
+        self.high_finesse_PID_widget.PID_coarse_widget.I_label.setText("I: %0.4f"%value)
+
+    def high_finesse_PID_widget_coarse_I_value_doublespinbox_value_changed(self, value):
+        self.cavity_lock.high_finesse_lock.pid_coarse.ival = value
+        self.high_finesse_PID_widget.PID_coarse_widget.I_value_label.setText("I value: %0.4f"%value)
+
+    def high_finesse_PID_widget_fine_P_doublespinbox_value_changed(self, value):
+        self.cavity_lock.high_finesse_lock.pid_fine.p = value
+        self.high_finesse_PID_widget.PID_fine_widget.P_label.setText("P: %0.4f"%value)
+
+    def high_finesse_PID_widget_fine_I_doublespinbox_value_changed(self, value):
+        self.cavity_lock.high_finesse_lock.pid_fine.i = value
+        self.high_finesse_PID_widget.PID_fine_widget.I_label.setText("I: %0.4f"%value)
+
+    def high_finesse_PID_widget_fine_I_value_doublespinbox_value_changed(self, value):
+        self.cavity_lock.high_finesse_lock.pid_fine.ival = value
+        self.high_finesse_PID_widget.PID_fine_widget.I_value_label.setText("I value: %0.4f"%value)
 
     def set_style(self, theme):
         self.setStyleSheet(self.style_sheets["main"][theme])
-        for widget_type in ["label", "slider", "button", "radiobutton"]:
+        for widget_type in ["label", "doublespinbox", "button", "radiobutton"]:
             widgets = [getattr(self, name) for name in list(self.__dict__.keys()) if widget_type in name and "layout" not in name and "callback" not in name]
             for widget in widgets:
                 widget.setStyleSheet(self.style_sheets[widget_type][theme])
@@ -142,7 +186,17 @@ class HighFinessePIDWidget(QWidget):
         self.layout.addWidget(self.PID_fine_label)
         self.layout.addWidget(self.PID_fine_widget)
 
+
         self.setLayout(self.layout)
+        self.style_sheets = CavityLockWidgetStyle().style_sheets
+        self.set_style(theme="dark")
+
+    def set_style(self, theme):
+        for widget_type in ["label", "doublespinbox", "button", "radiobutton"]:
+            widgets = [getattr(self, name) for name in list(self.__dict__.keys()) if
+                       widget_type in name and "layout" not in name and "callback" not in name]
+            for widget in widgets:
+                widget.setStyleSheet(self.style_sheets[widget_type][theme])
 
 
 

@@ -4,7 +4,7 @@ This module defines the styles of different widgets belonging to this pckage
 
 class WidgetStyle:
     def __init__(self):
-        self.widget_types = ["main", "button", "label", "slider", "tabs", "radiobutton"]
+        self.widget_types = ["main", "button", "label", "slider", "tabs", "radiobutton", "doublespinbox"]
         self.theme_types = ["dark", "light"]
         self.style_sheets = {}
         for widget_type in self.widget_types:
@@ -199,6 +199,14 @@ class PIDControlWidgetStyle(WidgetStyle):
                                               border-color: 'white'
                                               }
                                               """
+        self.style_sheets["doublespinbox"]["dark"] = """
+                                                      QDoubleSpinbox
+                                                      {
+                                                      background-color: #1A237E;
+                                                      color: 'white';
+                                                      border-color: 'white'
+                                                      }
+                                                      """
         self.style_sheets["tabs"]["dark"] = """
                                             QTabWidget
                                             {
