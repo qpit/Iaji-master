@@ -1,11 +1,5 @@
 """
-This module defines a density matrix in finite dimension.
+This module defines a density matrix.
 """
 
-class QuantumHarmonicOscillatorDensityOperator:
-    def __init__(self, N):
-        """
-        :param N:
-        """
-        #self.parameter =
-        return
+

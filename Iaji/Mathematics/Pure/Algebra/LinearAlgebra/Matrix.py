@@ -8,7 +8,7 @@ from uncertainties import unumpy
 import numpy.linalg
 from Iaji.Mathematics.Parameter import Parameter, ParameterSymbolic, ParameterNumeric
 from Iaji.Exceptions import InvalidArgumentError, InconsistentArgumentsError, MissingArgumentsError, MethodNotImplementedError
-from .Exceptions import InconsistentShapeError
+from .Exceptions import InconsistentShapeError, TestFailedError
 #%%
 ACCEPTED_VALUE_TYPES = [numpy.matrix, numpy.ndarray, uncertainties.unumpy.core.matrix]
 ACCEPTED_SHAPE_TYPES = [tuple, list, numpy.array, numpy.ndarray]
@@ -116,9 +116,8 @@ class MatrixSymbolic(ParameterSymbolic):
                 self.expression_lambda = sympy.lambdify(self.expression_symbols, expression, modules="numpy")
             except AttributeError:
                 self.expression_lambda = None
-            if self.type == "vector":
-                self._expression = sympy.Matrix(sympy.Array(self._expression))
-                self._shape = self._expression.shape
+            self._expression = sympy.Matrix(sympy.Array(self._expression))
+            self._shape = self._expression.shape
             self.expression_changed.emit()  # emit expression changed signal
         else:
             self.expression_symbols = None
@@ -151,7 +150,9 @@ class MatrixSymbolic(ParameterSymbolic):
             The eigenvalues and their algebric multiplicity.
         """
         if self.expression is None:
-            raise TypeError("Cannot compute the eigenvalues because the symbolic expression of matrix "+self.name+" is None")
+            raise TypeError("Cannot compute the eigenvalues because the symbolic expression of matrix "+self.name+" is None\n"+self.__str__())
+        elif not self.isSquare():
+            raise TypeError("Cannot compute the eigenvalues because the symbolic expression of matrix "+self.name+" is not square\n"+self.__str__())
         else:
             self._eigenvalues = sympy.simplify(sympy.Matrix(self.expression).eigenvals())
             return self.eigenvalues
@@ -166,7 +167,7 @@ class MatrixSymbolic(ParameterSymbolic):
             The rank of the matrix
         """
         if self.expression is None:
-            raise TypeError("Cannot compute the rank because the symbolic expression of matrix "+self.name+" is None")
+            raise TypeError("Cannot compute the rank because the symbolic expression of matrix "+self.name+" is None\n"+self.__str__())
         else:
             self._rank = sympy.simplify(sympy.Matrix(self.expression).rank())
             return self.rank
@@ -182,7 +183,9 @@ class MatrixSymbolic(ParameterSymbolic):
             The trace of the matrix
         """
         if self.expression is None:
-            raise TypeError("Cannot compute the trace because the symbolic expression of matrix "+self.name+" is None")
+            raise TypeError("Cannot compute the eigenvalues because the symbolic expression of matrix "+self.name+" is None\n"+self.__str__())
+        elif not self.isSquare():
+            raise TypeError("Cannot compute the eigenvalues because the symbolic expression of matrix "+self.name+" is not square\n"+self.__str__())
         else:
             self._trace = sympy.simplify(sympy.Matrix(self.expression).trace())
             return self.trace
@@ -196,13 +199,10 @@ class MatrixSymbolic(ParameterSymbolic):
         -------------
             The determinant of the matrix
         """
-        if self.expression is None:
-            raise TypeError("Cannot compute the determinant because the symbolic expression of matrix "+self.name+" is None")
-        else:
-            if self.eigenvalues is None:
-                self.Eigenvalues()
-            self._determinant = sympy.simplify(sympy.prod(sympy.Array(self.eigenvalues.keys())))
-            return self.determinant
+        if self.eigenvalues is None:
+            self.Eigenvalues()
+        self._determinant = sympy.simplify(sympy.prod(sympy.Array(self.eigenvalues.keys())))
+        return self.determinant
     # ----------------------------------------------------------
     # ----------------------------------------------------------
     def isPositiveDefinite(self):
@@ -213,10 +213,10 @@ class MatrixSymbolic(ParameterSymbolic):
         is_positive_definite: boolean
             it is true if and only if the input matrix is positive definite
         """
-        raise MethodNotImplementedError
+        return self.isPositiveSemiDefinite() and not self.isSingular()
     # ----------------------------------------------------------
     # ----------------------------------------------------------
-    def isPositiveSemiDefinite(self):
+    def isPositiveSemidefinite(self):
         """
         This function checks whether the input matrix is positive semidefinite, i.e., whether all its eigenvalues are not lower than zero.
 um
@@ -225,8 +225,25 @@ um
         is_positive_definite: boolean
             it is true if and only if the input matrix is positive semidefinite
         """
-        raise MethodNotImplementedError
-
+        if self.eigenvalues is None:
+            self.Eigenvalues()
+        if not self.isHermitian():
+            raise TypeError("Cannot test definiteness because the symbolic expression of matrix "+self.name+" is not Hermitian.\n"+self.__str__())
+        elif not self.isSymmetric():
+            raise TypeError("Cannot test definiteness because the symbolic expression of matrix "+self.name+" is not symmetric.\n"+self.__str__())
+        else:
+            #Check that all the eigenvalues are nonnegative
+            condition = True
+            for eigenvalue in sympy.Array(self.eigenvalues.keys()):
+                check = eigenvalue >= 0
+                if type(check) not in [bool, sympy.logic.boolalg.BooleanTrue, sympy.logic.boolalg.BooleanFalse]:
+                    raise TestFailedError("Could not test definiteness because the relation "+check.__str__()\
+                                          +" could not be verified for all values of the variables.")
+                else:
+                    condition = condition and check
+                    if condition is False:
+                        break
+            return condition
     # ----------------------------------------------------------
     # ----------------------------------------------------------
     def isCovarianceMatrix(self):
@@ -242,9 +259,53 @@ um
             it is true if an only if the input matrix is a covariance matrix
 
         """
-        raise MethodNotImplementedError
-
+        if self.eigenvalues is None:
+            self.Eigenvalues()
+        if self.determinant is None:
+            self.Determinant()
+        check_details = {}
+        check_details["is square"] = self.isSquare()
+        check_details["is symmetric"] = self.isSymmetric()
+        check_details["is positive-semidefinite"] = self.isPositiveSemidefinite()
+        check_details["is singular"] = self.isSingular()
+        check = check_details["is square"]\
+            and check_details["is symmetric"]\
+            and check_details["is positive-semidefinite"]\
+            and not check_details["is singular"]
+        return check, check_details
     # ----------------------------------------------------------
+    # ----------------------------------------------------------
+    def isSingular(self):
+        """
+        This function returns True if and only if the matrix has determinant zero
+        """
+        if self.determinant is None:
+            self.Determinant()
+        return self.determinant == 0
+        # ----------------------------------------------------------
+        # ----------------------------------------------------------
+
+    def isSymmetric(self):
+        """
+        This function returns True if and only if the matrix is symmetric
+        """
+        if self.expression is None:
+            raise TypeError("Cannot test simmetry because the symbolic expression of matrix "+self.name+" is None\n"+self.__str__())
+        elif not self.isSquare():
+            raise TypeError("Cannot test simmetry because the symbolic expression of matrix "+self.name+" is not square\n"+self.__str__())
+        else:
+            return sympy.simplify(self.expression - self.expression.T) == sympy.zeros(*self.shape)
+        # ----------------------------------------------------------
+        # ----------------------------------------------------------
+
+    def isSquare(self):
+        """
+        This function returns True if and only if the matrix is square
+        """
+        if self.expression is None:
+            raise TypeError("Cannot test shape because the symbolic expression of matrix "+self.name+" is None\n"+self.__str__())
+        else:
+            return self.shape[0] == self.shape[1]
     # ----------------------------------------------------------
     def isDensityMatrix(self):
         """
@@ -256,37 +317,42 @@ um
             - self has trace 1
             - self^2 has trace <= 1
         """
-        raise MethodNotImplementedError
-    # ----------------------------------------------------------
-    # ----------------------------------------------------------
-    def isPositiveSemidefinite(self, tolerance=1e-10):
-        """
-        This function checks whether the input Hermitian matrix is positive-semidefinite.
-        M is positive-semidefinite if an only if all its eigenvalues are nonnegative
-
-        INPUTS
-        -------------
-            tolerance : float
-                An absolute margin on the check that all eigenvalues are nonnegative
-
-
-        OUTPUTS
-        -----------
-        True if self is positive-semidefinite
-        """
-        raise MethodNotImplementedError
+        check_details = {}
+        check_details['is Hermitian'] = self.isHermitian()
+        check_details['is positive-semidefinite'] = self.isPositiveSemidefinite()
+        check_details['has trace 1'] = self.isTraceNormalized()
+        check = check_details['is Hermitian'] and check_details['is positive-semidefinite'] \
+                and check_details['has trace 1']
+        return check, check_details
     # ----------------------------------------------------------
     # ----------------------------------------------------------
     def isHermitian(self):
         """
         This function checks whether the input matrix is Hermitian.
         A matrix is hermitian if an only if all of its eigenvalues are real
-
-        OUTPUTS
-        -----------
-        True if M is is Hermitian
         """
-        raise MethodNotImplementedError
+        if self.eigenvalues is None:
+            self.Eigenvalues()
+        if not self.isSymmetric():
+            raise TypeError("Cannot test Hermitianity because the symbolic expression of matrix "+self.name+" is not symmetric.\n"+self.__str__())
+        else:
+            #Check that all the eigenvalues are real
+            condition = True
+            for eigenvalue in sympy.Array(self.eigenvalues.keys()):
+                eigenvalue_im = sympy.simplify(sympy.im(eigenvalue))
+                #Often sympy does not recognize a null imaginary part,
+                #because it does not see that atan2(0, ...) = 0.
+                #So I enforce it by hard substitution
+                eigenvalue_im = sympy.sympify(eigenvalue_im.__str__().replace("atan2(0,", "atan2(0, 1)*("))
+                check = eigenvalue_im == 0
+                if type(check) not in [bool, sympy.logic.boolalg.BooleanTrue, sympy.logic.boolalg.BooleanFalse]:
+                    raise TestFailedError("Could not test Hermitianity because the relation "+check.__str__()\
+                                          +" could not be verified for all values of the variables.")
+                else:
+                    condition = condition and check
+                    if condition is False:
+                        break
+            return condition
     # ----------------------------------------------------------
     # ----------------------------------------------------------
     def isTraceNormalized(self):
@@ -304,13 +370,23 @@ um
     # ----------------------------------------------------------
     def isTraceConvex(self):
         """
-        This function checks whether the input matrix has trace(M^2) <= 1
-
-        OUTPUTS
-        -----------
-        True if M has trace(M^2) <= 1
+        This function checks whether the matrix has trace(self.expression^2) <= 1
         """
-        raise MethodNotImplementedError
+        if self.expression is None:
+            raise TypeError("Cannot test trace convexity because the symbolic expression of matrix "+self.name+" is None\n"+self.__str__())
+        elif not self.isSquare():
+            raise TypeError("Cannot test trace convexity because the symbolic expression of matrix "+self.name+" is not square\n"+self.__str__())
+        elif not self.isHermitian():
+            raise TypeError(
+                "Cannot test trace convexity because the symbolic expression of matrix " + self.name + " is not Hermitian.\n" + self.__str__())
+        else:
+            condition = sympy.simplify((sympy.Matrix(self.expression)*sympy.Matrix(self.expression)).trace())-1 <= 0
+            if type(condition) not in [bool, sympy.logic.boolalg.BooleanTrue, sympy.logic.boolalg.BooleanFalse]:
+                raise TestFailedError(
+                    "Could not test definiteness because the relation " + condition.__str__() \
+                    + " could not be verified for all values of the variables.")
+            else:
+                return condition
     # ----------------------------------------------------------
 
 
@@ -415,7 +491,9 @@ class MatrixNumeric(ParameterNumeric):
             The eigenvalues and their algebric multiplicity.
         """
         if self.value is None:
-            raise TypeError("Cannot compute the eigenvalues because the value of matrix "+self.name+" is None")
+            raise TypeError("Cannot compute the eigenvalues because the value of matrix "+self.name+" is None\n"+self.__str__())
+        elif not self.isSquare():
+            raise TypeError("Cannot compute the eigenvalues because the value of matrix "+self.name+" is not square\n"+self.__str__())
         else:
             self._eigenvalues = numpy.linalg.eigvals(self.value)
         return self.eigenvalues
@@ -431,7 +509,7 @@ class MatrixNumeric(ParameterNumeric):
         """
 
         if self.value is None:
-            raise TypeError("Cannot compute the rank because the value of matrix " + self.name + " is None")
+            raise TypeError("Cannot compute the rank because the value of matrix " + self.name + " is None\n"+self.__str__())
         else:
             self._rank = numpy.linalg.matrix_rank(self.value)
         return self.rank
@@ -448,7 +526,9 @@ class MatrixNumeric(ParameterNumeric):
         """
 
         if self.value is None:
-            raise TypeError("Cannot compute the trace because the value of matrix " + self.name + " is None")
+            raise TypeError("Cannot compute the eigenvalues because the value of matrix "+self.name+" is None\n"+self.__str__())
+        elif not self.isSquare():
+            raise TypeError("Cannot compute the eigenvalues because the value of matrix "+self.name+" is not square\n"+self.__str__())
         else:
             self._trace = numpy.trace(self.value)
         return self.trace
@@ -462,10 +542,9 @@ class MatrixNumeric(ParameterNumeric):
         -------------
             The determinant of the matrix
         """
-        if self.value is None:
-            raise TypeError("Cannot compute the determinant because the value of matrix "+self.name+" is None")
-        else:
-            self._determinant = numpy.linalg.det(self.value)
+        if self.eigenvalues is None:
+            self.Eigenvalues()
+        self._determinant = numpy.linalg.det(self.value)
         return self.determinant
     # ----------------------------------------------------------
     # ----------------------------------------------------------
@@ -480,21 +559,6 @@ class MatrixNumeric(ParameterNumeric):
         if self.eigenvalues is None:
             self.Eigenvalues()
         return numpy.all(self.eigenvalues > 0)
-    # ----------------------------------------------------------
-    # ----------------------------------------------------------
-    def isPositiveSemiDefinite(self):
-        """
-        This function checks whether the input matrix is positive semidefinite, i.e., whether all its eigenvalues are not lower than zero.
-um
-        OUTPUTS
-        -------
-        is_positive_definite: boolean
-            it is true if and only if the input matrix is positive semidefinite
-        """
-        if self.eigenvalues is None:
-            self.Eigenvalues()
-        return numpy.all(self.eigenvalues >= 0)
-
     # ----------------------------------------------------------
     # ----------------------------------------------------------
     def isCovarianceMatrix(self):
@@ -516,31 +580,81 @@ um
             self.Determinant()
         min_eigenvalue = numpy.min(numpy.abs(self.eigenvalues))  # modulus of the minimum eigenvalue of the input matrix
         tolerance = 1 / 100 * min_eigenvalue
-        return self.isPositiveSemiDefinite() \
-               and numpy.allclose(self.value, self.value.T, atol=tolerance) \
-               and not numpy.isclose(self.determinant, 0, atol=tolerance)
-
-    # ----------------------------------------------------------
-    # ----------------------------------------------------------
-    def isDensityMatrix(self):
-        """
-        This function checks whether the input matrix is a density matrix.
-        rho is a density matrix if and only if:
-
-            - self is Hermitian
-            - self is positive-semidefinite
-            - self has trace 1
-            - self^2 has trace <= 1
-        """
-
-        check = False
         check_details = {}
-        check_details['is Hermitian'] = self.isHermitian()
-        check_details['is positive-semidefinite'] = self.isPositiveSemidefinite()
-        check_details['has trace 1'] = self.isTraceNormalized()
-        check_details['square has trace <= 1'] = self.isTraceConvex()
+        check_details["is square"] = self.isSquare()
+        check_details["is symmetric"] = self.isSymmetric(tolerance=tolerance)
+        check_details["is positive-semidefinite"] = self.isPositiveSemidefinite()
+        check_details["is singular"] = self.isSingular(tolerance=tolerance)
+        check = check_details["is square"]\
+            and check_details["is symmetric"]\
+            and check_details["is positive-semidefinite"]\
+            and not check_details["is singular"]
+        return check, check_details
+
+    # ----------------------------------------------------------
+    # ----------------------------------------------------------
+    def isSingular(self, tolerance=1/100):
+        """
+        This function returns True if and only if the matrix has determinant zero
+
+        INPUTS
+        ------------
+            tolerance : float (>0)
+                An absolute tolerance on the condition under test
+        """
+        if self.determinant is None:
+            self.Determinant()
+        return numpy.isclose(self.determinant, 0, atol=tolerance)
+    # ----------------------------------------------------------
+    # ----------------------------------------------------------
+    def isSymmetric(self, tolerance=1/100):
+        """
+        This function returns True if and only if the matrix is symmetric
+        """
+        if self.value is None:
+            raise TypeError(
+                "Cannot test simmetry because the value of matrix " + self.name + " is None\n" + self.__str__())
+        elif not self.isSquare():
+            raise TypeError(
+                "Cannot test simmetry because the value of matrix " + self.name + " is not square\n" + self.__str__())
+        else:
+            min_eigenvalue = numpy.min(
+                numpy.abs(self.eigenvalues))  # modulus of the minimum eigenvalue of the input matrix
+            tolerance = tolerance * min_eigenvalue
+            return numpy.allclose(self.value, self.value.T, atol=tolerance)
+    # ----------------------------------------------------------
+    # ----------------------------------------------------------
+    def isSquare(self):
+        """
+        This function returns True if and only if the matrix is square
+
+        INPUTS
+        ------------
+            tolerance : float (>0)
+                An absolute tolerance on the condition under test
+        """
+        if self.value is None:
+            raise TypeError("Cannot check shape because the value of matrix " + self.name + " is None\n"+self.__str__())
+        else:
+            return self.shape[0] == self.shape[1]
+
+    # ----------------------------------------------------------
+    # ----------------------------------------------------------
+    def isDensityMatrix(self, tolerance=1/100):
+        """
+        This function checks whether the matrix is a density matrix.
+        self is a density matrix if and only if:
+
+            - self.value is Hermitian
+            - self.value is positive-semidefinite
+            - self.value has trace 1
+        """
+        check_details = {}
+        check_details['is Hermitian'] = self.isHermitian(tolerance)
+        check_details['is positive-semidefinite'] = self.isPositiveSemidefinite(tolerance)
+        check_details['has trace 1'] = self.isTraceNormalized(tolerance)
         check = check_details['is Hermitian'] and check_details['is positive-semidefinite'] \
-                and check_details['has trace 1'] and check_details['square has trace <= 1']
+                and check_details['has trace 1']
         return check, check_details
     # ----------------------------------------------------------
     # ----------------------------------------------------------
@@ -551,44 +665,53 @@ um
 
         INPUTS
         -------------
-            tolerance : float
-                An absolute margin on the check that all eigenvalues are nonnegative
+            tolerance : float (>0)
+                An absolute tolerance on the condition under test
 
 
         OUTPUTS
         -----------
         True if self is positive-semidefinite
         """
-        if not self.isHermitian():
-            M = (self.value + numpy.transpose(numpy.conj(self.value))) / 2  # take the Hermitian part of M
-        return numpy.all(numpy.real(M) >= 0 - tolerance)
+        if self.eigenvalues is None:
+            self.Eigenvalues()
+        if not self.isHermitian(tolerance):
+            raise TypeError(
+                "Cannot test definiteness because the value of matrix " + self.name + " is not Hermitian.\n" + self.__str__())
+        elif not self.isSymmetric(tolerance):
+            raise TypeError(
+                "Cannot test definiteness because the value of matrix " + self.name + " is not symmetric.\n" + self.__str__())
+        else:
+            return numpy.all(numpy.real(self.value) >= 0)
     # ----------------------------------------------------------
     # ----------------------------------------------------------
-    def isHermitian(self):
+    def isHermitian(self, tolerance=1/100):
         """
         This function checks whether the input matrix is Hermitian.
         A matrix is hermitian if an only if all of its eigenvalues are real
-
-        OUTPUTS
-        -----------
-        True if M is is Hermitian
         """
         if self.eigenvalues is None:
             self.Eigenvalues()
-        return numpy.all(numpy.isclose(numpy.imag(self.eigenvalues), 0))  # check that all eigenvalues are approximately real
+        if not self.isSymmetric(tolerance=tolerance):
+            raise TypeError(
+                "Cannot test Hermitianity because the value of matrix " + self.name + " is not symmetric.\n" + self.__str__())
+        else:
+            min_eigenvalue = numpy.min(numpy.abs(self.eigenvalues))  # modulus of the minimum eigenvalue of the input matrix
+            tolerance = tolerance * min_eigenvalue
+            return numpy.all(numpy.isclose(numpy.imag(self.eigenvalues), 0, atol=tolerance))  # check that all eigenvalues are approximately real
     # ----------------------------------------------------------
     # ----------------------------------------------------------
-    def isTraceNormalized(self):
+    def isTraceNormalized(self, tolerance=1/100):
         """
-        This function checks whether the input matrix has trace equal to 1.
-
-        OUTPUTS
-        -----------
-        True if M has trace equal to 1.
+        This function checks whether the matrix has trace equal to 1.
         """
         if self.trace is None:
             self.Trace()
-        return numpy.isclose(self.trace, 1)
+        if self.eigenvalues is None:
+            self.Eigenvalues()
+        min_eigenvalue = numpy.min(numpy.abs(self.eigenvalues))  # modulus of the minimum eigenvalue of the input matrix
+        tolerance = tolerance * min_eigenvalue
+        return numpy.isclose(self.trace, 1, atol=tolerance)
     # ----------------------------------------------------------
     # ----------------------------------------------------------
     def isTraceConvex(self):
