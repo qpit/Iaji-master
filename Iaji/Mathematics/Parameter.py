@@ -221,7 +221,29 @@ class ParameterSymbolic:
     def expression_lambda(self):
         del self._expression_lambda
     # ----------------------------------------------------------
-
+    def __add__(self, other):
+        new_type = "scalar"*(self.type=="scalar" and other.type=="scalar")\
+                 + "vector"*(self.type=="vector" or other.type=="vector")
+        x = ParameterSymbolic(name=self.name.__str__()+"+"+other.name.__str__(), type=new_type)
+        if self.expression is None:
+            x.expression = other.expression
+        elif other.expression is None:
+            x.expression = self.expression
+        else:
+            x.expression =  self.expression + other.expression
+        return x
+    # ----------------------------------------------------------
+    def __mul__(self, other):
+        new_type = "scalar"*(self.type=="scalar" and other.type=="scalar")\
+                 + "vector"*(self.type=="vector" or other.type=="vector")
+        x = ParameterSymbolic(name=self.name.__str__()+"*"+other.name.__str__(), type=new_type)
+        if self.expression is None:
+            x.expression = other.expression
+        elif other.expression is None:
+            x.expression = self.expression
+        else:
+            x.expression =  self.expression * other.expression
+        return x
 
 
 
@@ -296,8 +318,29 @@ class ParameterNumeric:
     def value(self):
         del self._value
     # ----------------------------------------------------------
+    def __mul__(self, other):
+        new_type = "scalar" * (self.type == "scalar" and other.type == "scalar") \
+                   + "vector" * (self.type == "vector" or other.type == "vector")
+        x = ParameterNumeric(name=self.name.__str__() + "+" + other.name.__str__(), type=new_type)
+        if self.expression is None:
+            x.expression = other.expression
+        elif other.expression is None:
+            x.expression = self.expression
+        else:
+            x.expression = self.expression + other.expression
+        return x
     # ----------------------------------------------------------
-
+    def __mul__(self, other):
+        new_type = "scalar" * (self.type == "scalar" and other.type == "scalar") \
+                   + "vector" * (self.type == "vector" or other.type == "vector")
+        x = ParameterNumeric(name=self.name.__str__() + "*" + other.name.__str__(), type=new_type)
+        if self.expression is None:
+            x.expression = other.expression
+        elif other.expression is None:
+            x.expression = self.expression
+        else:
+            x.expression = self.expression * other.expression
+        return x
 
 
 
