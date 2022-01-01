@@ -119,15 +119,12 @@ class HilbertSpace:
         if self.isFiniteDimensional():
             self._canonical_basis = [None for j in range(self.dimension)]
             for j in range(self.dimension):
-                value = numpy.zeros((self.dimension, 1))
-                value[j] = 1
-                
                 expression = sympy.zeros(*(self.dimension, 1))
                 expression[j] = 1
-                
-                self._canonical_basis[j] = Matrix(name="e_"+(j+1).__str__())
-                self._canonical_basis[j].numeric.value = value
+                self._canonical_basis[j] = Matrix(name="e_{"+(j+1).__str__()+"}")
                 self._canonical_basis[j].symbolic.expression = expression
+                self._canonical_basis[j].numeric.value = self._canonical_basis[j].symbolic.expression_lambda()
+                
         else:
             raise NotImplementedError("Infinite-dimensional Hilbert spaces are not yet handeled.")
             self._canonical_basis = None
