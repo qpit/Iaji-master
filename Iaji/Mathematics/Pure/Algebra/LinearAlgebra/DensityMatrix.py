@@ -3,25 +3,41 @@ This module describes a density matrix
 """
 #%%
 from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.Matrix import MatrixSymbolic, MatrixNumeric
-from .Exceptions import TestFailedError, TestFailedWarning
+from .Exceptions import TestFailedError, InconsistentShapeError
 import numpy, sympy
 #%%
 print_separator = "-----------------------------------------------"
 #%%
 class DensityMatrix:
     """
-    This class describes a density matrix as a physical parameter.
+    This class describes a density matrix as a parameter.
     """
     # ----------------------------------------------------------
     def __init__(self, name="Rho", value=None, real=False, nonnegative=False):
         self.name = name
         self.type = "vector"
-        self.symbolic = DensityMatrixSymbolic(name=name)
-        self.numeric = DensityMatrixNumeric(name=name, value=value)
+        self._symbolic = DensityMatrixSymbolic(name=name)
+        self._numeric = DensityMatrixNumeric(name=name, value=value)
         # Connect property changed signals to chech functions
         self.numeric.value_changed.connect(self.check_shapes)
         self.symbolic.expression_changed.connect(self.check_shapes)
     # ----------------------------------------------------------
+    @property
+    def symbolic(self):
+        return self._symbolic
+
+    @symbolic.deleter
+    def symbolic(self):
+        del self._symbolic
+
+    # ----------------------------------------------------------
+    @property
+    def numeric(self):
+        return self._numeric
+
+    @numeric.deleter
+    def numeric(self):
+        del self._numeric
     # ----------------------------------------------------------
     def check_shapes(self, **kwargs):
         if self.numeric.shape is not None and self.symbolic.shape is not None:

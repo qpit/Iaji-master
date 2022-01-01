@@ -16,17 +16,50 @@ print_separator = "-----------------------------------------------"
 #%%
 class Matrix:
     """
-    This class describes a matrix as a physical parameter.
+    This class describes a matrix as a parameter.
     """
     # ----------------------------------------------------------
     def __init__(self, name="M", value=None, real=False, nonnegative=False):
+        self._symbolic = MatrixSymbolic(name=name, real=False, nonnegative=False)
+        self._numeric = MatrixNumeric(name=name, value=value)
         self.name = name
         self.type = "vector"
-        self.symbolic = MatrixSymbolic(name=name, real=False, nonnegative=False)
-        self.numeric = MatrixNumeric(name=name, value=value)
         # Connect property changed signals to chech functions
         self.numeric.value_changed.connect(self.check_shapes)
         self.symbolic.expression_changed.connect(self.check_shapes)
+    
+    # ----------------------------------------------------------
+    @property
+    def name(self):
+        return self._name
+    
+    @name.setter
+    def name(self, name):
+        self._name = name
+        self.numeric.name = name
+        self.symbolic.name = name
+
+    @name.deleter
+    def name(self):
+        del self._name
+    # ----------------------------------------------------------
+    @property
+    def symbolic(self):
+        return self._symbolic
+
+    @symbolic.deleter
+    def symbolic(self):
+        del self._symbolic
+
+    # ----------------------------------------------------------
+    @property
+    def numeric(self):
+        return self._numeric
+
+    @numeric.deleter
+    def numeric(self):
+        del self._numeric
+
     # ----------------------------------------------------------
     def check_shapes(self, **kwargs):
         if self.numeric.shape is not None and self.symbolic.shape is not None:
@@ -34,7 +67,6 @@ class Matrix:
                 raise InconsistentShapeError(
                     "The shape of my value is " + self.numeric.shape.__str__() + \
                     ". while the shape of my symbolic expression is " + self.symbolic.shape.__str__())
-    # ----------------------------------------------------------
     # ----------------------------------------------------------
     def __str__(self):
         """
@@ -45,7 +77,61 @@ class Matrix:
         + self.symbolic.__str__() + "\n" + print_separator
         return s
     # ----------------------------------------------------------
+    #Elementwise addition
+    def __add__(self, other):
+        x = Matrix(name=self.name.__str__() + "+" + other.name.__str__())
+        x._symbolic = self.symbolic + other.symbolic
+        x._numeric = self.numeric + other.numeric
+        return x
     # ----------------------------------------------------------
+    #Elementwise multiplication
+    def __mul__(self, other):
+        x = Matrix(name=self.name.__str__() + "*" + other.name.__str__())
+        x._symbolic = self.symbolic * other.symbolic
+        x._numeric = self.numeric * other.numeric
+        return x
+    # ----------------------------------------------------------
+    #Matrix multiplication
+    def __matmul__(self, other):
+        x = Matrix(name=self.name.__str__() + "@" + other.name.__str__())
+        x._symbolic = self.symbolic @ other.symbolic
+        x._numeric = self.numeric @ other.numeric
+        return x
+    # ----------------------------------------------------------
+    #Direct sum
+    def DirectSum(self, other):
+        x = Matrix(name=self.name.__str__() + " bigoplus " + other.name.__str__())
+        x._symbolic = self.symbolic.DirectSum(other.symbolic)
+        x._numeric = self.numeric.DirectSum(other.numeric)
+        return x
+    # ----------------------------------------------------------
+    def HermitianConjugate(self):
+        """
+        Hermitian conjugate
+        """
+        x = Matrix(name="%s^\dagger"%self.name)
+        x._numeric = self.numeric.HermitianConjugate()
+        x._symbolic = self.symbolic.HermitianConjugate()
+        return x
+    # ----------------------------------------------------------
+    def Transpose(self):
+        """
+        Transpose
+        """
+        x = Matrix(name="%s^T"%self.name)
+        x._numeric = self.numeric.Transpose()
+        x._symbolic = self.symbolic.Transpose()
+        return x
+    # ----------------------------------------------------------
+    def Conjugate(self):
+        """
+        Complex conjugate
+        """
+        x = Matrix(name="%s^*"%self.name)
+        x._numeric = self.numeric.Conjugate()
+        x._symbolic = self.symbolic.Conjugate()
+        return x
+
 
 
 class MatrixSymbolic(ParameterSymbolic):
@@ -55,8 +141,7 @@ class MatrixSymbolic(ParameterSymbolic):
     # ----------------------------------------------------------
     def __init__(self, name="M", real=False, nonnegative=False):
         super().__init__(name=name, type="vector", real=real, nonnegative=nonnegative)
-        self._eigenvalues, self._rank, self._trace, self._determinant = [None for j in range(4)]
-    # ----------------------------------------------------------
+        self._eigenvalues, self._rank, self._trace, self._determinant = [None for j in range(4)] 
     # ----------------------------------------------------------
     @property
     def shape(self):
@@ -388,6 +473,92 @@ um
             else:
                 return condition
     # ----------------------------------------------------------
+    # Elementwise addition
+    def __add__(self, other):
+        x = MatrixSymbolic(name=self.name.__str__() + "+" + other.name.__str__())
+        self_expression = self.expression
+        other_expression = other.expression
+        if self_expression is None or other_expression is None:
+            raise TypeError("unsupported operand type(s) for +: %s and %s" % (type(self_expression, other_expression)))
+        else:
+            x.expression = self_expression + other_expression
+        return x
+    # ----------------------------------------------------------
+    # Elementwise multiplication
+    def __mul__(self, other):
+        x = MatrixSymbolic(name=self.name.__str__() + "*" + other.name.__str__())
+        self_expression = self.expression
+        other_expression = other.expression
+        if self_expression is None or other_expression is None:
+            raise TypeError("unsupported operand type(s) for *: %s and %s" % (type(self_expression, other_expression)))
+        else:
+            x.expression = sympy.matrix_multiply_elementwise(self_expression, other_expression)
+        return x
+    # ----------------------------------------------------------
+    # Matrix multiplication
+    def __matmul__(self, other):
+        x = MatrixSymbolic(name=self.name.__str__() + "@" + other.name.__str__())
+        self_expression = self.expression
+        other_expression = other.expression
+        if self_expression is None or other_expression is None:
+            raise TypeError("unsupported operand type(s) for @: %s and %s" % (type(self_expression, other_expression)))
+        else:
+            x.expression = self_expression * other_expression
+        return x
+    # ----------------------------------------------------------
+    # Matrix determinant in operator syntax
+    def __abs__(self):
+        if self.expression is None:
+            return None
+        else:
+            return self.Determinant()
+    # ----------------------------------------------------------
+    # Matrix direct sum
+    def DirectSum(self, other):
+        x = MatrixSymbolic(name=self.name.__str__() + " bigoplus " + other.name.__str__())
+        self_expression = self.expression
+        other_expression = other.expression
+        if self_expression is None:
+            self_expression = numpy.matrix([])
+        if other_expression is None:
+            self_expression = numpy.matrix([])
+        x.expression = sympy.zeros(*(numpy.array(self_expression.shape) + numpy.array(other_expression.shape)))
+        x.expression[0:self_expression.shape[0], 0:self_expression.shape[1]] = self_expression
+        x.expression[self_expression.shape[0]:, self_expression.shape[1]:] = other_expression
+        return x
+    # ----------------------------------------------------------
+    def HermitianConjugate(self):
+        """
+        Hermitian conjugate
+        """
+        x = self.Conjugate().Transpose()
+        x.name = self.name.__str__()+"^\dagger"
+        return x
+    # ----------------------------------------------------------
+    def Transpose(self):
+        """
+        Transpose
+        """
+        x = MatrixSymbolic(name = self.name.__str__()+"^T")
+        if self.expression is None:
+            raise TypeError("unsupported operand type for Transpose: %s" % (type(self.expression)))
+        else:
+            x.expression = self.expression.T
+        return x
+    # ----------------------------------------------------------
+    def Conjugate(self):
+        """
+        Complex conjugate
+        """
+        x = MatrixSymbolic(name = self.name.__str__()+"^*")
+        if self.expression is None:
+            raise TypeError("unsupported operand type for Conjugate: %s" % (type(self.expression)))
+        else:
+            x.expression = sympy.conjugate(self.expression)
+        return x
+
+
+
 
 
 
@@ -458,7 +629,7 @@ class MatrixNumeric(ParameterNumeric):
     @value.setter
     def value(self, value):
         if value is not None:
-            self._value = numpy.matrix(value)
+            self._value = numpy.matrix(value, dtype=numpy.complex64)
             self._shape = self._value.shape
         else:
             self._value = None
@@ -724,6 +895,91 @@ class MatrixNumeric(ParameterNumeric):
         """
         return numpy.abs(numpy.trace(self.value @ self.value)) <= 1
     # ----------------------------------------------------------
+    #Elementwise addition
+    def __add__(self, other):
+        x = MatrixNumeric(name=self.name.__str__() + "+" + other.name.__str__())
+        self_value = self.value
+        other_value = other.value
+        if self_value is None or other_value is None:
+            raise TypeError("unsupported operand type(s) for +: %s and %s" % (type(self_value, other_value)))
+        else:
+            x.value = self_value + other_value
+        return x
+    # ----------------------------------------------------------
+    #Elementwise multiplication
+    def __mul__(self, other):
+        x = MatrixNumeric(name=self.name.__str__() + "*" + other.name.__str__())
+        self_value = self.value
+        other_value = other.value
+        if self_value is None or other_value is None:
+            raise TypeError("unsupported operand type(s) for *: %s and %s" % (type(self_value, other_value)))
+        else:
+            x.value = self_value * other_value
+        return x
+    # ----------------------------------------------------------
+    #Matrix multiplication
+    def __matmul__(self, other):
+        x = MatrixNumeric(name=self.name.__str__() + "@" + other.name.__str__())
+        self_value = self.value
+        other_value = other.value
+        if self_value is None or other_value is None:
+            raise TypeError("unsupported operand type(s) for @: %s and %s" % (type(self_value, other_value)))
+        else:
+            x.value = self_value @ other_value
+        return x
+
+    # ----------------------------------------------------------
+    # Matrix determinant in operator syntax
+    def __abs__(self):
+        if self.value is None:
+            return None
+        else:
+            return self.Determinant()
+    # ----------------------------------------------------------
+    #Matrix direct sum
+    def DirectSum(self, other):
+        x = MatrixNumeric(name=self.name.__str__() + "\bigoplus" + other.name.__str__())
+        self_value = self.value
+        other_value = other.value
+        if self_value is None:
+            self_value = numpy.matrix([])
+        if other_value is None:
+            self_value = numpy.matrix([])
+        x.value = numpy.zeros(tuple(numpy.array(self_value.shape) + numpy.array(other_value.shape)))
+        x.value[0:self_value.shape[0], 0:self_value.shape[1]] = self_value
+        x.value[self_value.shape[0]:, self_value.shape[1]:] = other_value
+        return x
+    # ----------------------------------------------------------
+    def HermitianConjugate(self):
+        """
+        Hermitian conjugate
+        """
+        x = self.Conjugate().Transpose()
+        x.name = self.name.__str__()+"^\\dagger"
+        return x
+    # ----------------------------------------------------------
+    def Transpose(self):
+        """
+        Transpose
+        """
+        x = MatrixNumeric(name = self.name.__str__()+"^T")
+        if self.value is None:
+            raise TypeError("unsupported operand type for Transpose: %s" % (type(self.value)))
+        else:
+            x.value = self.value.T
+        return x
+    # ----------------------------------------------------------
+    def Conjugate(self):
+        """
+        Complex conjugate
+        """
+        x = MatrixNumeric(name = self.name.__str__()+"^*")
+        if self.value is None:
+            raise TypeError("unsupported operand type for Conjugate: %s" % (type(self.value)))
+        else:
+            x.value = numpy.conjugate(self.value)
+        return x
+
 
 
 

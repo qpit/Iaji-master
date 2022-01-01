@@ -86,6 +86,21 @@ class Parameter:
     def numeric(self):
         del self._numeric
     # ----------------------------------------------------------
+    def __add__(self, other):
+        new_type = "scalar" * (self.type == "scalar" and other.type == "scalar") \
+                   + "vector" * (self.type == "vector" or other.type == "vector")
+        x = Parameter(name=self.name.__str__() + "+" + other.name.__str__(), type=new_type)
+        x._symbolic = self.symbolic + other.symbolic
+        x._numeric = self.numeric + other.numeric
+        return x
+    # ----------------------------------------------------------
+    def __mul__(self, other):
+        new_type = "scalar" * (self.type == "scalar" and other.type == "scalar") \
+                   + "vector" * (self.type == "vector" or other.type == "vector")
+        x = Parameter(name=self.name.__str__() + "*" + other.name.__str__(), type=new_type)
+        x._symbolic = self.symbolic * other.symbolic
+        x._numeric = self.numeric * other.numeric
+        return x
     #----------------------------------------------------------
 
 
@@ -127,18 +142,19 @@ class ParameterSymbolic:
         return s
 
     # ----------------------------------------------------------
-    # ----------------------------------------------------------
+   # ----------------------------------------------------------
     @property
     def name(self):
         return self._name
-
+    
     @name.setter
     def name(self, name):
         self._name = name
-
+        self.symbol = sympy.symbols(names=self.name)
+    
     @name.deleter
     def name(self):
-        del self._name
+        del self._name  
     # ----------------------------------------------------------
     # ----------------------------------------------------------
     @property
@@ -185,7 +201,7 @@ class ParameterSymbolic:
             except AttributeError:
                 self.expression_lambda = None
             if self.type == "vector":
-                self._expression = sympy.Array(self._expression)
+                self._expression = sympy.Matrix(sympy.Array(self._expression))
             self.expression_changed.emit()  # emit expression changed signal
         else:
             self.expression_symbols = None
@@ -222,29 +238,43 @@ class ParameterSymbolic:
         del self._expression_lambda
     # ----------------------------------------------------------
     def __add__(self, other):
-        new_type = "scalar"*(self.type=="scalar" and other.type=="scalar")\
-                 + "vector"*(self.type=="vector" or other.type=="vector")
-        x = ParameterSymbolic(name=self.name.__str__()+"+"+other.name.__str__(), type=new_type)
-        if self.expression is None:
-            x.expression = other.expression
-        elif other.expression is None:
-            x.expression = self.expression
+        new_type = "scalar" * (self.type == "scalar" and other.type == "scalar") \
+                   + "vector" * (self.type == "vector" or other.type == "vector")
+        x = ParameterSymbolic(name=self.name.__str__() + "+" + other.name.__str__(), type=new_type)
+        self_expression = self.expression
+        other_expression = other.expression
+        if self_expression is None or other_expression is None:
+            raise TypeError("unsupported operand type(s) for +: %s and %s" % (type(self_expression, other_expression)))
         else:
-            x.expression =  self.expression + other.expression
+            if new_type == "vector":
+                if self.type == "scalar":
+                    self_expression *= sympy.ones(*other_expression.shape)
+                elif other.type == "scalar":
+                    other_expression *= sympy.ones(*self_expression.shape)
+                else:
+                    pass
+        x.expression = self_expression + other_expression
         return x
     # ----------------------------------------------------------
     def __mul__(self, other):
         new_type = "scalar"*(self.type=="scalar" and other.type=="scalar")\
                  + "vector"*(self.type=="vector" or other.type=="vector")
         x = ParameterSymbolic(name=self.name.__str__()+"*"+other.name.__str__(), type=new_type)
-        if self.expression is None:
-            x.expression = other.expression
-        elif other.expression is None:
-            x.expression = self.expression
+        self_expression = self.expression
+        other_expression = other.expression
+        if self_expression is None or other_expression is None:
+            raise TypeError("unsupported operand type(s) for *: %s and %s"%(type(self_expression, other_expression)))
         else:
-            x.expression =  self.expression * other.expression
+            if new_type == "vector":
+                if self.type == "scalar":
+                    self_expression *= sympy.ones(*other_expression.shape)
+                elif other.type == "scalar":
+                    other_expression *= sympy.ones(*self_expression.shape)
+                else:
+                    pass
+        x.expression = self_expression * other_expression
         return x
-
+    # ----------------------------------------------------------
 
 
 class ParameterNumeric:
@@ -318,29 +348,44 @@ class ParameterNumeric:
     def value(self):
         del self._value
     # ----------------------------------------------------------
-    def __mul__(self, other):
+    def __add__(self, other):
         new_type = "scalar" * (self.type == "scalar" and other.type == "scalar") \
                    + "vector" * (self.type == "vector" or other.type == "vector")
         x = ParameterNumeric(name=self.name.__str__() + "+" + other.name.__str__(), type=new_type)
-        if self.expression is None:
-            x.expression = other.expression
-        elif other.expression is None:
-            x.expression = self.expression
+        self_value = self.value
+        other_value = other.value
+        if self_value is None or other_value is None:
+            raise TypeError("unsupported operand type(s) for +: %s and %s" % (type(self_value, other_value)))
         else:
-            x.expression = self.expression + other.expression
+            if new_type == "vector":
+                if self.type == "scalar":
+                    self_value *= sympy.ones(*other_value.shape)
+                elif other.type == "scalar":
+                    other_value *= sympy.ones(*self_value.shape)
+                else:
+                    pass
+        x.value = self_value + other_value
         return x
     # ----------------------------------------------------------
     def __mul__(self, other):
-        new_type = "scalar" * (self.type == "scalar" and other.type == "scalar") \
-                   + "vector" * (self.type == "vector" or other.type == "vector")
-        x = ParameterNumeric(name=self.name.__str__() + "*" + other.name.__str__(), type=new_type)
-        if self.expression is None:
-            x.expression = other.expression
-        elif other.expression is None:
-            x.expression = self.expression
+        new_type = "scalar"*(self.type=="scalar" and other.type=="scalar")\
+                 + "vector"*(self.type=="vector" or other.type=="vector")
+        x = ParameterNumeric(name=self.name.__str__()+"*"+other.name.__str__(), type=new_type)
+        self_value = self.value
+        other_value = other.value
+        if self_value is None or other_value is None:
+            raise TypeError("unsupported operand type(s) for *: %s and %s"%(type(self_value, other_value)))
         else:
-            x.expression = self.expression * other.expression
+            if new_type == "vector":
+                if self.type == "scalar":
+                    self_value *= sympy.ones(*other_value.shape)
+                elif other.type == "scalar":
+                    other_value *= sympy.ones(*self_value.shape)
+                else:
+                    pass
+        x.value = self_value * other_value
         return x
+    # ----------------------------------------------------------
 
 
 
