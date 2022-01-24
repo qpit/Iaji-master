@@ -100,7 +100,7 @@ class Matrix:
     # ----------------------------------------------------------
     #Direct sum
     def DirectSum(self, other):
-        x = Matrix(name=self.name.__str__() + " bigoplus " + other.name.__str__())
+        x = Matrix(name=self.name.__str__() + " \\bigoplus " + other.name.__str__())
         x._symbolic = self.symbolic.DirectSum(other.symbolic)
         x._numeric = self.numeric.DirectSum(other.numeric)
         return x
@@ -109,7 +109,7 @@ class Matrix:
         """
         Hermitian conjugate
         """
-        x = Matrix(name="%s^\dagger"%self.name)
+        x = Matrix(name="%s^\\dagger"%self.name)
         x._numeric = self.numeric.HermitianConjugate()
         x._symbolic = self.symbolic.HermitianConjugate()
         return x
@@ -123,13 +123,13 @@ class Matrix:
         x._symbolic = self.symbolic.Transpose()
         return x
     # ----------------------------------------------------------
-    def Conjugate(self):
+    def Inverse(self):
         """
-        Complex conjugate
+        Moore-Penrose inverse
         """
-        x = Matrix(name="%s^*"%self.name)
-        x._numeric = self.numeric.Conjugate()
-        x._symbolic = self.symbolic.Conjugate()
+        x = Matrix(name="%s^{-1}"%self.name)
+        x._numeric = self.numeric.Inverse()
+        x._symbolic = self.symbolic.Inverse()
         return x
 
 
@@ -428,7 +428,8 @@ um
                 #Often sympy does not recognize a null imaginary part,
                 #because it does not see that atan2(0, ...) = 0.
                 #So I enforce it by hard substitution
-                eigenvalue_im = sympy.sympify(eigenvalue_im.__str__().replace("atan2(0,", "atan2(0, 1)*("))
+                eigenvalue_im = sympy.sympify(eigenvalue_im.__str__().replace("atan2(0,", "atan2(0, 1)*(")\
+                                              .replace("^", "").replace("{", "").replace("}", ""))
                 check = eigenvalue_im == 0
                 if type(check) not in [bool, sympy.logic.boolalg.BooleanTrue, sympy.logic.boolalg.BooleanFalse]:
                     raise TestFailedError("Could not test Hermitianity because the relation "+check.__str__()\
@@ -501,7 +502,7 @@ um
         self_expression = self.expression
         other_expression = other.expression
         if self_expression is None or other_expression is None:
-            raise TypeError("unsupported operand type(s) for @: %s and %s" % (type(self_expression, other_expression)))
+            raise TypeError("unsupported operand type(s) for @: %s and %s" % (type(self_expression), type(other_expression)))
         else:
             x.expression = self_expression * other_expression
         return x
@@ -555,6 +556,17 @@ um
             raise TypeError("unsupported operand type for Conjugate: %s" % (type(self.expression)))
         else:
             x.expression = sympy.conjugate(self.expression)
+        return x
+    # ----------------------------------------------------------
+    def Inverse(self):
+        """
+        Moore-Penrose inverse
+        """
+        x = MatrixSymbolic(name = self.name.__str__()+"^{-1}")
+        if self.expression is None:
+            raise TypeError("unsupported operand type for Inverse: %s" % (type(self.expression)))
+        else:
+            x.expression = self.expression.inv()
         return x
 
 
@@ -938,7 +950,7 @@ class MatrixNumeric(ParameterNumeric):
     # ----------------------------------------------------------
     #Matrix direct sum
     def DirectSum(self, other):
-        x = MatrixNumeric(name=self.name.__str__() + "\bigoplus" + other.name.__str__())
+        x = MatrixNumeric(name=self.name.__str__() + "\\bigoplus" + other.name.__str__())
         self_value = self.value
         other_value = other.value
         if self_value is None:
@@ -979,6 +991,18 @@ class MatrixNumeric(ParameterNumeric):
         else:
             x.value = numpy.conjugate(self.value)
         return x
+    # ----------------------------------------------------------
+    def Inverse(self):
+        """
+        Moore-Penrose inverse 
+        """
+        x = MatrixNumeric(name = self.name.__str__()+"^{-1}")
+        if self.value is None:
+            raise TypeError("unsupported operand type for Inverse: %s" % (type(self.value)))
+        else:
+            x.value = numpy.linalg.inv(self.value)
+        return x
+    
 
 
 

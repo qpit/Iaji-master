@@ -11,11 +11,11 @@ reaconstruction of quantum states
 
 #%%
 #imports
-import numpy as np
+import numpy 
 import scipy as sp
 import scipy.special as sps
 from matplotlib import pyplot as plt
-from Iaji.Physics.Theory.QuantumMechanics import QuantumFIeldUtilities as qfutils
+from Iaji.Physics.Theory.QuantumMechanics.SimpleHarmonicOscillator import Utilities as qfutils
 #%%
 def homodyneFockPOVM(n_max, x, theta):
     """
@@ -33,24 +33,24 @@ def homodyneFockPOVM(n_max, x, theta):
     #For each element of x, a POVM matrix is computed
     if n_max < 2:
         raise InvalidDimensionError('The Hilbert space dimension must be at least 2')
-    POVM = np.zeros((n_max+1, ), dtype=complex)
-    for n in np.arange(n_max):
+    POVM = numpy.zeros((n_max+1, ), dtype=complex)
+    for n in numpy.arange(n_max):
         if n==0:
-            POVM[n] = 1/(np.sqrt(np.sqrt(np.pi)))*np.exp(-0.5*x**2)
+            POVM[n] = 1/(numpy.sqrt(numpy.sqrt(numpy.pi)))*numpy.exp(-0.5*x**2)
         elif n==1:
-            POVM[n] = np.sqrt(2)*x*np.exp(-1j*theta) * POVM[0]
+            POVM[n] = x*numpy.sqrt(2)*numpy.exp(-1j*theta) * POVM[0]
         else:
-            POVM[n] = np.exp(-1j*theta)/np.sqrt(n)*(np.sqrt(2)*x*POVM[n-1] - np.exp(-1j*theta)*np.sqrt(n-1)*POVM[n-2])
-    return np.tensordot(POVM, np.conj(POVM), axes=0)
+            POVM[n] = numpy.exp(-1j*theta)/numpy.sqrt(n)*(numpy.sqrt(2)*x*POVM[n-1] - numpy.exp(-1j*theta)*numpy.sqrt(n-1)*POVM[n-2])
+    return numpy.tensordot(POVM, numpy.conj(POVM), axes=0)
 
 #%%
 def homodyneFockPOVM_2(n_max, x, theta):
     if n_max < 2:
         raise InvalidDimensionError('The Hilbert space dimension must be at least 2')
-    POVM = np.zeros((n_max+1, ), dtype=complex)
-    for n in np.arange(n_max+1):
-        POVM[n] = np.exp(-1j*n*theta)/np.sqrt(np.sqrt(np.pi)*2**n*sp.special.gamma(n+1)) * np.exp(-0.5*x**2) * sp.special.hermite(n)(x)
-    return np.tensordot(POVM, np.conj(POVM), axes=0)
+    POVM = numpy.zeros((n_max+1, ), dtype=complex)
+    for n in numpy.arange(n_max+1):
+        POVM[n] = numpy.exp(-1j*n*theta)/numpy.sqrt(numpy.sqrt(numpy.pi)*2**n*sp.special.gamma(n+1)) * numpy.exp(-0.5*x**2) * sp.special.hermite(n)(x)
+    return numpy.tensordot(POVM, numpy.conj(POVM), axes=0)
 #%%
 CONVERGENCE_RULES = ['fidelity of state', 'fidelity of iteration operator', 'log-likelihood', 'trace distance(iteration operator, identity)']
 RECONSTRUCTION_METHODS = ['maximum likelihood']
@@ -64,8 +64,8 @@ class QuadratureTomographer:
     
     Currently, it only uses the maximum likelihood method for state reconstruction.
     """
-    def __init__(self, n_max, mode_function_type='doulbe exponential', mode_function_parameters=None, convergence_rule='fidelity of state'):
-        self.mode_function = qfutils.TemporalModeFunction(function_type=mode_function_type, parameters=mode_function_parameters)
+    def __init__(self, n_max, mode_function_type='doulbe exponential', temporal_mode_function=None, convergence_rule='fidelity of state'):
+        self.temporal_mode_function = temporal_mode_function
         self.phases = None #quadrature phases associate tot he input quadrature data
         self.n_phases = None #number of quadrature phases
         self.quadratures = {} #the (non-filtered) quadrature traces corresponding to the quadrature angles, normalized by vacuum quadrature noise
@@ -73,14 +73,14 @@ class QuadratureTomographer:
         #self.quadrature_wavefunctions = {} #the wavefunctions of the input quadratures, in Fock basis, computed up to order n_max
         #self.projection_operators = {} #the average projection operators of the generalized quadratures, in Fock basis.
         self.n_max = n_max #maximum order of representation of the density operator in Fock space
-        self.rho = 1/(self.n_max+1) * np.eye(N=self.n_max+1, dtype=complex) #estimated density operator
-        self.rho_last = np.zeros((self.n_max+1, self.n_max+1), dtype=complex)#estimated density operator at the previous iteration of the reconstruction method
+        self.rho = 1/(self.n_max+1) * numpy.eye(N=self.n_max+1, dtype=complex) #estimated density operator
+        self.rho_last = numpy.zeros((self.n_max+1, self.n_max+1), dtype=complex)#estimated density operator at the previous iteration of the reconstruction method
         self.log_likelihood = [] #log-likelihood of the maximum likelihood estimation
         self.convergence_parameter = 1e-9 #parameter deciding the convergence rule of the maximum likelihood estimation algorithm
         self.convergence_rule = convergence_rule
         return
     
-    def setQuadratureData(self, quadratures, vacuum, phases, dt, apply_mode_function=True):
+    def setQuadratureData(self, quadratures, vacuum, phases, dt, apply_mode_function=False):
         """
         This function sets the quadrature data and associated quadrature angles.
         
@@ -104,20 +104,20 @@ class QuadratureTomographer:
         self.phases = phases
         self.n_phases = len(phases)
         if apply_mode_function:
-            self.vacuum, _ = self.mode_function.apply(x=vacuum, dt=self.dt, idle_fraction=0.2)
+            self.vacuum = self.temporal_mode_function.apply(x=vacuum, dt=self.dt)
         else:
             self.vacuum = vacuum
-        if np.shape(quadratures)[1] != self.n_phases:
+        if numpy.shape(quadratures)[1] != self.n_phases:
             raise InvalidQuadratureDataError('The number of quadrature sequences does not match the number of quadrature phases.')  
         for j in range(self.n_phases):
             if apply_mode_function:
                 #Store after applying the mode function
-                self.quadratures[self.phases[j]], _ = self.mode_function.apply(x=quadratures[:, j], dt=self.dt, idle_fraction=0)/(np.var(self.vacuum)*2)**0.5
+                self.quadratures[self.phases[j]] = self.mode_function.apply(x=quadratures[:, j], dt=self.dt)/(numpy.var(self.vacuum)*2)**0.5
             else: 
-                self.quadratures[self.phases[j]] = quadratures[:, j]/(np.var(self.vacuum)*2)**0.5
+                self.quadratures[self.phases[j]] = quadratures[:, j]/(numpy.var(self.vacuum)*2)**0.5
         self.n_samples_filtered = len(self.quadratures[phases[0]]) #number of samples per filtered quadrature measurement
         self.dt_filtered = self.dt*float(int(self.n_samples/len(self.quadratures[self.phases[0]]))) #time separation between adjacent filtered quadrature samples [s]
-        self.vacuum /= (np.var(self.vacuum)*2)**0.5 
+        self.vacuum /= (numpy.var(self.vacuum)*2)**0.5 
         
     def reconstruct(self, n_bins=None, n_max=None, quadratures_range_increase=2, convergence_rule=None, convergence_parameter=None, method='maximum likelihood'):
         """
@@ -158,76 +158,79 @@ class QuadratureTomographer:
         if method not in RECONSTRUCTION_METHODS:
             raise InvalidMethodError('The specified reconstruction method is invalid. Valid reconstruction methods are:\n'+str(RECONSTRUCTION_METHODS))
         #Precompute the maximum and minimum measured quadrature value
-        x_max = [np.max(self.quadratures[phase]) for phase in self.phases]
-        x_min = [np.min(self.quadratures[phase]) for phase in self.phases]
-        x_max = np.max(x_max)*(1+quadratures_range_increase/2)
-        x_min = np.min(x_min)*(1-quadratures_range_increase/2)
+        x_max = [numpy.max(self.quadratures[phase]) for phase in self.phases]
+        x_min = [numpy.min(self.quadratures[phase]) for phase in self.phases]
+        x_max = numpy.max(x_max)*(1+quadratures_range_increase/2)
+        x_min = numpy.min(x_min)*(1-quadratures_range_increase/2)
         if n_bins is None:
             #Try automatic binning
             #I want to resolve at least n_vacuum times the variance of the vacuum quadrature
             #So I'll set the number of bins to...
             n_vacuum = 10
-            n_bins = int(np.ceil(np.abs(x_max-x_min)/(1/2 / n_vacuum)))
+            n_bins = int(numpy.ceil(numpy.abs(x_max-x_min)/(1/numpy.sqrt(2) / n_vacuum)))
         self.n_bins = n_bins
         #Bin the quadrature values accordingly and compute the central values of each bin
-        x_bin_edges = np.linspace(x_min, x_max, self.n_bins+1)
+        x_bin_edges = numpy.linspace(x_min, x_max, self.n_bins+1)
         #Initialize
         #---------------------------------------------------------------------
-        self.rho = (1/(self.n_max+1)) * np.eye(self.n_max+1, dtype=complex) #estimated density operator
-        self.log_likelihood = [] #log-likelihood of the maximum likelihood estimation
+        self.rho = (1/(self.n_max+1)) * numpy.eye(self.n_max+1, dtype=complex) #estimated density operator
+        self.log_likelihood = []
+        self.convergence_metris = {"fidelity of state": [], "fidelity of iteration operator": [], \
+                                   "trace distance(iteration operator, identity)": [], \
+                                    "likelihood": []}
         #---------------------------------------------------------------------
         #For each angle:
             #- Precompute the projectors on the generalized quadratures, averaged over each bin
             #- Precompute the number of quadrature observations per each bin
         #-------------------------------------------------------------------
-        n_x = 100
-        self.projection_operators = np.zeros((self.n_max+1, self.n_max+1, self.n_bins, self.n_phases), dtype=complex)
-        self.n_observations = np.zeros((self.n_bins, self.n_phases))
+        n_x = 1
+        self.projection_operators = numpy.zeros((self.n_max+1, self.n_max+1, self.n_bins, self.n_phases), dtype=complex)
+        self.n_observations = numpy.zeros((self.n_bins, self.n_phases))
         for p in range(self.n_phases):
             phase = self.phases[p]
+            x = self.quadratures[phase]
             for j in range(self.n_bins): #for each bin
-                projection_operator = np.zeros((self.n_max+1, self.n_max+1), dtype=complex)
-                #Compute the average projection operator and the number of quadrature observations
-                x = self.quadratures[phase]
-                x_bin = x[np.where(np.logical_and(x>x_bin_edges[j], x<x_bin_edges[j+1]))]
-                x_bin_continuous = np.linspace(x_bin_edges[j], x_bin_edges[j+1], n_x)
+                projection_operator = numpy.zeros((self.n_max+1, self.n_max+1), dtype=complex)
+                #Compute the average projection operator and the number of quadrature observations               
+                x_bin = x[numpy.where(numpy.logical_and(x>x_bin_edges[j], x<x_bin_edges[j+1]))]
+                x_bin_continuous = numpy.linspace(x_bin_edges[j], x_bin_edges[j+1], n_x)
                 self.n_observations[j, p] = len(x_bin)
                 #Compute the average projection operator
                 #print('Computing wavefunctions')
                 for k in range(n_x):
                     projection_operator += homodyneFockPOVM(n_max=n_max, x=x_bin_continuous[k], theta=phase)
-                projection_operator /= n_x * (x_max-x_min)
-                self.projection_operators[:, :, j, p] = projection_operator
+                self.projection_operators[:, :, j, p] = projection_operator *(x_bin_edges[j+1]-x_bin_edges[j])
         #-----------------------------------------------
         #Run the maximum likelihood algorithm
         #-----------------------------------------------
-        has_converged = False
-        while not has_converged:
+        has_converged = [False]
+        while not has_converged[0]:
             self.rho_last = self.rho 
-            self.R = np.zeros((self.n_max+1, self.n_max+1), dtype=complex)
+            self.R = numpy.zeros((self.n_max+1, self.n_max+1), dtype=complex)
+            self.measurement_probabilities = numpy.zeros((self.n_bins, self.n_phases))
             log_likelihood = 0
             for p in range(self.n_phases):
                 for j in range(self.n_bins): #for each bin
-                    measurement_probability = float(np.trace(self.projection_operators[:, :, j, p] @ self.rho))
-                    if measurement_probability <= 0:
-                        pass
-                    else:
-                        self.R += self.n_observations[j, p]/measurement_probability * self.projection_operators[:, :, j, p]
-                       # print('Measurement probability for p=%d and j=%d: %0.8f'%(p, j, measurement_probability))
-                       # print('Number of observations: %d'%(self.n_observations[j, p]))
-                        log_likelihood += np.log(measurement_probability)
-                       # print('Likelihood: %0.5f'%likelihood)
-            self.R /= self.n_samples_filtered
+                    self.measurement_probabilities[j, p] = numpy.trace(self.projection_operators[:, :, j, p] @ self.rho)
+            self.measurement_probabilities /= self.n_phases
+            self.R = numpy.tensordot(self.n_observations/self.measurement_probabilities, self.projection_operators, axes=([0, 1], [2, 3]))              
+            self.R /= numpy.trace(self.R)
+            log_likelihood = numpy.sum(self.n_observations*numpy.log(self.measurement_probabilities), (0, 1))
+            self.R = (self.R+numpy.transpose(numpy.conj(self.R)))/2
+           # self.R /= numpy.trace(self.R)
             self.rho = self.R @ (self.rho @ self.R)
-            self.rho = (self.rho+np.transpose(np.conj(self.rho)))/2
-            self.rho /= np.trace(self.rho)
+            #self.rho = (self.rho+numpy.transpose(numpy.conj(self.rho)))/2
+            self.rho /= numpy.trace(self.rho)
             #Check that it is a density matrix
             is_density_matrix = qfutils.isDensityMatrix(self.rho)
             if not is_density_matrix[0]:
                 raise NotADensityMatrixError(str(is_density_matrix[1]))
             self.log_likelihood.append(log_likelihood)
-            has_converged = self.hasConverged(convergence_rule=convergence_rule, convergence_parameter=convergence_parameter)[0]
-            print(self.convergence_rule+': '+str(self.hasConverged(convergence_rule=convergence_rule, convergence_parameter=convergence_parameter)))
+            has_converged = self.hasConverged(convergence_rule=convergence_rule, convergence_parameter=convergence_parameter)
+            for rule in ["fidelity of state", "fidelity of iteration operator", "trace distance(iteration operator, identity)",\
+                         "likelihood"]:
+                self.convergence_metris[rule].append(has_converged[1][rule])
+            print(self.convergence_rule+': '+str(has_converged))
             
         #----------------------------------------------
 
@@ -250,23 +253,25 @@ class QuadratureTomographer:
             convergence_rule = self.convergence_rule         
         if convergence_parameter is None:
             convergence_parameter = self.convergence_parameter
-        convergence_metric = None
+        convergence_metrics = {"fidelity of state": None, "fidelity of iteration operator": None, \
+                                   "trace distance(iteration operator, identity)": None, \
+                                    "likelihood": None}
         has_converged = False
+        convergence_metrics["fidelity of state"] = float(qfutils.quantumStateFidelity(self.rho, self.rho_last))
+        convergence_metrics["fidelity of iteration operator"] = numpy.abs(qfutils.quantumStateFidelity(self.R, 1/(self.n_max+1)*numpy.eye(self.n_max+1, dtype=complex)))
+        convergence_metrics["trace distance(iteration operator, identity)"] = float(qfutils.traceDistance(self.R, 1/(self.n_max+1)*numpy.eye(self.n_max+1, dtype=complex)))
+        convergence_metrics["likelihood"] = numpy.exp(self.log_likelihood[-1])
         if convergence_rule == 'fidelity of state':
-            convergence_metric = float(qfutils.quantumStateFidelity(self.rho, self.rho_last))
-            has_converged = convergence_metric > 1-convergence_parameter
+            has_converged = convergence_metrics["fidelity of state"] > 1-convergence_parameter
         elif convergence_rule == 'fidelity of iteration operator':
-            convergence_metric = float(qfutils.quantumStateFidelity(self.R/np.trace(self.R), 1/(self.n_max+1)*np.eye(self.n_max+1, dtype=complex)))
-            has_converged = convergence_metric > 1-convergence_parameter
+            has_converged = convergence_metrics["fidelity of iteration operator"] > 1-convergence_parameter
         elif convergence_rule == 'trace distance(iteration operator, identity)':
-            convergence_metric = float(qfutils.traceDistance(self.R/np.trace(self.R), 1/(self.n_max+1)*np.eye(self.n_max+1, dtype=complex)))
-            has_converged = convergence_metric < convergence_parameter
-        elif convergence_rule == 'log-likelihood':
-            convergence_metric = self.log_likelihood[-1]
-            has_converged = convergence_metric > -convergence_parameter
+            has_converged = convergence_metrics["trace distance(iteration operator, identity)"] < convergence_parameter
+        elif convergence_rule == 'likelihood':
+            has_converged = convergence_metrics["likelihood"] > 1-convergence_parameter
         else:
             raise InvalidConvergenceRuleError('The valid convergence rules are:\n'+str(CONVERGENCE_RULES))
-        return has_converged, convergence_metric
+        return has_converged, convergence_metrics
         
 #%%     
 class InvalidQuadratureDataError(Exception):

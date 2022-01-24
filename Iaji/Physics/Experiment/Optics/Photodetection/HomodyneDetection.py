@@ -66,6 +66,7 @@ def sampleVariance(x, name=None):
     sample_variance_std = (2/(N-1))**0.5 * sample_variance #theoretical standard deviation of the sample variance
  
     return uncertainties.ufloat(nominal_value=sample_variance, std_dev=sample_variance_std, tag=name)
+
 #%%
 #Define a function that converts a list of uncertainties.ufloat objects to pairs of numpy arrays, containing (nominal_values, std_dev)
 def ufloatsToNumpy(x):

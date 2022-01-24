@@ -4,6 +4,7 @@ This module describes a HilberSpace
 #%%
 import sympy, numpy
 from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.Matrix import Matrix
+from Iaji.Mathematics.Parameter import Parameter, ParameterSymbolic, ParameterNumeric
 #%%
 print_separator = "---------------------------------------------------------"
 ACCEPTED_TYPES = {sympy.sets.fancysets.Reals, sympy.sets.fancysets.Complexes}
@@ -40,6 +41,7 @@ class HilbertSpace:
         self._vectors = scalars**dimension
         #Define the canonical basis
         self._canonical_basis = self.CanonicalBasis()
+        self.SetInneProduct()
     #---------------------------------------------------------------
     @property
     def name(self):
@@ -154,8 +156,54 @@ class HilbertSpace:
             return None
         else:
             return HilbertSpace(dimension=self.dimension+other.dimension, scalars=self.scalars, name="%s*%s"%(self.name, other.name))
-            
-        
-        
+    
+    # ---------------------------------------------------------------
+    def SetInnerProduct(self):     
+        if not self.isFiniteDimensional():
+           raise NotImplementedError("Infinite-dimensional Hilbert spaces are not yet handeled.")
+           self._inner_product = None 
+        else:
+            def InnerProduct(v1, v2):
+                """
+                Returns the inner product between two elements of the Hilber space
+                INPUTS
+                -------------
+                    v1, v2 : in [Iaji Matrix, Iaji MatrixSymbolic, Iaji MatrixNumeric]
+                        the two vectors of which the inner product is evaluated.
+                
+                OUTPUT
+                ------------
+                
+                """
+                import Iaji
+                ACCEPTED_TYPES = [Iaji.Mathematics.Pure.Algebra.LinearAlgebra.Matrix.Matrix, \
+                                  Iaji.Mathematics.Pure.Algebra.LinearAlgebra.Matrix.MatrixSymbolic,\
+                                  Iaji.Mathematics.Pure.Algebra.LinearAlgebra.Matrix.MatrixNumeric]
+                if type(v1) not in ACCEPTED_TYPES or type(v2) not in ACCEPTED_TYPES:
+                    raise TypeError("unsupported operand type(s) for InnerProduct: %s and %s"%(type(v1), type(v2)))
+                    return None
+                else:
+                    if type(v1) != type(v2):
+                        raise TypeError("The type of the first operand is %s but the second is %s"%(type(v1), type(v2)))
+                        return None
+                    else:
+                        result = v1.Conjugate().Transpose() @ v2
+                        result.name = "\langle{"+v1.name.__str__()+"|"+v2.name.__str__()+"}\\rangle"
+                        type_string_last = str(type(v1)).split("'")[1].split(".")[-1]
+                        if  type_string_last == "Matrix":
+                            result_parameter = Parameter(name=result.name)
+                            result_parameter.symbolic.expression = result.symbolic.expression[0, 0]
+                            result_parameter.numeric.value = result.numeric.value[0, 0]
+                        elif type_string_last == "MatrixSymbolic":
+                            result_parameter = ParameterSymbolic(name=result.name)
+                            result_parameter.expression = result.expression[0, 0]
+                        else:
+                            result_parameter = ParameterNumeric(name=result.name)
+                            result_parameter.value = result.value[0, 0]
+                        return result_parameter
+            self._inner_product = InnerProduct
+                        
+               
+               
 
 
