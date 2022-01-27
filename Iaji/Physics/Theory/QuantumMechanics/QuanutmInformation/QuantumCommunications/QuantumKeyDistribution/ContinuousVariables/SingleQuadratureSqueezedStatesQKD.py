@@ -23,7 +23,7 @@ GaussianStatesCVQKD:
 import numpy as np
 import sympy
 sympy.init_printing()
-from Iaji.Physics.Theory.QuanutmInformation import QuantumInformationUtilities as QIUtils
+from Iaji.Physics.Theory.QuantumMechanics.QuanutmInformation import QuantumInformationUtilities as QIUtils
 from quik.qip.nmodes import vacuum
 from quik.qip.nmodes_symbolic import Vacuum as vacuum_symbolic
 from quik.qip.nmodes_symbolic import CovarianceMatrix as CovarianceMatrix_symbolic
