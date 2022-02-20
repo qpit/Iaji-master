@@ -221,12 +221,7 @@ def VonNeumannEntropy(V, Omega=None, print_warnings=False):
 #%%
 def secret_key_fraction_Gaussian_CVQKD(variances_A, correlations_A, \
                                        channel_efficiencies=[1, 1], channel_thermal_numbers=[0, 0],\
-                                        beta=1, Omega=None, ideal_transmitter=True, switching_probability=numpy.nan, \
-                                        R_A = 0, R_MA = 0.5, \
-                                        R_B = 0, R_MB = 0.5, \
-                                        trusted_loss_noise_MA=[1, 1, 0, 0],\
-                                        trusted_loss_noise_MB=[1, 1, 0, 0],\
-                                        trusted_loss_noise_B=[1, 1, 0, 0]):
+                                        beta=1, Omega=None, ideal_transmitter=True, switching_probability=numpy.nan):
     """
     Computes the secret key fraction of Gaussian CVQKD against collective attacks in the asymptotic limit.
     
@@ -250,24 +245,6 @@ def secret_key_fraction_Gaussian_CVQKD(variances_A, correlations_A, \
         switching_probability : float (in [0, 1])
             probability that the q quadrature is modulated and measured. Only valid in 
             two-dimensional protocols.
-        trusted_loss_noise_MA: array-like of float (shape in {(4,), (,4)})
-            Trusted loss and noise at the transmitter's state monitor
-                trusted_loss_noise_MA[0] = T_MA_q
-                trusted_loss_noise_MA[1] = T_MA_p
-                trusted_loss_noise_MA[1] = xi_MA_q
-                trusted_loss_noise_MA[2] = xi_MA_p       
-        trusted_loss_noise_B: array-like of float (shape in {(4,), (,4)})
-            Trusted loss and noise at the receiver's measurement system
-                trusted_loss_noise_B[0] = T_q
-                trusted_loss_noise_B[1] = T_p
-                trusted_loss_noise_B[1] = xi_q
-                trusted_loss_noise_B[2] = xi_p
-        trusted_loss_noise_MB: array-like of float (shape in {(4,), (,4)})
-            Trusted loss and noise at the receiver's state monitor
-                trusted_loss_noise_MB[0] = T_MB_q
-                trusted_loss_noise_MB[1] = T_MB_p
-                trusted_loss_noise_MB[1] = xi_MB_q
-                trusted_loss_noise_MB[2] = xi_MB_p            
     """
     if numpy.any(correlations_A == 0) and not ideal_transmitter:
         raise TypeError("A non-ideal transmitter is not supported if the protocol is unidimensional.")
@@ -346,28 +323,20 @@ def loss_inv(V, eta):
     """
     return (V-1)/eta + 1
 
-def loss_noise(V_0, eta, ni, force_allow=False):
+def loss_noise(V_0, eta, ni):
     """
     Transform the initial variance V of a Gaussian state, according to
     propagation loss with efficiency eta and additive Gaussian noise coming
     from a two-mode squeezed vacuum state with quadrature variance ni
     """
-    if not force_allow:
-        try:
-            assert ni.nominal_value >= 1
-        except:
-            assert ni >= 1
+    assert ni >= 1
     return V_0*eta + (1-eta)*ni
 
-def loss_noise_inv(V, eta, ni, force_allow=False):
+def loss_noise_inv(V, eta, ni):
     """
     Backward-transform the variance V of a Gaussian state, according to
     propagation loss with efficiency eta and additive Gaussian noise coming
     from a two-mode squeezed vacuum state with quadrature variance ni
     """
-    if not force_allow:
-        try:
-            assert ni.nominal_value >= 1
-        except:
-            assert ni >= 1
+    assert ni >= 1
     return (V-ni)/eta + ni

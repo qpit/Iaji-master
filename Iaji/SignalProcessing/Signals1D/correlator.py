@@ -10,7 +10,7 @@ Created on Wed Jun 10 16:04:29 2020
 
 #%%
 #imports
-import numpy as np
+import numpy
 from scipy import signal
 #%%
 class correlator:
@@ -40,18 +40,18 @@ class correlator:
             print("\nERROR in function correlator.__init__(): 'sampling_period' must be a positive real number.") 
         #----------------------------------------------------------
         #Make the input vectors numpy arrays
-        self.signal_1 = np.atleast_1d(signal_1) #[a.u.]
-        self.signal_2 = np.atleast_1d(signal_2) #[a.u.]
+        self.signal_1 = numpy.atleast_1d(signal_1) #[a.u.]
+        self.signal_2 = numpy.atleast_1d(signal_2) #[a.u.]
         self.Xs = sampling_period #sampling period [same units as 'x']
-        self.n_samples = np.max([len(signal_1), len(signal_2)]) #maximum number of samples
+        self.n_samples = numpy.max([len(signal_1), len(signal_2)]) #maximum number of samples
         #Add samples to the shortest signal, through zero-pad
         #---------------------------------------------------------
         #Signal 1
-        Delta_n = np.max([0, self.n_samples-len(self.signal_1)])
-        self.signal_1 = np.concatenate((self.signal_1, np.zeros((Delta_n, ))))
+        Delta_n = numpy.max([0, self.n_samples-len(self.signal_1)])
+        self.signal_1 = numpy.concatenate((self.signal_1, numpy.zeros((Delta_n, ))))
         #Signal 2
-        Delta_n = np.max([0, self.n_samples-len(self.signal_2)])
-        self.signal_2 = np.concatenate((self.signal_2, np.zeros((Delta_n, )))) 
+        Delta_n = numpy.max([0, self.n_samples-len(self.signal_2)])
+        self.signal_2 = numpy.concatenate((self.signal_2, numpy.zeros((Delta_n, )))) 
         #---------------------------------------------------------
         #Define variables related to correlation
         self.correlation_function = None; #normalized correlation function  [adimensional]
@@ -67,6 +67,16 @@ class correlator:
         self.signal_1_recorrelated = None
         self.signal_2_recorrelated = None
         self.n_samples_recorrelated = None
+      
+    def correlationFunction(self):
+        self.computeCorrelationFunction()
+        return self.getCorrelationFunction()
+    
+    def covarianceFunction(self):
+        self.computeCorrelationFunction()
+        correlation, lags = self.getCorrelationFunction()
+        return numpy.std(self.signal_1)*numpy.std(self.signal_2)*self.n_samples*correlation, \
+            lags
         
     def computeCorrelationFunction(self):
         """
@@ -74,12 +84,12 @@ class correlator:
         lags, used as the independent variable for the correlation function.
         """  
         #Compute and subtract the mean value of the input signals
-        signal_1_mean = np.mean(self.signal_1)
-        signal_2_mean = np.mean(self.signal_2)
+        signal_1_mean = numpy.mean(self.signal_1)
+        signal_2_mean = numpy.mean(self.signal_2)
         self.signal_1 -= signal_1_mean
         self.signal_2 -= signal_2_mean
-        self.correlation_function = signal.correlate(self.signal_1, self.signal_2)/(self.n_samples*np.std(self.signal_1)*np.std(self.signal_2)) #normalized correlation function [adimensional]
-        self.lags = np.flipud(np.linspace(start=-self.x_max+self.Xs/2, stop=self.x_max-self.Xs/2, num=len(self.correlation_function))) #correlation delays [same units as 'x']
+        self.correlation_function = signal.correlate(self.signal_1, self.signal_2)/(self.n_samples*numpy.std(self.signal_1)*numpy.std(self.signal_2)) #normalized correlation function [adimensional]
+        self.lags = numpy.flipud(numpy.linspace(start=-self.x_max+self.Xs/2, stop=self.x_max-self.Xs/2, num=len(self.correlation_function))) #correlation delays [same units as 'x']
         #Add the mean values back
         self.signal_1 += signal_1_mean
         self.signal_2 += signal_2_mean
@@ -95,6 +105,10 @@ class correlator:
         """
         return self.correlation_function, self.lags
     
+    def correlationCoefficient(self, delete_correlation_function=False):
+        self.computeCorrelationCoefficient(delete_correlation_function)
+        return self.getCorrelationCoefficient()
+    
     def computeCorrelationCoefficient(self, delete_correlation_function=False):
         """
         This function computes the normalized correlation coefficient. If the correlation function has not been computed yet, 
@@ -109,7 +123,7 @@ class correlator:
         if self.correlation_function is None: 
             self.computeCorrelationFunction()
             could_delete = True
-        index = np.argmax(np.abs(self.correlation_function))
+        index = numpy.argmax(numpy.abs(self.correlation_function))
         self.correlation_coefficient = self.correlation_function[index] #correlation coefficient [adimensional]
         #If the user wanXs to delete the correlation function, and if it was newly computed, then delete it
         if delete_correlation_function and could_delete:
@@ -140,7 +154,7 @@ class correlator:
         if self.correlation_function is None: 
             self.computeCorrelationFunction()
             could_delete = True
-        self.coherence_width = -np.min(self.lags[np.abs(self.correlation_function)>=np.max(abs(self.correlation_function))/2])
+        self.coherence_width = -numpy.min(self.lags[numpy.abs(self.correlation_function)>=numpy.max(abs(self.correlation_function))/2])
         #If the user wanXs to delete the correlation function, and if it was newly computed, then delete it
         if delete_correlation_function and could_delete:
             self.correlation_function, self.lags = [None for j in range(2)] 
@@ -168,7 +182,7 @@ class correlator:
         if self.correlation_function is None: 
             self.computeCorrelationFunction()
             could_delete = True
-        self.delay =self.Xs*(np.argmax(np.abs(self.correlation_function))-self.n_samples+1)
+        self.delay =self.Xs*(numpy.argmax(numpy.abs(self.correlation_function))-self.n_samples+1)
         #If the user wanXs to delete the correlation function, and if it was newly computed, then delete it
         if delete_correlation_function and could_delete:
             self.correlation_function, self.lags = [None for j in range(2)] 
@@ -182,6 +196,9 @@ class correlator:
         """
         return self.delay
     
+    def recorrelate(self, delete_correlation_function=False):
+        self.recorrelateSignals(delete_correlation_function)
+        return self.getRecorrelatedSignals()
     
     def recorrelateSignals(self, delete_correlation_function=False):
         """
@@ -197,8 +214,8 @@ class correlator:
             self.computeDelay(delete_correlation_function)
             self.computeCorrelationCoefficient(delete_correlation_function)  
         #Compute the delay in samples
-        delay_samples = abs(int(np.ceil(self.delay/self.Xs)))
-        sign = np.sign(self.correlation_coefficient)
+        delay_samples = abs(int(numpy.ceil(self.delay/self.Xs)))
+        sign = numpy.sign(self.correlation_coefficient)
         self.n_samples_recorrelated = self.n_samples-delay_samples #number of correlated samples
         #Select the portions of the signals that are overlapped, according to the delay         
         if self.delay > 0 :       
@@ -225,7 +242,7 @@ class correlator:
             - signal_2_recorrelated: re-correlated signal 2 [a.u.] - array-like of float
             - x_recorrelated: x vecotr for the re-correlated signals [same units as 'x'] - array-like of float
         """
-        x_recorrelated = np.linspace(start=0, stop=(self.n_samples_recorrelated-1)*self.Xs, num=self.n_samples_recorrelated)
+        x_recorrelated = numpy.linspace(start=0, stop=(self.n_samples_recorrelated-1)*self.Xs, num=self.n_samples_recorrelated)
         return self.signal_1_recorrelated, self.signal_2_recorrelated, x_recorrelated
         
     
@@ -255,9 +272,9 @@ class correlator:
         """
         
         #Create empty signals
-        signal_1_recorrelated, signal_2_recorrelated, x_recorrelated = [np.empty((0,)) for s in range(3)]
+        signal_1_recorrelated, signal_2_recorrelated, x_recorrelated = [numpy.empty((0,)) for s in range(3)]
 
-        n_pieces = int(np.ceil((self.n_samples-n_offset)/n_piece)) 
+        n_pieces = int(numpy.ceil((self.n_samples-n_offset)/n_piece)) 
         #Construct the temporary signals containing the parXs to be recorrelated, discarding 2*n_exclude samples from the boundaries between pieces
         start_signal = n_offset #starting index for the parXs of the signals to be recorrelated
         for j in range(n_pieces):
@@ -272,8 +289,8 @@ class correlator:
             corr.recorrelateSignals(delete_correlation_function=True)
             #Append the new re-correlated pieces
             signal_1_temp, signal_2_temp, _ = corr.getRecorrelatedSignals()
-            signal_1_recorrelated = np.concatenate((signal_1_recorrelated, signal_1_temp))
-            signal_2_recorrelated = np.concatenate((signal_2_recorrelated, signal_2_temp))
+            signal_1_recorrelated = numpy.concatenate((signal_1_recorrelated, signal_1_temp))
+            signal_2_recorrelated = numpy.concatenate((signal_2_recorrelated, signal_2_temp))
             
         self.n_samples_recorrelated = len(signal_1_recorrelated)
         self.signal_1_recorrelated = signal_1_recorrelated

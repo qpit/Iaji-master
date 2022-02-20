@@ -2,25 +2,24 @@
 This module describes a covariance matrix
 """
 #%%
-from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.Matrix import MatrixSymbolic, MatrixNumeric
+from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.Matrix import MatrixSymbolic, MatrixNumeric, Matrix
 from .Exceptions import TestFailedError, TestFailedWarning, InconsistentShapeError
 import numpy, sympy
 #%%
 print_separator = "-----------------------------------------------"
 #%%
-class CovarianceMatrix:
+class CovarianceMatrix(Matrix):
     """
     This class describes a covariance matrix as a parameter.
     """
     # ----------------------------------------------------------
     def __init__(self, name="Sigma", value=None, real=False, nonnegative=False):
-        self.name = name
-        self.type = "vector"
+        super().__init__(name, value, real, nonnegative)
         self._symbolic = CovarianceMatrixSymbolic(name=name)
         self._numeric = CovarianceMatrixNumeric(name=name, value=value)
         # Connect property changed signals to chech functions
-        self.numeric.value_changed.connect(self.check_shapes)
-        self.symbolic.expression_changed.connect(self.check_shapes)
+        #self.numeric.value_changed.connect(self.check_shapes)
+        #self.symbolic.expression_changed.connect(self.check_shapes)
     # ----------------------------------------------------------
     @property
     def symbolic(self):

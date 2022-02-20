@@ -8,7 +8,7 @@ Created on Fri Aug 28 10:36:34 2020
 #%%
 #mports
 import h5py
-import numpy as np
+import numpy
 
 #%%
 
@@ -43,7 +43,7 @@ class h5:
         name = dataset.name #dataset name
         group = dataset.parent #parent group
         del group[name]
-        group.create_dataset(name=name, data=data)
+        group.create_dataset(name=name, data=data, shape=numpy.asarray(data).shape, dtype=numpy.asarray(data).dtype)
             
     def copyStructure(self, destination_file, source_file=None):
         """
@@ -87,11 +87,11 @@ class h5:
             del parent_group[dataset_name]
             #Replace it with a new empty dataset
             value = None
-            parent_group.create_dataset(name=dataset_name, data=value, dtype=np.dtype(None)) 
+            parent_group.create_dataset(name=dataset_name, data=value, dtype=numpy.dtype(None)) 
      
     def dictionaryToFile(self, dictionary, destination_file):
         """
-        this function save an input dictionary of arbitrary type into a .h5 file.
+        this function save an input dictionary of numpy arrays into a .h5 file.
         
         INPUTS
         --------------
@@ -120,7 +120,7 @@ class h5:
         else:
             #We found the bottom of the dictionary: save data into a dataset
             print(dictionary)
-            destination_file.create_dataset(name='data', data=np.array([dictionary]))
+            destination_file.create_dataset(name='data', data=numpy.array([dictionary]))
         
             
             

@@ -64,7 +64,7 @@ n_max = 15# Fock space truncation
 mode_function_type = 'double exponential filter'
 mode_function_parameters = (2*numpy.pi*16e6, 2*numpy.pi*20e6, -171e-9)
 convergence_rule = 'fidelity of state' #'fidelity of iteration operator'#
-tomographer = Tomographer(n_max=n_max, mode_function_type=mode_function_type, mode_function_parameters=mode_function_parameters, \
+tomographer = Tomographer(n_max=n_max, mode_function_type=mode_function_type,  \
                           convergence_rule=convergence_rule)
 
 #%%
@@ -94,7 +94,7 @@ for j in range(len(phases)):
 
 tomographer.setQuadratureData(quadratures=quadratures_array, vacuum=vacuum_noise, phases=phases, dt=Ts, apply_mode_function=False)
 #%%
-tomographer.reconstruct(quadratures_range_increase=1, convergence_rule="fidelity of state", convergence_parameter=1e-7)
+tomographer.reconstruct(quadratures_range_increase=1, convergence_rule="fidelity of state", convergence_parameter=1e-5)
 #%%
 q, p = [numpy.linspace(-5, 5, 200) for j in range(2)]
 Q, P, wigner_function = qfutils.WignerFunctionFromDensityMatrix(rho=tomographer.rho, q=q, p=p)

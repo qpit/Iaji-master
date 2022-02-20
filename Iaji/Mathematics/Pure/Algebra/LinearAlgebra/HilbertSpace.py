@@ -41,7 +41,7 @@ class HilbertSpace:
         self._vectors = scalars**dimension
         #Define the canonical basis
         self._canonical_basis = self.CanonicalBasis()
-        self.SetInneProduct()
+        self.SetInnerProduct()
     #---------------------------------------------------------------
     @property
     def name(self):
@@ -146,7 +146,7 @@ class HilbertSpace:
              +"dimension: "+self.dimension.__str__()+"\n"
         return s
     # ---------------------------------------------------------------
-    def __mul__(self, other):
+    def otimes(self, other):
         """
         Tensor product of Hilbert spaces
         """
@@ -155,7 +155,8 @@ class HilbertSpace:
                             %(self.name, self.scalars, other.name, other.scalars))
             return None
         else:
-            return HilbertSpace(dimension=self.dimension+other.dimension, scalars=self.scalars, name="%s*%s"%(self.name, other.name))
+            name = "\\left(%s\\otimes%s\\right)"%(self.name, other.name)
+            return HilbertSpace(dimension=self.dimension+other.dimension, scalars=self.scalars, name=name)
     
     # ---------------------------------------------------------------
     def SetInnerProduct(self):     

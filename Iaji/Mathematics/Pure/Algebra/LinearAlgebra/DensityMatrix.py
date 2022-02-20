@@ -2,25 +2,24 @@
 This module describes a density matrix
 """
 #%%
-from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.Matrix import MatrixSymbolic, MatrixNumeric
+from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.Matrix import MatrixSymbolic, MatrixNumeric, Matrix
 from .Exceptions import TestFailedError, InconsistentShapeError
 import numpy, sympy
 #%%
 print_separator = "-----------------------------------------------"
 #%%
-class DensityMatrix:
+class DensityMatrix(Matrix):
     """
     This class describes a density matrix as a parameter.
     """
     # ----------------------------------------------------------
-    def __init__(self, name="Rho", value=None, real=False, nonnegative=False):
-        self.name = name
-        self.type = "vector"
+    def __init__(self, name="\\rho", value=None, real=False, nonnegative=False):
+        super().__init__(name, value, real, nonnegative)
         self._symbolic = DensityMatrixSymbolic(name=name)
         self._numeric = DensityMatrixNumeric(name=name, value=value)
         # Connect property changed signals to chech functions
-        self.numeric.value_changed.connect(self.check_shapes)
-        self.symbolic.expression_changed.connect(self.check_shapes)
+   #     self.numeric.value_changed.connect(self.check_shapes)
+   #     self.symbolic.expression_changed.connect(self.check_shapes)
     # ----------------------------------------------------------
     @property
     def symbolic(self):
@@ -85,7 +84,7 @@ class DensityMatrixSymbolic(MatrixSymbolic):
             self._shape = self._expression.shape
             try:
                 if not self.isDensityMatrix()[0]:
-                    error_message = "Value of matrix "+self.name.__str__()+" cannot represent a density matrix, because it is not square.\n"+self.__str__()
+                    error_message = "Expression of matrix "+self.name.__str__()+" cannot represent a density matrix\n"+self.isDensityMatrix()[1].__str__()
                     self._expression = None
                     self._shape = None
                     raise TypeError(error_message)
@@ -131,7 +130,7 @@ class DensityMatrixNumeric(MatrixNumeric):
             self._value = numpy.matrix(value)
             self._shape = self._value.shape
             if not self.isDensityMatrix()[0]:
-                error_message = "Value of matrix "+self.name.__str__()+" does not represent a density matrix. \n"+self.__str__()
+                error_message = "Value of matrix "+self.name.__str__()+" cannot represent a density matrix\n"+self.isDensityMatrix()[1].__str__()
                 self._value = None
                 self._shape = None
                 self._eigenvalues, self._rank, self._trace, self._determinant = [None for j in range(4)]

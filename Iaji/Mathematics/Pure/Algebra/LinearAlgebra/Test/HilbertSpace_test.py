@@ -17,5 +17,5 @@ print(H1)
 H2 = HilbertSpace(dimension=2, name="H_{2}")
 print(H2)
 #Compose the two Hilbert spaces
-H = H1 * H2
+H = H1.otimes(H2)
 print(H)

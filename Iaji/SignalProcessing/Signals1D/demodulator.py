@@ -64,7 +64,7 @@ class demodulator:
             self.b_low_pass = None #coefficients of the demodulation low-pass FIR filter
             if cutoff_frequency:
                 #Design the demodulation low-pass FIR filter, with the specified sampling frequency and  cutoff frequency
-                self.b_low_pass = signal.firwin(1001, self.cutoff_frequency, nyq=0.5*self.Fs, window='hamming', scale=False) #demodulation low-pass filter coefficients [a.u.]
+                self.b_low_pass = signal.firwin(501, self.cutoff_frequency, fs=self.Fs) #demodulation low-pass filter coefficients [a.u.]
         
 
     def demodulate(self, f):
@@ -82,7 +82,7 @@ class demodulator:
                 demodulated signal [same units as 's']
             """
             n_samples = len(f) #number of samples 
-            downmixing_signal = np.cos(2*np.pi*self.downmixing_frequency*np.array(range(n_samples))/self.Fs+self.downmixing_phase) #[a.u.]
+            downmixing_signal = np.cos(2*np.pi*self.downmixing_frequency*np.arange(n_samples)/self.Fs+self.downmixing_phase) #[a.u.]
             #Downmix and low-pass filter
             return signal.filtfilt(self.b_low_pass, 1, f*downmixing_signal) #[a.u.]
         
@@ -309,10 +309,8 @@ class demodulator:
         f_1_demodulated, f_2_demodulated = self.demodulate2(relative_downmixing_phase=relative_downmixing_phase, f_1=f_1, f_2=f_2)
         #Initialize a correlator object
         correlator_obj = correlator(signal_1=f_1_demodulated, signal_2=f_2_demodulated, sampling_period = 1/self.Fs)
-        #2) Re-correlate the demodulated signals
-        correlator_obj.recorrelateSignals(delete_correlation_function=True)
-        #Get the re-correlated time signals
-        f_1_recorrelated, f_2_recorrelated, _ = correlator_obj.getRecorrelatedSignals()
+        #Re-correlate the signals
+        f_1_recorrelated, f_2_recorrelated, _ = correlator_obj.recorrelate()
         #3) Downsample
         downsampling_factor = int(self.Fs/(2*self.cutoff_frequency)) 
         f_1_recorrelated = f_1_recorrelated[::downsampling_factor]
@@ -320,7 +318,7 @@ class demodulator:
         #Make sure all the time signals have the same length
         n_samples = len(f_1_recorrelated)
         #4) Compute the conditional variance
-        covariance = 1/n_samples * np.sum(f_1_recorrelated*f_2_recorrelated) #covariance between the recorrelated signals
+        covariance = 1/n_samples * f_1_recorrelated.T@f_2_recorrelated #covariance between the recorrelated signals
         return -abs(covariance)
     
     
@@ -341,7 +339,7 @@ class demodulator:
         optimal_downmixing_phase : float
             phase difference between the downmixing sinusoidal signals for 'f_1' and 'f_2' [rad].
         """   
-        optimal_downmixing_phase = optimize.fminbound(self.demodulateAndDecorrelate, x1=0, x2=np.pi, args=(f_1, f_2))
+        optimal_downmixing_phase = optimize.fminbound(self.demodulateAndDecorrelate, x1=0, x2=np.pi/2, args=(f_1, f_2))
         return optimal_downmixing_phase
     
     

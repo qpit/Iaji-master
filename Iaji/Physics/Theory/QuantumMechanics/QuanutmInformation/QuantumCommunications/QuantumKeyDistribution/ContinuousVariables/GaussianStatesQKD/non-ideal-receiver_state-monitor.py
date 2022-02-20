@@ -5,7 +5,7 @@ Created on Thu Jan  6 17:16:20 2022
 
 @author: jiedz
 
-Quick calculation of the prepare & measure covariance matrix with
+Quick calculation of the preV_PMpare & measure covariance matrix with
 state monitoring at the receiver.
 
 For reference see my PhD thesis
@@ -30,7 +30,6 @@ nu_MB_q, nu_MB_p, xi_MB_q, xi_MB_p = sympy.symbols("\\nu^{(PM)}_{MB_q}, \\nu^{(P
 V_PM = Vacuum(12)
 V_PM[22:, 22:] = CovarianceMatrix([[V_q_B, 0], [0, V_p_B]])
 #Propagation loss on mode B
-V_PM = V_PM.opticalefficiency(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, T_B)
 #Split at the state monitor tap beam splitter
 V_PM = V_PM.pick_modes(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 11)
 V_PM = V_PM.bs(11, 12, R_B)
