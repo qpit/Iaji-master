@@ -155,7 +155,7 @@ class HilbertSpace:
                             %(self.name, self.scalars, other.name, other.scalars))
             return None
         else:
-            name = "\\left(%s\\otimes%s\\right)"%(self.name, other.name)
+            name = "\\left(%s\\otimes\\;%s\\right)"%(self.name, other.name)
             return HilbertSpace(dimension=self.dimension+other.dimension, scalars=self.scalars, name=name)
     
     # ---------------------------------------------------------------

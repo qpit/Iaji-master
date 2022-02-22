@@ -1,13 +1,14 @@
 """
 This module describes a covariance matrix
 """
-#%%
+# In[]:
 from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.Matrix import MatrixSymbolic, MatrixNumeric, Matrix
 from .Exceptions import TestFailedError, TestFailedWarning, InconsistentShapeError
+from Iaji.Mathematics.Parameter import Parameter, ParameterSymbolic, ParameterNumeric
 import numpy, sympy
-#%%
+# In[]:
 print_separator = "-----------------------------------------------"
-#%%
+# In[]:
 class CovarianceMatrix(Matrix):
     """
     This class describes a covariance matrix as a parameter.
@@ -57,8 +58,7 @@ class CovarianceMatrix(Matrix):
         return s
     # ----------------------------------------------------------
     # ----------------------------------------------------------
-
-
+# In[]:
 class CovarianceMatrixSymbolic(MatrixSymbolic):
     """
     This class describes a symbolic covariance matrix.
@@ -98,7 +98,9 @@ class CovarianceMatrixSymbolic(MatrixSymbolic):
             self.expression_symbols = None
             self.expression_lambda = None
             self._shape = None
-        self._eigenvalues, self._rank, self._trace, self._determinant = [None for j in range(4)]
+        self._eigenvalues, self._rank  = [None for j in range(2)]
+        self._trace = ParameterSymbolic(name="Tr\\left(%s\\right)"%self.name)
+        self._determinant = ParameterSymbolic(name="\\left|%s\\right|"%self.name)
 
     @expression.deleter
     def expression(self):
@@ -109,9 +111,7 @@ class CovarianceMatrixSymbolic(MatrixSymbolic):
         s = super().__str__()
         return s.replace("MATRIX", "COVARIANCE MATRIX")
     # ----------------------------------------------------------
-
-
-
+# In[]:
 class CovarianceMatrixNumeric(MatrixNumeric):
     """
     This class describes a numerical covariance matrix.
@@ -139,7 +139,9 @@ class CovarianceMatrixNumeric(MatrixNumeric):
         else:
             self._value = None
             self._shape = None
-        self._eigenvalues, self._rank, self._trace, self._determinant = [None for j in range(4)]
+        self._eigenvalues, self._rank  = [None for j in range(2)]
+        self._trace = ParameterNumeric(name="Tr\\left(%s\\right)"%self.name)
+        self._determinant = ParameterNumeric(name="\\left|%s\\right|"%self.name)
         self.value_changed.emit()  # emit value changed signal
 
     @value.deleter
@@ -151,8 +153,3 @@ class CovarianceMatrixNumeric(MatrixNumeric):
         s = super().__str__()
         return s.replace("MATRIX", "COVARIANCE MATRIX")
     # ----------------------------------------------------------
-
-
-
-
-

@@ -7,6 +7,7 @@ import numpy
 from ..Exceptions import InconsistentShapeError
 from signalslot.signal import Signal
 import Iaji
+from Iaji.Utilities import strutils
 #%%
 print_separator = "-----------------------------------------------"
 _ACCEPTED_TYPES = ["scalar", "vector"]
@@ -138,6 +139,14 @@ class Parameter:
         x._numeric = self.numeric**y
         return x
     # ----------------------------------------------------------
+    def __Conjugate__(self):
+        name = "\\left(%s^*\\right)"%self.name
+        x = Parameter(name=name, type=self.type)
+        x._symbolic = self.symbolic.Conjugate()
+        x._numeric = self.numeric.Conjugate()
+        return x
+    # ----------------------------------------------------------
+  
     def prepare_other(self, other):
         """
         Checks if the other operand is of the same type as self and, in case not
@@ -156,7 +165,7 @@ class Parameter:
                 other_temp.numeric.value = other.numeric.value*numpy.ones(self.numeric.shape)
                 return other_temp
         except:
-            if type(other) in [int, float, complex]:
+            if type(other) in [int, float, numpy.float64, complex, numpy.complex128]:
                 if type(other) is int:
                     other = float(other)
                 is_real = numpy.isclose(numpy.imag(other), 0)
@@ -191,7 +200,16 @@ class ParameterSymbolic:
         self.type = type
         self.expression_changed = Signal()
         self.symbol = sympy.symbols(names=name, real=real, nonnegative=nonnegative)
-        self.expression = expression
+        if expression is not None:
+            self.expression = expression
+        else:
+            try:
+                self.expression = self.symbol
+            except:
+                self._expression = '0'
+                self._expression_symbols = []
+                self._expression_lambda = sympy.lambdify((), self.expression, modules="numpy")
+            
     # ----------------------------------------------------------
     # ----------------------------------------------------------
     def __str__(self):
@@ -260,8 +278,21 @@ class ParameterSymbolic:
         self._expression = expression
         if expression is not None:
             try:
+                #Construct the lambda function associated to the symbolic expression
                 self.expression_symbols = sorted(list(expression.free_symbols), key=lambda x: x.name)
-                self.expression_lambda = sympy.lambdify(self.expression_symbols, expression, modules="numpy")
+                """
+                If an expression has symbols whose names have proper latex
+                math formatting, sympy.lambdify will complain. So, convert
+                all symbol names from lateX to python variable friendly names.
+                """
+                expression_symbols_non_latex_names = []
+                for s in self.expression_symbols:
+                    name = strutils.de_latexify(s.name) #convert from lateX name to python-friendly name
+                    expression_symbols_non_latex_names.append(\
+                    sympy.symbols(names=name, real=s.is_real, nonnegative=s.is_nonnegative))
+                expression_non_latex = strutils.de_latexify(str(expression))
+                self.expression_lambda = sympy.lambdify(expression_symbols_non_latex_names,\
+                                                        expression_non_latex, modules="numpy")
             except AttributeError:
                 self.expression_lambda = None
             if self.type == "vector":
@@ -324,7 +355,7 @@ class ParameterSymbolic:
                         other_temp_expression *= sympy.ones(*self_expression.shape)
                     else:
                         pass
-            x.expression = self_expression + other_temp_expression
+            x.expression = sympy.simplify(self_expression + other_temp_expression)
             return x
     # ----------------------------------------------------------
     def __mul__(self, other):
@@ -349,7 +380,7 @@ class ParameterSymbolic:
                         other_temp_expression *= sympy.ones(*self_expression.shape)
                     else:
                         pass
-            x.expression = self_expression * other_temp_expression
+            x.expression = sympy.simplify(self_expression * other_temp_expression)
             return x
     # ----------------------------------------------------------
     def __truediv__(self, other):
@@ -374,7 +405,7 @@ class ParameterSymbolic:
                         other_temp_expression *= sympy.ones(*self_expression.shape)
                     else:
                         pass
-            x.expression = self_expression / other_temp_expression
+            x.expression = sympy.simplify(self_expression / other_temp_expression)
             return x
     # ----------------------------------------------------------
     def __pow__(self, y):
@@ -385,9 +416,21 @@ class ParameterSymbolic:
         x = ParameterSymbolic(name=name, type=self.type)
         x.expression = self.expression
         if self.type == "scalar":
-            x.expression **= y
+            x.expression = sympy.simplify(x.expression**y)
         else:
             raise TypeError("unsupported operant type for **: %s"%(type(x)))
+        return x
+    # ----------------------------------------------------------
+    def Conjugate(self):
+        """
+        Complex conjugate
+        """
+        name = "\\left(%s^*\\right)"%self.name
+        x = ParameterSymbolic(name=name)
+        if self.expression is None:
+            raise TypeError("unsupported operand type for Conjugate: %s" % (type(self.expression)))
+        else:
+            x.expression = sympy.simplify(sympy.conjugate(self.expression))
         return x
     # ----------------------------------------------------------
     def prepare_other(self, other):
@@ -412,18 +455,20 @@ class ParameterSymbolic:
                 other_temp.expression = other
             except:
                 #Assuming other is a primitive numerical type
-                if type(other) in [int, float, complex]:
+                if type(other) in [int, float, numpy.float64, complex, numpy.complex128]:
                     if type(other) is int:
                         other = float(other)
                     is_real = numpy.isclose(numpy.imag(other), 0)
                     is_nonnegative = is_real and (other >= 0)
                     other_temp = ParameterSymbolic(name=str(other), type="scalar",\
                                         real=is_real, nonnegative=is_nonnegative)
-                    other_temp.expression = other
+                    if self.type == "scalar":
+                        other_temp.value = other
+                    else:
+                        other_temp.value = other*sympy.ones(self.shape[0])
                 else:
-                    raise ValueError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
-            return other_temp
-                
+                    raise ValueError("Incompatible operand types (%s, %s)"%(type(self), type(other)))
+            return other_temp                
 # In[]
 class ParameterNumeric:
     """
@@ -587,6 +632,18 @@ class ParameterNumeric:
             raise TypeError("unsupported operant type for **: %s"%(type(x)))
         return x
     # ----------------------------------------------------------
+    def Conjugate(self):
+        """
+        Complex conjugate
+        """
+        name = "\\left(%s^*\\right)"%self.name
+        x = ParameterNumeric(name=name)
+        if self.value is None:
+            raise TypeError("unsupported operand type for Conjugate: %s" % (type(self.value)))
+        else:
+            x.value = numpy.conjugate(self.value)
+        return x
+    # ----------------------------------------------------------
     def prepare_other(self, other):
         """
         Checks if the other operand is of the same type as self and, in case not
@@ -600,11 +657,14 @@ class ParameterNumeric:
                 other_temp.value = other.value*numpy.ones(self.shape)
                 return other_temp
         except:
-            if type(other) in [int, float, complex]:
+            if type(other) in [int, float, numpy.float64, complex, numpy.complex128]:
                 if type(other) is int:
                     other = float(other)
                 other_temp = ParameterNumeric(name=str(other), type="scalar")
-                other_temp.value = other*numpy.ones(self.shape)
+                if self.type == "scalar":
+                    other_temp.value = other
+                else:
+                    other_temp.value = other*numpy.ones(self.shape)
             else:
                 raise ValueError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
             return other_temp

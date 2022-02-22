@@ -4,6 +4,7 @@ This module describes a density matrix
 #%%
 from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.Matrix import MatrixSymbolic, MatrixNumeric, Matrix
 from .Exceptions import TestFailedError, InconsistentShapeError
+from Iaji.Mathematics.Parameter import Parameter, ParameterSymbolic, ParameterNumeric
 import numpy, sympy
 #%%
 print_separator = "-----------------------------------------------"
@@ -56,8 +57,7 @@ class DensityMatrix(Matrix):
         return s
     # ----------------------------------------------------------
     # ----------------------------------------------------------
-
-
+# In[]:
 class DensityMatrixSymbolic(MatrixSymbolic):
     """
     This class describes a symbolic density matrix.
@@ -97,8 +97,10 @@ class DensityMatrixSymbolic(MatrixSymbolic):
             self.expression_symbols = None
             self.expression_lambda = None
             self._shape = None
-        self._eigenvalues, self._rank, self._trace, self._determinant = [None for j in range(4)]
-
+        self._eigenvalues, self._rank  = [None for j in range(2)]
+        self._trace = ParameterSymbolic(name="Tr\\left(%s\\right)"%self.name)
+        self._determinant = ParameterSymbolic(name="\\left|%s\\right|"%self.name)
+        self.expression_changed.emit()  # emit value changed signal
     @expression.deleter
     def expression(self):
         del self._expression
@@ -108,9 +110,7 @@ class DensityMatrixSymbolic(MatrixSymbolic):
         s = super().__str__()
         return s.replace("MATRIX", "DENSITY MATRIX")
     # ----------------------------------------------------------
-
-
-
+# In[]:
 class DensityMatrixNumeric(MatrixNumeric):
     """
     This class describes a numerical density matrix.
@@ -138,7 +138,9 @@ class DensityMatrixNumeric(MatrixNumeric):
         else:
             self._value = None
             self._shape = None
-        self._eigenvalues, self._rank, self._trace, self._determinant = [None for j in range(4)]
+        self._eigenvalues, self._rank  = [None for j in range(2)]
+        self._trace = ParameterNumeric(name="Tr\\left(%s\\right)"%self.name)
+        self._determinant = ParameterNumeric(name="\\left|%s\\right|"%self.name)
         self.value_changed.emit()  # emit value changed signal
 
     @value.deleter

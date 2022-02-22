@@ -1,18 +1,51 @@
 """
 This module describes a mixed quantum state or a quantum harmonic oscillator
 """
-# In[]
+# In[imports]
 from Iaji.Mathematics.Parameter import ParameterSymbolic, ParameterNumeric
 from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.DensityMatrix import DensityMatrixSymbolic, \
      DensityMatrixNumeric
 from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.CovarianceMatrix import CovarianceMatrixSymbolic, \
      CovarianceMatrixNumeric
 from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.HilbertSpace import HilbertSpace
+from Iaji.Utilities import strutils
+
 import sympy, numpy
 from sympy import assoc_laguerre
+# In[GUI imports]
+import matplotlib
+from matplotlib import pyplot
+from matplotlib import font_manager
+from matplotlib import cm
 # In[]
 print_separator = "-----------------------------------------------"
-# In[]
+#%%
+#General plot settings
+default_marker = ""
+default_figure_size = (14.5, 10)
+default_fontsize = 40
+title_fontsize = default_fontsize
+title_font = font_manager.FontProperties(family='Times New Roman',
+                                   weight='bold',
+                                   style='normal', size=title_fontsize)
+axis_font = font_manager.FontProperties(family='Times New Roman',
+                                   weight='normal',
+                                   style='normal', size=title_fontsize*0.8)
+legend_font = font_manager.FontProperties(family='Times New Roman',
+                                   weight='normal',
+                                   style='normal', size=int(numpy.floor(0.9*title_fontsize)))
+ticks_fontsize = axis_font.get_size()*0.8
+#%%
+c1 = [(0.,'#ffffff'), (1/3.,'#FEFEFE'), (1,'#CC0000')]
+c2 = [(0.,'#ffffff'), (0.1,'#0C50B7'), (0.2,'#2765C2'), (0.3,'#5889D3'), \
+      (0.4,'#A2BEE8'), (0.49,'#FFFFFF'), (0.51,'#FFFFFF'), (0.6,'#E8A2A2'), \
+      (0.7,'#D35858'), (0.8,'#C22727'), (0.9,'#B70C0C'), (1.,'#B20000')]
+c3 = [(0.,'#ffffff'), (0.1,'#0C50B7'), (0.2,'#2765C2'), (0.3,'#5889D3'), \
+      (0.4,'#A2BEE8'), (0.49,'#F9F9F9'), (0.51,'#F9F9F9'), (0.6,'#E8A2A2'), \
+      (0.7,'#D35858'), (0.8,'#C22727'), (0.9,'#B70C0C'), (1.,'#B20000')]
+cmwig1 = matplotlib.colors.LinearSegmentedColormap.from_list('cmwig1',c2)
+cmwig2 = matplotlib.colors.LinearSegmentedColormap.from_list('cmwig2',c3)
+# In[quantum state]
 class QuantumState:
     """
     This class describes a quantum state.
@@ -21,8 +54,9 @@ class QuantumState:
         - a density operator
         - a Wigner function
     """
+    #------------------------------------------------------------------------   
     #------------------------------------------------------------
-    def __init__(self, name="\\rho"):
+    def __init__(self, name="A"):
         self.name = name
         self._numeric = QuantumStateNumeric(name=name)
         self._symbolic = QuantumStateSymbolic(name=name)
@@ -61,12 +95,71 @@ class QuantumState:
     # ---------------------------------------------------------- 
     #Tensor product
     def otimes(self, other):
-        x = QuantumState(name=self.name.__str__() + " \\otimes " + other.name.__str__())
+        x = QuantumState(name=self.name.__str__() + " \\otimes\\; " + other.name.__str__())
         x._symbolic = self.symbolic.otimes(other.symbolic)
         x._numeric = self.numeric.otimes(other.numeric)
         return x
     # ----------------------------------------------------------
-# In[]
+# In[symbolic Wigner function]
+class WignerFunctionSymbolic(ParameterSymbolic):
+    """
+    This class describes a symbolic Wigner function.
+    The only purpose of this re-definition is to give a precise ordering
+    to the symbols that might be contained in the wigner function expression
+    and related lambda function.
+    First come all the 'q' and 'p' symbols, and then all the extra parameters
+    in alphabetic order. This might make it easier to handle a symbolic
+    Wigner function in simulation codes.
+    """
+    def __init__(self, name="x"):
+        super().__init__(name=name, type="scalar", real=True, nonnegative=False, expression=None)
+    # ----------------------------------------------------------    
+    @property
+    def expression(self):
+        return self._expression
+
+    @expression.setter
+    def expression(self, expression):
+        self._expression = expression
+        if expression is not None:
+            try:
+                #Construct the lambda function associated to the symbolic expression
+                #First come all the 'q' and 'p' symbols, and then all the extra parameters
+                #in alphabetic order. This might make it easier to handle a symbolic
+                #Wigner function in simulation codes.
+                p_symbols = [x for x in expression.free_symbols if x.name[0]=="p"]
+                q_symbols = [x for x in expression.free_symbols if x.name[0]=="q"]
+                #Other symbols are made of all symbols minus the union of q and p symbols
+                other_symbols = sorted(list(set(expression.free_symbols)-(set(q_symbols)|set(p_symbols))), key=lambda x: x.name)
+                #Put the symbols in order
+                self.expression_symbols = q_symbols + p_symbols + other_symbols
+                """
+                If an expression has symbols whose names have proper latex
+                math formatting, sympy.lambdify will complain. So, convert
+                all symbol names from lateX to python variable friendly names.
+                """
+                expression_symbols_non_latex_names = []
+                for s in self.expression_symbols:
+                    name = strutils.de_latexify(s.name) #convert from lateX name to python-friendly name
+                    expression_symbols_non_latex_names.append(\
+                    sympy.symbols(names=name, real=s.is_real, nonnegative=s.is_nonnegative))
+                expression_non_latex = strutils.de_latexify(str(expression))
+                self.expression_lambda = sympy.lambdify(expression_symbols_non_latex_names,\
+                                                        expression_non_latex, modules="numpy")
+            except AttributeError:
+                self.expression_lambda = None
+            if self.type == "vector":
+                self._expression = sympy.Matrix(sympy.Array(self._expression))
+            self.expression_changed.emit()  # emit expression changed signal
+        else:
+            self.expression_symbols = None
+            self.expression_lambda = None
+
+    @expression.deleter
+    def expression(self):
+        del self._expression
+        
+# In[symbolic quantum state]
 class QuantumStateSymbolic:
     """
     This class describes a symbolic quantum state.
@@ -76,12 +169,12 @@ class QuantumStateSymbolic:
         - a Wigner function
     """
     #------------------------------------------------------------
-    def __init__(self, name="\\rho"):
+    def __init__(self, name="A"):
         self.name = name
         self._hilbert_space = None
-        self._density_operator = DensityMatrixSymbolic(name=self.name)
-        self._wigner_function = ParameterSymbolic(name="W", real=True)
-        self._covariance_matrix = CovarianceMatrixSymbolic(name="V")
+        self._density_operator = DensityMatrixSymbolic(name="\\rho_{%s}"%self.name)
+        self._wigner_function = ParameterSymbolic(name="W_{%s}"%self.name)
+        self._covariance_matrix = CovarianceMatrixSymbolic(name="V_{%s}"%self.name)
     #------------------------------------------------------------
     @property
     def hilbert_space(self):
@@ -126,15 +219,121 @@ class QuantumStateSymbolic:
             + "covariance matrix: \n" + self.covariance_matrix.__str__() + "\n" + print_separator
         return s
     # ----------------------------------------------------------
-    # Tensor product
     def otimes(self, other):
-        x = QuantumStateSymbolic(name=self.name.__str__() + " \\otimes " + other.name.__str__())
+        """
+        Tensor product
+        """
+        name = "\\left(%s\\otimes\\;%s\\right)"%(self.name, other.name)
+        x = QuantumStateSymbolic(name=name)
         x._hilbert_space = self.hilbert_space.otimes(other.hilbert_space)
         x._density_operator = self.density_operator.otimes(other.density_operator)
         x._wigner_function = self.wigner_function * other.wigner_function
         #x._covariance_matrix = self.covariance_matrix.oplus(other.covariance_matrix)
         return x
-# In[]
+    # ----------------------------------------------------------
+    def Fidelity(self, other):
+        X = self.density_operator.SqrtTruncated(5) @ other.density_operator.SqrtTruncated(5)
+        return X.TraceDistance(0)**2
+    # ----------------------------------------------------------
+    def isTensorProduct(self):
+        return "otimes" in self.hilbert_space.symbol.name
+    # ----------------------------------------------------------
+    def PlotWignerFunction(self, q, p, parameters=(), alpha=0.5, colormap=cmwig1, plot_name='untitled', plot_contour_on_3D=True):
+         assert self.hilbert_space is not None, \
+             "This quantum state is not associated with any Hilbert space"
+         assert not self.isTensorProduct(),\
+            "Cannot plot the Wigner function of a composite system is not supported"
+         assert len(parameters) == len(self.wigner_function.expression_symbols)-2, \
+             "Not enough input parameters to plot the wigner function. They should be %s"%\
+             self.wigner_function.expression_symbols.__str__()     
+         Q, P = numpy.meshgrid(q, p)
+         W = self.wigner_function.expression_lambda(Q, P, *parameters)
+         W *= numpy.pi
+         W_max = numpy.max(numpy.abs(W))
+         #Define the x and y axes lines as a 2D function
+         xy_2D = numpy.zeros((len(P), len(Q)))
+         xy_2D[numpy.where(numpy.logical_or(P==0, Q==0))] = 1
+         #3D plot
+         figure_3D = pyplot.figure(num="Wigner function - "+plot_name+" - 3D", figsize=(11, 8))
+         axis_3D = figure_3D.add_subplot(111,  projection='3d')
+         #3D Wigner function
+         W = W.astype(float)
+         Q = Q.astype(float)
+         P = P.astype(float)
+         axis_3D.plot_surface(Q, P, W, alpha=alpha, cmap=colormap, norm=matplotlib.colors.Normalize(vmin=-W_max, vmax=W_max))
+         pyplot.pause(0.5)
+         #Plot the contour of the xy projection
+         axis_3D.contour(Q, P, W, zdir='z', offset=numpy.min(W)-0.1*W_max, cmap=colormap, norm=matplotlib.colors.Normalize(vmin=-W_max, vmax=W_max))
+         #Plot the Q axis
+         axis_3D.plot([numpy.min(Q), numpy.max(Q)], [0, 0], zs=numpy.min(W)-0.1*W_max, color='grey', alpha=alpha)
+         #Plot the P axis
+         axis_3D.plot([0, 0], [numpy.min(P), numpy.max(P)],zs=numpy.min(W)-0.1*W_max, color='grey', alpha=alpha)
+         axis_3D.grid(False)
+         axis_3D.set_zlim([numpy.min(W)-0.1*W_max, W_max])
+         axis_3D.set_xlabel('q (SNU)', fontsize=axis_font.get_size()*0.6, fontfamily=axis_font.get_family())
+         axis_3D.set_ylabel('p (SNU)', fontsize=axis_font.get_size()*0.6, fontfamily=axis_font.get_family())
+         axis_3D.set_zlabel('W(q, p)/$\\pi$', fontsize=axis_font.get_size()*0.6, fontfamily=axis_font.get_family())
+         #2D plot
+         #Set the color of the plot to white, when the Wigner function is close to 0
+         #W[numpy.where(numpy.isclose(W, 0, rtol=1e-3))] = numpy.nan
+         #colormap.set_bad('w')
+         figure_2D = pyplot.figure(num="Wigner function - "+plot_name+" - 2D", figsize=default_figure_size)
+         axis_2D = figure_2D.add_subplot(111)
+         axis_2D.set_aspect('equal')
+         #2D plot
+         _contourf = axis_2D.contourf(Q, P, W, alpha=alpha, cmap=colormap, norm=matplotlib.colors.Normalize(vmin=-W_max, vmax=W_max))
+         #Plot the Q axis
+         axis_2D.plot([numpy.min(Q), numpy.max(Q)], [0, 0], color='grey', alpha=alpha)
+         #Plot the P axis
+         axis_2D.plot([0, 0], [numpy.min(P), numpy.max(P)], color='grey', alpha=alpha)
+         axis_2D.grid(False)
+         axis_2D.set_xlabel('q (SNU)', font=axis_font)
+         axis_2D.set_ylabel('p (SNU)', font=axis_font)
+         colorbar = figure_2D.colorbar(_contourf)
+         colorbar.set_label('W(q, p)/$\\pi$', fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
+         pyplot.pause(.05)
+         axis_2D.set_xticklabels(axis_2D.get_xticks(), fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
+         axis_2D.set_yticklabels(axis_2D.get_yticks(), fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
+       #  colorbar.set_ticklabels(colorbar.get_ticks())
+         #axis_PSD.legend(prop=legend_font)
+         pyplot.pause(.05)
+         axis_3D.set_xticklabels(axis_3D.get_xticks(), fontsize=axis_font.get_size()*0.4, fontfamily=axis_font.get_family())
+         axis_3D.set_yticklabels(axis_3D.get_yticks(), fontsize=axis_font.get_size()*0.4, fontfamily=axis_font.get_family())
+         axis_3D.set_zticklabels(numpy.round(axis_3D.get_zticks(), 1), fontsize=axis_font.get_size()*0.4, fontfamily=axis_font.get_family())
+         
+         figures = {'2D': figure_2D, '3D': figure_3D}
+         return figures
+    # ----------------------------------------------------------
+    def PlotDensityOperator(self, parameters=(), alpha=0.5, colormap=cmwig1, plot_name='untitled'):
+         assert self.hilbert_space is not None, \
+             "This quantum state is not associated with any Hilbert space"
+         assert self.hilbert_space.isFiniteDimensional(),\
+             "Cannot plot the density operator of an infinite-dimensional Hilbert space"
+         assert not self.isTensorProduct(),\
+            "Cannot plot the density operator of a composite system is not supported"
+         assert len(parameters) == len(self.density_operator.expression_symbols), \
+             "Not enough input parameters to plot the wigner function. They should be %s"%\
+             self.density_operator.expression_symbols.__str__() 
+         #Basis enumerate vector
+         n = numpy.arange(0, self.hilbert_space.dimension)
+         #Compute the density operator
+         rho = self.density_operator.expression_lambda(*parameters)
+         #Define the figure
+         figure = pyplot.figure(num=plot_name, figsize=(11, 8))
+         axis = figure.add_subplot(111)
+         #Define the maximum modulus of the density operator
+         rho_max = numpy.max(numpy.abs(rho))
+         #Plot
+         axis.imshow(numpy.abs(rho), cmap=cmwig1, alpha=alpha, norm=matplotlib.colors.Normalize(vmin=-rho_max, vmax=rho_max))    
+         axis.set_xlabel("n", font=axis_font)
+         axis.set_ylabel("m", font=axis_font) 
+         pyplot.pause(.05)
+         axis.set_xticks(n)
+         axis.set_yticks(n)
+         axis.set_xticklabels(n, fontsize=ticks_fontsize)
+         axis.set_yticklabels(n, fontsize=ticks_fontsize)
+         axis.grid(True, color="grey", alpha=0.2)
+# In[numeric quantum state]
 class QuantumStateNumeric:
     """
     This class describes a numeric quantum state.
@@ -196,10 +395,45 @@ class QuantumStateNumeric:
     # ----------------------------------------------------------
     # Tensor product
     def otimes(self, other):
-        name = "\\left(%s\\otimes%s\\right)"%(self.name, other.name)
+        name = "\\left(%s\\otimes\\;%s\\right)"%(self.name, other.name)
         x = QuantumStateSymbolic(name=name)
         x._hilbert_space = self.hilbert_space.otimes(other.hilbert_space)
         x._density_operator = self.density_operator.otimes(other.density_operator)
         x._wigner_function = self.wigner_function * other.wigner_function
         #x._covariance_matrix = self.covariance_matrix.oplus(other.covariance_matrix)
         return x
+    # ----------------------------------------------------------
+    def Fidelity(self, other):
+        X = self.density_operator.Sqrt() @ other.density_operator.Sqrt()
+        return X.TraceDistance(0)**2
+    # ----------------------------------------------------------
+    def isTensorProduct(self):
+        return "otimes" in self.hilbert_space.symbol.name
+    # ----------------------------------------------------------
+    def PlotDensityOperator(self, alpha=0.5, colormap=cmwig1, plot_name='untitled'):
+         assert self.hilbert_space is not None, \
+             "This quantum state is not associated with any Hilbert space"
+         assert self.hilbert_space.isFiniteDimensional(),\
+             "Cannot plot the density operator of an infinite-dimensional Hilbert space"
+         assert not self.isTensorProduct(),\
+            "Cannot plot the density operator of a composite system is not supported"
+         #Basis enumerate vector
+         n = numpy.arange(0, self.hilbert_space.dimension)
+         #Compute the density operator
+         rho = self.density_operator.value
+         #Define the figure
+         figure = pyplot.figure(num=plot_name, figsize=(11, 8))
+         axis = figure.add_subplot(111)
+         #Define the maximum modulus of the density operator
+         rho_max = numpy.max(numpy.abs(rho))
+         #Plot
+         axis.imshow(numpy.abs(rho), cmap=cmwig1, alpha=alpha, norm=matplotlib.colors.Normalize(vmin=-rho_max, vmax=rho_max))    
+         axis.set_xlabel("n", font=axis_font)
+         axis.set_ylabel("m", font=axis_font) 
+         pyplot.pause(.05)
+         axis.set_xticks(n)
+         axis.set_yticks(n)
+         axis.set_xticklabels(n, fontsize=ticks_fontsize)
+         axis.set_yticklabels(n, fontsize=ticks_fontsize)
+         axis.grid(True, color="grey", alpha=0.2)
+    

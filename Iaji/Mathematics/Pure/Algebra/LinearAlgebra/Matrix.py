@@ -4,6 +4,7 @@ This module describes a matrix as a parameter
 #%%
 import numpy, sympy
 from scipy.linalg import expm, sqrtm
+from scipy.special import binom
 from sympy.physics.quantum import TensorProduct
 import uncertainties
 from uncertainties import unumpy
@@ -15,17 +16,6 @@ from .Exceptions import InconsistentShapeError, TestFailedError
 #%%
 ACCEPTED_VALUE_TYPES = [numpy.matrix, numpy.ndarray, uncertainties.unumpy.core.matrix]
 ACCEPTED_SHAPE_TYPES = [tuple, list, numpy.array, numpy.ndarray]
-"""
-MATRIX_TYPES = [Iaji.Mathematics.Pure.Algebra.LinearAlgebra.Matrix.MatrixSymbolic,\
-                Iaji.Mathematics.Pure.Algebra.LinearAlgebra.Matrix.MatrixNumeric, \
-                Iaji.Mathematics.Pure.Algebra.LinearAlgebra.Matrix.Matrix, \
-                Iaji.Mathematics.Pure.Algebra.LinearAlgebra.DensityMatrix.DensityMatrixSymbolic, \
-                Iaji.Mathematics.Pure.Algebra.LinearAlgebra.DensityMatrix.DensityMatrixNumeric, \
-                Iaji.Mathematics.Pure.Algebra.LinearAlgebra.DensityMatrix.DensityMatrix, \
-                Iaji.Mathematics.Pure.Algebra.LinearAlgebra.DensityMatrix.CovarianceMatrixSymbolic, \
-                Iaji.Mathematics.Pure.Algebra.LinearAlgebra.DensityMatrix.CovarianceMatrixNumeric, \
-                Iaji.Mathematics.Pure.Algebra.LinearAlgebra.DensityMatrix.CovarianceMatrix]
-"""
 print_separator = "-----------------------------------------------"
 #%%
 class Matrix:
@@ -89,6 +79,26 @@ class Matrix:
         +self.numeric.__str__() + "\n" + print_separator + "\n" \
         + self.symbolic.__str__() + "\n" + print_separator
         return s
+    # ----------------------------------------------------------
+    def Trace(self):
+        """
+        Canonical anticommutator
+        """
+        name = "Tr\\left(%s\\right)"%self.name
+        x = Parameter(name=name, type="scalar")
+        x._symbolic = self.symbolic.Trace()
+        x._numeric = self.numeric.Trace()
+        return x
+    # ----------------------------------------------------------
+    def Determinant(self):
+        """
+        Canonical anticommutator
+        """
+        name = "\\left|%s\\right|"%self.name
+        x = Parameter(name=name, type="scalar", real=True, nonnegative=True)
+        x._symbolic = self.symbolic.Determinant()
+        x._numeric = self.numeric.Determinant()
+        return x
     # ----------------------------------------------------------
     def __add__(self, other):
         """
@@ -165,58 +175,58 @@ class Matrix:
         x._numeric = -self.numeric
         return x
     # ----------------------------------------------------------
-    def oplus(self, other):
+    def Oplus(self, other):
         """
         Direct sum
         """
         other_temp = self.prepare_other(other)
-        name = "\\left(%s\\oplus%s\\right)"%(self.name, other_temp.name)
+        name = "\\left(%s\\oplus\\;%s\\right)"%(self.name, other_temp.name)
         x = Matrix(name=name)
-        x._symbolic = self.symbolic.oplus(other_temp.symbolic)
-        x._numeric = self.numeric.oplus(other_temp.numeric)
+        x._symbolic = self.symbolic.Oplus(other_temp.symbolic)
+        x._numeric = self.numeric.Oplus(other_temp.numeric)
         return x
     # ----------------------------------------------------------
-    def otimes(self, other):
+    def Otimes(self, other):
         """
         Direct product (Kroneker product)
         """
         other_temp = self.prepare_other(other)
-        name = "\\left(%s\\otimes%s\\right)"%(self.name, other_temp.name)
+        name = "\\left(%s\\otimes\\;%s\\right)"%(self.name, other_temp.name)
         x = Matrix(name=name)
-        x._symbolic = self.symbolic.otimes(other_temp.symbolic)
-        x._numeric = self.numeric.otimes(other_temp.numeric)
+        x._symbolic = self.symbolic.Otimes(other_temp.symbolic)
+        x._numeric = self.numeric.Otimes(other_temp.numeric)
         return x
     # ----------------------------------------------------------
-    def commutator(self, other):
+    def Commutator(self, other):
         """
         Canonical commutator
         """
         other_temp = self.prepare_other(other)
         name = "\\left[%s,%s\\right]"%(self.name, other_temp.name)
         x = Matrix(name=name)
-        x._symbolic = self.symbolic.commutator(other_temp.symbolic)
-        x._numeric = self.numeric.commutator(other_temp.numeric)
+        x._symbolic = self.symbolic.Commutator(other_temp.symbolic)
+        x._numeric = self.numeric.Commutator(other_temp.numeric)
         return x
     # ----------------------------------------------------------
-    def anticommutator(self, other):
+    def Anticommutator(self, other):
         """
         Canonical anticommutator
         """
         other_temp = self.prepare_other(other)
         name = "\\left[%s,%s\\right]_{+}"%(self.name, other_temp.name)
         x = Matrix(name=name)
-        x._symbolic = self.symbolic.anticommutator(other_temp.symbolic)
-        x._numeric = self.numeric.anticommutator(other_temp.numeric)
+        x._symbolic = self.symbolic.Anticommutator(other_temp.symbolic)
+        x._numeric = self.numeric.Anticommutator(other_temp.numeric)
         return x
     # ----------------------------------------------------------
-    def dagger(self):
+    def Dagger(self):
         """
         Hermitian conjugate
         """
         name = "\\left(%s^\\dagger\\right)"%self.name
         x = Matrix(name=name)
-        x._numeric = self.numeric.dagger()
-        x._symbolic = self.symbolic.dagger()
+        x._numeric = self.numeric.Dagger()
+        x._symbolic = self.symbolic.Dagger()
         return x
     # ----------------------------------------------------------
     def T(self):
@@ -230,13 +240,10 @@ class Matrix:
         return x
     # ----------------------------------------------------------
     def Conjugate(self):
-        """
-        Complex conjugate
-        """
         name = "\\left(%s^*\\right)"%self.name
-        x = Matrix(name=name)
-        x._numeric = self.numeric.Conjugate()
+        x = Parameter(name=name, type=self.type)
         x._symbolic = self.symbolic.Conjugate()
+        x._numeric = self.numeric.Conjugate()
         return x
     # ----------------------------------------------------------
     def Inverse(self):
@@ -259,14 +266,36 @@ class Matrix:
         x._symbolic = self.symbolic.Exp()
         return x
     # ----------------------------------------------------------
+    def ExpTruncated(self, n):
+        """
+        Matrix exponential truncated up to finite order 'n'
+        in the MacLaurin expansion
+        """
+        name = "\\tilde{e}^{%s}"%self.name
+        x = Matrix(name=name)
+        x._numeric = self.numeric.ExpTruncated(n)
+        x._symbolic = self.symbolic.ExpTruncated(n)
+        return x
+    # ----------------------------------------------------------
     def Sqrt(self):
         """
-        Matrix exponential
+        Matrix square root
         """
         name = "\\sqrt{%s}"%self.name
         x = Matrix(name=name)
         x._numeric = self.numeric.Sqrt()
         x._symbolic = self.symbolic.Sqrt()
+        return x
+    # ----------------------------------------------------------
+    def TraceDistance(self, other):
+        """
+        Canonical anticommutator
+        """
+        other_temp = self.prepare_other(other)
+        name = "\\left||%s-%s\\right||_{1}"%(self.name, other_temp.name)
+        x = Parameter(name=name, type="scalar", real=True, nonnegative=True)
+        x._symbolic = self.symbolic.TraceDistance(other_temp.symbolic)
+        x._numeric = self.numeric.TraceDistance(other_temp.numeric)
         return x
     # ----------------------------------------------------------
     def prepare_other(self, other):
@@ -287,7 +316,7 @@ class Matrix:
                 other_temp.numeric.value = other.numeric.value*numpy.ones(self.numeric.shape)
                 return other_temp
         except:
-            if type(other) in [int, float, numpy.float64, complex, numpy.complex128]:
+            if type(other) in [int, numpy.int64, float, numpy.float64, complex, numpy.complex128]:
                 if type(other) is int:
                     other = float(other)
                 is_real = numpy.isclose(numpy.imag(other), 0)
@@ -297,7 +326,7 @@ class Matrix:
                 other_temp.symbolic.expression = other*sympy.ones(*self.symbolic.shape)
                 other_temp.numeric.value = other*numpy.ones(self.numeric.shape)
             else:
-                raise ValueError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
+                raise TypeError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
             return other_temp
 # In[]
 
@@ -308,7 +337,9 @@ class MatrixSymbolic(ParameterSymbolic):
     # ----------------------------------------------------------
     def __init__(self, name="M", real=False, nonnegative=False):
         super().__init__(name=name, type="vector", real=real, nonnegative=nonnegative)
-        self._eigenvalues, self._rank, self._trace, self._determinant = [None for j in range(4)] 
+        self._eigenvalues, self._rank  = [None for j in range(2)]
+        self._trace = ParameterSymbolic(name="Tr\\left(%s\\right)"%self.name)
+        self._determinant = ParameterSymbolic(name="\\left|%s\\right|"%self.name)
     # ----------------------------------------------------------
     @property
     def shape(self):
@@ -375,7 +406,9 @@ class MatrixSymbolic(ParameterSymbolic):
             self.expression_symbols = None
             self.expression_lambda = None
             self._shape = None
-        self._eigenvalues, self._rank, self._trace, self._determinant = [None for j in range(4)]
+        self._eigenvalues, self._rank  = [None for j in range(2)]
+        self._trace = ParameterSymbolic(name="Tr\\left(%s\\right)"%self.name)
+        self._determinant = ParameterSymbolic(name="\\left|%s\\right|"%self.name)
 
     @expression.deleter
     def expression(self):
@@ -388,8 +421,8 @@ class MatrixSymbolic(ParameterSymbolic):
              +"shape: "+self.shape.__str__()+"\n"\
              +"eigenvalues: "+self.eigenvalues.__str__() +"\n"\
              +"rank: " +self.rank.__str__() +"\n"\
-             +"trace: "+self.trace.__str__()+"\n"\
-             +"determinant: "+self.determinant.__str__()
+             +"trace: "+self.trace.expression.__str__()+"\n"\
+             +"determinant: "+self.determinant.expression.__str__()
         return s.replace("PARAMETER", "MATRIX")
     # ----------------------------------------------------------
     # ----------------------------------------------------------
@@ -425,7 +458,6 @@ class MatrixSymbolic(ParameterSymbolic):
             return self.rank
     # ----------------------------------------------------------
     # ----------------------------------------------------------
-    # ----------------------------------------------------------
     def Trace(self):
         """
         This function computes the trace of the matrix
@@ -439,10 +471,12 @@ class MatrixSymbolic(ParameterSymbolic):
         elif not self.isSquare():
             raise TypeError("Cannot compute the eigenvalues because the symbolic expression of matrix "+self.name+" is not square\n"+self.__str__())
         else:
-            self._trace = sympy.simplify(sympy.Matrix(self.expression).trace())
-            return self.trace
-    # ----------------------------------------------------------
-    # ----------------------------------------------------------
+            name = "Tr\\left(%s\\right)"%self.name
+            x = ParameterSymbolic(name=name, type="scalar")
+            x.expression = sympy.simplify(sympy.Matrix(self.expression).trace())
+            self._trace = x
+            return x
+    # ----------------------------------------------------------   
     def Determinant(self):
         """
         This function computes the determinant of the matrix
@@ -453,9 +487,11 @@ class MatrixSymbolic(ParameterSymbolic):
         """
         if self.eigenvalues is None:
             self.Eigenvalues()
-        self._determinant = sympy.simplify(sympy.prod(sympy.Array(self.eigenvalues.keys())))
-        return self.determinant
-    # ----------------------------------------------------------
+        name = "\\left|%s\\right|"%self.name
+        x = ParameterSymbolic(name=name, type="scalar", real=True, nonnegative=True)
+        x.expression = sympy.simplify(sympy.prod(sympy.Array(self.eigenvalues.keys())))
+        self._determinant = x
+        return x
     # ----------------------------------------------------------
     def isPositiveDefinite(self):
         """
@@ -513,7 +549,7 @@ um
         """
         if self.eigenvalues is None:
             self.Eigenvalues()
-        if self.determinant is None:
+        if self.determinant.expression == self.determinant.symbol:
             self.Determinant()
         check_details = {}
         check_details["is square"] = self.isSquare()
@@ -531,9 +567,9 @@ um
         """
         This function returns True if and only if the matrix has determinant zero
         """
-        if self.determinant is None:
+        if self.determinant.expression == self.determinant.symbol:
             self.Determinant()
-        return self.determinant == 0
+        return self.determinant.expression == 0
         # ----------------------------------------------------------
         # ----------------------------------------------------------
 
@@ -616,12 +652,12 @@ um
         -----------
         True if M has trace equal to 1.
         """
-        if self.trace is None:
+        if self.trace.expression == self.trace.symbol:
             self.Trace()
         try:
-            return int(float(self.trace.__str__())) == 1
+            return int(float(self.trace.expression.__str__())) == 1
         except ValueError:
-            return self.trace == 1
+            return self.trace.expression == 1
     # ----------------------------------------------------------
     # ----------------------------------------------------------
     def isTraceConvex(self):
@@ -653,7 +689,7 @@ um
         if self_expression is None or other_expression is None:
             raise TypeError("unsupported operand type(s) for +: %s and %s" % (type(self_expression, other_expression)))
         else:
-            x.expression = self_expression + other_expression
+            x.expression = sympy.simplify(self_expression + other_expression)
         return x
     # ----------------------------------------------------------
     def __sub__(self, other):
@@ -665,7 +701,7 @@ um
         if self_expression is None or other_expression is None:
             raise TypeError("unsupported operand type(s) for -: %s and %s" % (type(self_expression, other_expression)))
         else:
-            x.expression = self_expression - other_expression
+            x.expression = sympy.simplify(self_expression - other_expression)
         return x
     # ----------------------------------------------------------
     # Elementwise multiplication
@@ -678,7 +714,11 @@ um
         if self_expression is None or other_expression is None:
             raise TypeError("unsupported operand type(s) for *: %s and %s" % (type(self_expression, other_expression)))
         else:
-            x.expression = sympy.matrix_multiply_elementwise(self_expression, other_expression)
+            x.expression = sympy.eye(*self.shape)
+            for j in range(self.shape[0]):
+                for k in range(self.shape[1]):
+                    x.expression[j, k] = sympy.simplify(self_expression[j, k]*other_expression[j, k])
+            #x.expression = sympy.matrix_multiply_elementwise(self_expression, other_expression)
         return x
     # ----------------------------------------------------------
     # Matrix multiplication
@@ -691,7 +731,7 @@ um
         if self_expression is None or other_expression is None:
             raise TypeError("unsupported operand type(s) for @: %s and %s" % (type(self_expression), type(other_expression)))
         else:
-            x.expression = self_expression * other_expression
+            x.expression = sympy.simplify(self_expression * other_expression)
         return x
     # ----------------------------------------------------------
     def __pow__(self, n):
@@ -725,9 +765,9 @@ um
         return x
     # ----------------------------------------------------------
     # Matrix direct sum
-    def oplus(self, other):
+    def Oplus(self, other):
         other_temp = self.prepare_other(other)
-        name = "\\left(%s\\oplus%s\\right)"%(self.name, other_temp.name)
+        name = "\\left(%s\\oplus\\;%s\\right)"%(self.name, other_temp.name)
         x = MatrixSymbolic(name=name)
         self_expression = self.expression
         other_expression = other_temp.expression
@@ -741,39 +781,40 @@ um
         return x
     # ----------------------------------------------------------
     # Matrix Kronecker tensor product
-    def otimes(self, other):
+    def Otimes(self, other):
         other_temp = self.prepare_other(other)
-        name = "\\left(%s\\otimes%s\\right)"%(self.name, other_temp.name)
+        name = "\\left(%s\\otimes\\;%s\\right)"%(self.name, other_temp.name)
         x = MatrixSymbolic(name=name)
-        x.expression = TensorProduct(self.expression, other_temp.expression)
+        x.expression = sympy.simplify(TensorProduct(self.expression, other_temp.expression))
         return x
     # ----------------------------------------------------------
-    def commutator(self, other):
+    def Commutator(self, other):
         """
         Canonical commutator
         """
         other_temp = self.prepare_other(other)
         name = "\\left[%s,%s\\right]"%(self.name, other_temp.name)
         x = MatrixSymbolic(name=name)
-        x.expression = self.expression @ other_temp.expression - other_temp.expression @ self.expression
+        x.expression = sympy.simplify(self.expression @ other_temp.expression - other_temp.expression @ self.expression)
         return x
     # ----------------------------------------------------------   
-    def anticommutator(self, other):
+    def Anticommutator(self, other):
         """
         Canonical anticommutator
         """
         other_temp = self.prepare_other(other)
         name = "\\left[%s,%s\\right]_{+}"%(self.name, other_temp.name)
         x = MatrixSymbolic(name=name)
-        x.expression = self.expression @ other_temp.expression + other_temp.expression @ self.expression
+        x.expression = sympy.simplify(self.expression @ other_temp.expression + other_temp.expression @ self.expression)
         return x
     # ----------------------------------------------------------   
-    def dagger(self):
+    def Dagger(self):
         """
         Hermitian conjugate
         """
         name = "\\left(%s^\\dagger\\right)"%self.name
         x = self.Conjugate().T()
+        x.value = x.value.astype(self.value.dtype)
         x.name = name
         return x
     # ----------------------------------------------------------
@@ -810,7 +851,7 @@ um
         if self.expression is None:
             raise TypeError("unsupported operand type for Inverse: %s" % (type(self.expression)))
         else:
-            x.expression = self.expression.inv()
+            x.expression = sympy.simplify(self.expression.inv())
         return x
     # ----------------------------------------------------------
     def Exp(self):
@@ -822,7 +863,22 @@ um
         if self.expression is None:
             raise TypeError("unsupported operand type for Inverse: %s" % (type(self.expression)))
         else:
-            x.expression = sympy.exp(self.expression)
+            x.expression = sympy.simplify(sympy.exp(self.expression))
+        return x
+    # ----------------------------------------------------------
+    def ExpTruncated(self, n):
+        """
+        Matrix exponential truncated up to finite order 'n'
+        in the MacLaurin expansion
+        """
+        name = "\\tilde{e}^{%s}"%self.name
+        x = MatrixSymbolic(name=name)
+        if self.expression is None:
+            raise TypeError("unsupported operand type for Inverse: %s" % (type(self.expression)))
+        else:
+            x.expression = sympy.eye(*self.shape)
+            for k in numpy.arange(n)+1:
+                x += self**k * (1/sympy.gamma(k+1))
         return x
     # ----------------------------------------------------------
     def Sqrt(self):
@@ -834,8 +890,41 @@ um
         if self.expression is None:
             raise TypeError("unsupported operand type for Inverse: %s" % (type(self.expression)))
         else:
-            x.expression = sympy.sqrt(self.expression).doit()
+            x.expression = sympy.simplify(sympy.sqrt(self.expression).doit())
         return x
+    # ----------------------------------------------------------
+    def SqrtTruncated(self, n):
+        """
+        Matrix square root truncated up to finite order 'n'
+        in the Taylor expansion
+        """
+        name = "\\tilde{e}^{%s}"%self.name
+        x = MatrixSymbolic(name=name)
+        if self.expression is None:
+            raise TypeError("unsupported operand type for Inverse: %s" % (type(self.expression)))
+        else:
+            x.expression = sympy.eye(*self.shape)
+            I = MatrixSymbolic(name="\\mathbb{I}")
+            I.expression = sympy.eye(*self.shape)
+            for k in numpy.arange(n)+1:
+                x -= (I-self)**k*sympy.Abs(sympy.binomial(0.5, k))
+        return x
+    # ----------------------------------------------------------
+    def TraceDistance(self, other):
+        """
+        Matrix trace distance
+        """
+        other_temp = self.prepare_other(other)
+        
+        name = "\\left||%s-%s\\right||_{1}"%(self.name, other_temp.name)
+        if self.expression is None or other_temp.expression is None:
+            raise TypeError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
+        else:
+            X = self - other_temp
+            x = ParameterSymbolic(name=name, type="scalar", real=True, nonnegative=True)
+            x0 = ((X.Dagger() @ X).Sqrt()).Trace()
+            x.expression = sympy.simplify(sympy.re(x0.expression))
+            return x
     # ----------------------------------------------------------
     def prepare_other(self, other):
         """
@@ -863,16 +952,16 @@ um
                 other_temp.expression = other*sympy.ones(*self.shape)
             except:
                 #Assuming other is a primitive numerical type
-                if type(other) in [int, float, numpy.float64, complex, numpy.complex128]:
+                if type(other) in [int, numpy.int64, float, numpy.float64, complex, numpy.complex128]:
                     if type(other) is int:
                         other = float(other)
                     is_real = numpy.isclose(numpy.imag(other), 0)
-                    is_nonnegative = is_real and (other >= 0)
+                    is_nonnegative = is_real is True and (other >= 0)
                     other_temp = MatrixSymbolic(name=str(other), \
                                         real=is_real, nonnegative=is_nonnegative)
                     other_temp.expression = other*sympy.ones(*self.shape)
                 else:
-                    raise ValueError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
+                    raise TypeError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
             return other_temp
 # In[]
 class MatrixNumeric(ParameterNumeric):
@@ -882,7 +971,9 @@ class MatrixNumeric(ParameterNumeric):
     # ----------------------------------------------------------
     def __init__(self, name="M", value=None):
         super().__init__(name=name, type="vector", value=value)
-        self._eigenvalues, self._rank, self._trace, self._determinant = [None for j in range(4)]
+        self._eigenvalues, self._rank  = [None for j in range(2)]
+        self._trace = ParameterNumeric(name="Tr\\left(%s\\right)"%self.name)
+        self._determinant = ParameterNumeric(name="\\left|%s\\right|"%self.name)
     # ----------------------------------------------------------
     # ----------------------------------------------------------
     @property
@@ -947,7 +1038,9 @@ class MatrixNumeric(ParameterNumeric):
         else:
             self._value = None
             self._shape = None
-        self._eigenvalues, self._rank, self._trace, self._determinant = [None for j in range(4)]
+        self._eigenvalues, self._rank  = [None for j in range(2)]
+        self._trace = ParameterNumeric(name="Tr\\left(%s\\right)"%self.name)
+        self._determinant = ParameterNumeric(name="\\left|%s\\right|"%self.name)
         self.value_changed.emit()  # emit value changed signal
 
     @value.deleter
@@ -961,8 +1054,8 @@ class MatrixNumeric(ParameterNumeric):
              + "shape: " + self.shape.__str__() + "\n" \
              +"eigenvalues: "+self.eigenvalues.__str__()+"\n"\
              +"rank: " +self.rank.__str__()+"\n"\
-             +"trace: "+self.trace.__str__()+"\n"\
-             +"determinant: "+self.determinant.__str__()
+             +"trace: "+self.trace.value.__str__()+"\n"\
+             +"determinant: "+self.determinant.value.__str__()
         return s.replace("PARAMETER", "MATRIX")
     # ----------------------------------------------------------
     # ----------------------------------------------------------
@@ -1014,8 +1107,11 @@ class MatrixNumeric(ParameterNumeric):
         elif not self.isSquare():
             raise TypeError("Cannot compute the eigenvalues because the value of matrix "+self.name+" is not square\n"+self.__str__())
         else:
-            self._trace = numpy.trace(self.value)
-        return self.trace
+            name = "Tr\\left(%s\\right)"%self.name
+            x = ParameterNumeric(name=name, type="scalar")
+            x.value = numpy.trace(self.value)
+            self._trace = x
+            return x
     # ----------------------------------------------------------
     # ----------------------------------------------------------
     def Determinant(self):
@@ -1028,8 +1124,11 @@ class MatrixNumeric(ParameterNumeric):
         """
         if self.eigenvalues is None:
             self.Eigenvalues()
-        self._determinant = numpy.linalg.det(self.value)
-        return self.determinant
+        name = "\\left|%s\\right|"%self.name
+        x = ParameterNumeric(name=name, type="scalar")
+        x.value = numpy.linalg.det(self.value)
+        self._determinant = x
+        return x
     # ----------------------------------------------------------
     # ----------------------------------------------------------
     def isPositiveDefinite(self):
@@ -1060,7 +1159,7 @@ class MatrixNumeric(ParameterNumeric):
         """
         if self.eigenvalues is None:
             self.Eigenvalues()
-        if self.determinant is None:
+        if self.determinant.value is None:
             self.Determinant()
         min_eigenvalue = numpy.min(numpy.abs(self.eigenvalues))  # modulus of the minimum eigenvalue of the input matrix
         tolerance = 1 / 100 * min_eigenvalue
@@ -1086,9 +1185,9 @@ class MatrixNumeric(ParameterNumeric):
             tolerance : float (>0)
                 An absolute tolerance on the condition under test
         """
-        if self.determinant is None:
+        if self.determinant.value is None:
             self.Determinant()
-        return numpy.isclose(self.determinant, 0, atol=tolerance)
+        return numpy.isclose(self.determinant.value, 0, atol=tolerance)
     # ----------------------------------------------------------
     # ----------------------------------------------------------
     def isSymmetric(self, tolerance=1/100):
@@ -1189,13 +1288,13 @@ class MatrixNumeric(ParameterNumeric):
         """
         This function checks whether the matrix has trace equal to 1.
         """
-        if self.trace is None:
+        if self.trace.value is None:
             self.Trace()
         if self.eigenvalues is None:
             self.Eigenvalues()
         min_eigenvalue = numpy.min(numpy.abs(self.eigenvalues))  # modulus of the minimum eigenvalue of the input matrix
         tolerance = tolerance * min_eigenvalue
-        return numpy.isclose(self.trace, 1, atol=tolerance)
+        return numpy.isclose(self.trace.value, 1, atol=tolerance)
     # ----------------------------------------------------------
     # ----------------------------------------------------------
     def isTraceConvex(self):
@@ -1242,7 +1341,7 @@ class MatrixNumeric(ParameterNumeric):
         if self_value is None or other_value is None:
             raise TypeError("unsupported operand type(s) for *: %s and %s" % (type(self_value, other_value)))
         else:
-            x.value = self_value * other_value
+            x.value = numpy.multiply(self_value, other_value)
         return x
     # ----------------------------------------------------------
     #Matrix multiplication
@@ -1289,9 +1388,9 @@ class MatrixNumeric(ParameterNumeric):
         return x
     # ----------------------------------------------------------
     #Matrix direct sum
-    def oplus(self, other):
+    def Oplus(self, other):
         other_temp = self.prepare_other(other)
-        name = "\\left(%s\\oplus%s\\right)"%(self.name, other_temp.name)
+        name = "\\left(%s\\oplus\\;%s\\right)"%(self.name, other_temp.name)
         x = MatrixNumeric(name=name)
         self_value = self.value
         other_value = other_temp.value
@@ -1305,14 +1404,14 @@ class MatrixNumeric(ParameterNumeric):
         return x
     # ----------------------------------------------------------
     # Matrix Kronecker tensor product
-    def otimes(self, other):
+    def Otimes(self, other):
         other_temp = self.prepare_other(other)
-        name = "\\left(%s\\otimes%s\\right)"%(self.name, other_temp.name)
+        name = "\\left(%s\\otimes\\;%s\\right)"%(self.name, other_temp.name)
         x = MatrixNumeric(name=name)
         x.value = numpy.kron(self.value, other_temp.value)
         return x
     # ----------------------------------------------------------
-    def commutator(self, other):
+    def Commutator(self, other):
         """
         Canonical commutator
         """
@@ -1322,7 +1421,7 @@ class MatrixNumeric(ParameterNumeric):
         x.value = self.value @ other_temp.value - other_temp.value @ self.value
         return x
     # ----------------------------------------------------------   
-    def anticommutator(self, other):
+    def Anticommutator(self, other):
         """
         Canonical anticommutator
         """
@@ -1332,7 +1431,7 @@ class MatrixNumeric(ParameterNumeric):
         x.value = self.value @ other_temp.value + other_temp.value @ self.value
         return x
     # ----------------------------------------------------------   
-    def dagger(self):
+    def Dagger(self):
         """
         Hermitian conjugate
         """
@@ -1350,7 +1449,7 @@ class MatrixNumeric(ParameterNumeric):
         if self.value is None:
             raise TypeError("unsupported operand type for T: %s" % (type(self.value)))
         else:
-            x.value = self.value.T
+            x.value = numpy.transpose(self.value)
         return x
     # ----------------------------------------------------------
     def Conjugate(self):
@@ -1389,6 +1488,21 @@ class MatrixNumeric(ParameterNumeric):
             x.value = expm(self.value)
         return x
     # ----------------------------------------------------------
+    def ExpTruncated(self, n):
+        """
+        Matrix exponential truncated up to finite order 'n'
+        in the MacLaurin expansion
+        """
+        name = "\\tilde{e}^{%s}"%self.name
+        x = MatrixNumeric(name=name)
+        if self.value is None:
+            raise TypeError("unsupported operand type for Inverse: %s" % (type(self.value)))
+        else:
+            x.value = numpy.eye(self.shape[0])
+            for k in numpy.arange(n)+1:
+                x += self**k/numpy.math.factorial(k)   
+        return x
+    # ----------------------------------------------------------
     def Sqrt(self):
         """
         Matrix square root
@@ -1400,6 +1514,37 @@ class MatrixNumeric(ParameterNumeric):
         else:
             x.value = sqrtm(self.value)
         return x
+    # ----------------------------------------------------------
+    def SqrtTruncated(self, n):
+        """
+        Matrix square root truncated up to finite order 'n'
+        in the Taylor expansion
+        """
+        name = "\\tilde{e}^{%s}"%self.name
+        x = MatrixNumeric(name=name)
+        if self.value is None:
+            raise TypeError("unsupported operand type for Inverse: %s" % (type(self.value)))
+        else:
+            x.value = numpy.eye(self.shape[0])
+            I = numpy.eye(self.shape[0])
+            for k in numpy.arange(n)+1:
+                x -= (I-self)**k*numpy.abs(binom(0.5, k))
+        return x
+    # ----------------------------------------------------------
+    def TraceDistance(self, other):
+        """
+        Matrix trace distance
+        """
+        other_temp = self.prepare_other(other)
+        name = "\\left||%s-%s\\right||_{1}"%(self.name, other_temp.name)
+        if self.value is None or other_temp.value is None:
+            raise TypeError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
+        else:
+            X = self - other_temp
+            x = ParameterNumeric(name=name, type="scalar")
+            x0 = ((X.Conjugate() @ X.T()).Sqrt()).Trace()
+            x.value = x0.value.astype(float)
+            return x
     # ----------------------------------------------------------
     def prepare_other(self, other):
         """
@@ -1414,16 +1559,11 @@ class MatrixNumeric(ParameterNumeric):
                 other_temp.value = other.value*numpy.ones(self.shape)
                 return other_temp
         except:
-            if type(other) in [int, float, numpy.float64, complex, numpy.complex128]:
+            if type(other) in [int, numpy.int64, float, numpy.float64, complex, numpy.complex128]:
                 if type(other) is int:
                     other = float(other)
                 other_temp = MatrixNumeric(name=str(other))
                 other_temp.value = other*numpy.ones(self.shape)
             else:
-                raise ValueError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
+                raise TypeError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
             return other_temp
-
-
-
-
-

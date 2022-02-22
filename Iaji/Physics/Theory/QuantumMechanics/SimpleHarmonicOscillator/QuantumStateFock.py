@@ -11,13 +11,47 @@ number states (Fock) basis.
 # In[]
 from Iaji.Mathematics.Parameter import ParameterSymbolic, ParameterNumeric
 from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.DensityMatrix import DensityMatrixSymbolic, \
-     DensityMatrixNumeric
+                                                                      DensityMatrixNumeric
 from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.CovarianceMatrix import CovarianceMatrixSymbolic, \
      CovarianceMatrixNumeric
 from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.HilbertSpace import HilbertSpace
-from Iaji.Physics.Theory.QuantumMechanics.QuantumState import QuantumStateSymbolic, QuantumStateNumeric, QuantumState
+from Iaji.Physics.Theory.QuantumMechanics.QuantumState import QuantumStateSymbolic, \
+                                                              WignerFunctionSymbolic, \
+                                                              QuantumStateNumeric, \
+                                                              QuantumState
 import sympy, numpy, scipy
 from sympy import assoc_laguerre
+# In[GUI imports]
+import matplotlib
+from matplotlib import pyplot
+from matplotlib import font_manager
+from matplotlib import cm
+#%%
+#General plot settings
+default_marker = ""
+default_figure_size = (14.5, 10)
+default_fontsize = 40
+title_fontsize = default_fontsize
+title_font = font_manager.FontProperties(family='Times New Roman',
+                                   weight='bold',
+                                   style='normal', size=title_fontsize)
+axis_font = font_manager.FontProperties(family='Times New Roman',
+                                   weight='normal',
+                                   style='normal', size=title_fontsize*0.8)
+legend_font = font_manager.FontProperties(family='Times New Roman',
+                                   weight='normal',
+                                   style='normal', size=int(numpy.floor(0.9*title_fontsize)))
+ticks_fontsize = axis_font.get_size()*0.8
+#%%
+c1 = [(0.,'#ffffff'), (1/3.,'#FEFEFE'), (1,'#CC0000')]
+c2 = [(0.,'#ffffff'), (0.1,'#0C50B7'), (0.2,'#2765C2'), (0.3,'#5889D3'), \
+      (0.4,'#A2BEE8'), (0.49,'#FFFFFF'), (0.51,'#FFFFFF'), (0.6,'#E8A2A2'), \
+      (0.7,'#D35858'), (0.8,'#C22727'), (0.9,'#B70C0C'), (1.,'#B20000')]
+c3 = [(0.,'#ffffff'), (0.1,'#0C50B7'), (0.2,'#2765C2'), (0.3,'#5889D3'), \
+      (0.4,'#A2BEE8'), (0.49,'#F9F9F9'), (0.51,'#F9F9F9'), (0.6,'#E8A2A2'), \
+      (0.7,'#D35858'), (0.8,'#C22727'), (0.9,'#B70C0C'), (1.,'#B20000')]
+cmwig1 = matplotlib.colors.LinearSegmentedColormap.from_list('cmwig1',c2)
+cmwig2 = matplotlib.colors.LinearSegmentedColormap.from_list('cmwig2',c3)
 # In[]
 class QuantumStateFock(QuantumState):
     """
@@ -82,7 +116,7 @@ class QuantumStateFockSymbolic(QuantumStateSymbolic):
         density matrix
         """
         q, p = sympy.symbols("q_{%s}, p_{%s}"%(self.name, self.name), real=True)
-        self._wigner_function = ParameterSymbolic(name="W_{%s}"%self.name, real=True)
+        self._wigner_function = WignerFunctionSymbolic(name="W_{%s}"%self.name)
         self._wigner_function.expression = 0
         N = self.hilbert_space.dimension - 1 
         W_nm = sympy.zeros(N+1, N+1) #expansion coefficients of the Wigner function
@@ -147,7 +181,7 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
           assert n == int(n)
           en = self.hilbert_space.canonical_basis[n].numeric
           self._density_operator = en @ en.T()
-          self.WignerFunction()
+          #self.WignerFunction()
           return self
     #----------------------------------------------------------
     def WignerFunction(self, q, p):
@@ -183,3 +217,65 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
         W /= numpy.sum(numpy.sum(W) * dq*dp)
         self.wigner_function.value = W
         return Q, P, W
+    #----------------------------------------------------------
+    def PlotWignerFunction(self, q, p, alpha=0.5, colormap=cmwig1, plot_name='untitled', plot_contour_on_3D=True):
+         assert self.hilbert_space is not None, \
+             "This quantum state is not associated with any Hilbert space"
+         assert not self.isTensorProduct(),\
+            "Cannot plot the Wigner function of a composite system is not supported"
+         Q, P, W = self.WignerFunction(q, p)
+         W *= numpy.pi
+         W_max = numpy.max(numpy.abs(W))
+         #Define the x and y axes lines as a 2D function
+         xy_2D = numpy.zeros((len(P), len(Q)))
+         xy_2D[numpy.where(numpy.logical_or(P==0, Q==0))] = 1
+         #3D plot
+         figure_3D = pyplot.figure(num="Wigner function - "+plot_name+" - 3D", figsize=(11, 8))
+         axis_3D = figure_3D.add_subplot(111,  projection='3d')
+         #3D Wigner function
+         W = W.astype(float)
+         Q = Q.astype(float)
+         P = P.astype(float)
+         axis_3D.plot_surface(Q, P, W, alpha=alpha, cmap=colormap, norm=matplotlib.colors.Normalize(vmin=-W_max, vmax=W_max))
+         pyplot.pause(0.5)
+         #Plot the contour of the xy projection
+         axis_3D.contour(Q, P, W, zdir='z', offset=numpy.min(W)-0.1*W_max, cmap=colormap, norm=matplotlib.colors.Normalize(vmin=-W_max, vmax=W_max))
+         #Plot the Q axis
+         axis_3D.plot([numpy.min(Q), numpy.max(Q)], [0, 0], zs=numpy.min(W)-0.1*W_max, color='grey', alpha=alpha)
+         #Plot the P axis
+         axis_3D.plot([0, 0], [numpy.min(P), numpy.max(P)],zs=numpy.min(W)-0.1*W_max, color='grey', alpha=alpha)
+         axis_3D.grid(False)
+         axis_3D.set_zlim([numpy.min(W)-0.1*W_max, W_max])
+         axis_3D.set_xlabel('q (SNU)', fontsize=axis_font.get_size()*0.6, fontfamily=axis_font.get_family())
+         axis_3D.set_ylabel('p (SNU)', fontsize=axis_font.get_size()*0.6, fontfamily=axis_font.get_family())
+         axis_3D.set_zlabel('W(q, p)/$\\pi$', fontsize=axis_font.get_size()*0.6, fontfamily=axis_font.get_family())
+         #2D plot
+         #Set the color of the plot to white, when the Wigner function is close to 0
+         #W[numpy.where(numpy.isclose(W, 0, rtol=1e-3))] = numpy.nan
+         #colormap.set_bad('w')
+         figure_2D = pyplot.figure(num="Wigner function - "+plot_name+" - 2D", figsize=default_figure_size)
+         axis_2D = figure_2D.add_subplot(111)
+         axis_2D.set_aspect('equal')
+         #2D plot
+         _contourf = axis_2D.contourf(Q, P, W, alpha=alpha, cmap=colormap, norm=matplotlib.colors.Normalize(vmin=-W_max, vmax=W_max))
+         #Plot the Q axis
+         axis_2D.plot([numpy.min(Q), numpy.max(Q)], [0, 0], color='grey', alpha=alpha)
+         #Plot the P axis
+         axis_2D.plot([0, 0], [numpy.min(P), numpy.max(P)], color='grey', alpha=alpha)
+         axis_2D.grid(False)
+         axis_2D.set_xlabel('q (SNU)', font=axis_font)
+         axis_2D.set_ylabel('p (SNU)', font=axis_font)
+         colorbar = figure_2D.colorbar(_contourf)
+         colorbar.set_label('W(q, p)/$\\pi$', fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
+         pyplot.pause(.05)
+         axis_2D.set_xticklabels(axis_2D.get_xticks(), fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
+         axis_2D.set_yticklabels(axis_2D.get_yticks(), fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
+       #  colorbar.set_ticklabels(colorbar.get_ticks())
+         #axis_PSD.legend(prop=legend_font)
+         pyplot.pause(.05)
+         axis_3D.set_xticklabels(axis_3D.get_xticks(), fontsize=axis_font.get_size()*0.4, fontfamily=axis_font.get_family())
+         axis_3D.set_yticklabels(axis_3D.get_yticks(), fontsize=axis_font.get_size()*0.4, fontfamily=axis_font.get_family())
+         axis_3D.set_zticklabels(numpy.round(axis_3D.get_zticks(), 1), fontsize=axis_font.get_size()*0.4, fontfamily=axis_font.get_family())
+         
+         figures = {'2D': figure_2D, '3D': figure_3D}
+         return figures

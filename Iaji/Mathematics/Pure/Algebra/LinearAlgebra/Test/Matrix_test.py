@@ -34,5 +34,5 @@ M = M1 @ M2
 print(M)
 
 print("Direct sum")
-M = M1.oplus(M2)
+M = M1.Oplus(M2)
 print(M)
