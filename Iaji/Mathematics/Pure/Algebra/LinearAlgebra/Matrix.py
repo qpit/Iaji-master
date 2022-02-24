@@ -16,6 +16,7 @@ from .Exceptions import InconsistentShapeError, TestFailedError
 #%%
 ACCEPTED_VALUE_TYPES = [numpy.matrix, numpy.ndarray, uncertainties.unumpy.core.matrix]
 ACCEPTED_SHAPE_TYPES = [tuple, list, numpy.array, numpy.ndarray]
+NUMBER_TYPES = [int, numpy.int64, float, numpy.float64, complex, numpy.complex64, numpy.complex128]
 print_separator = "-----------------------------------------------"
 #%%
 class Matrix:
@@ -132,6 +133,17 @@ class Matrix:
         x = Matrix(name=name)
         x._symbolic = self.symbolic * other_temp.symbolic
         x._numeric = self.numeric * other_temp.numeric
+        return x
+    # ----------------------------------------------------------
+    def __truediv__(self, other):
+        """
+        Elementwise division
+        """
+        other_temp = self.prepare_other(other)
+        name = "\\left(%s*%s\\right)"%(self.name, other_temp.name)
+        x = Matrix(name=name)
+        x._symbolic = self.symbolic / other_temp.symbolic
+        x._numeric = self.numeric / other_temp.numeric
         return x
     # ----------------------------------------------------------
     def __matmul__(self, other):
@@ -316,8 +328,8 @@ class Matrix:
                 other_temp.numeric.value = other.numeric.value*numpy.ones(self.numeric.shape)
                 return other_temp
         except:
-            if type(other) in [int, numpy.int64, float, numpy.float64, complex, numpy.complex128]:
-                if type(other) is int:
+            if type(other) in NUMBER_TYPES:
+                if "int" in str(type(other)):
                     other = float(other)
                 is_real = numpy.isclose(numpy.imag(other), 0)
                 is_nonnegative = is_real and (other >= 0)
@@ -721,6 +733,24 @@ um
             #x.expression = sympy.matrix_multiply_elementwise(self_expression, other_expression)
         return x
     # ----------------------------------------------------------
+    def __truediv__(self, other):
+        """
+        Elementwise division
+        """
+        other_temp = self.prepare_other(other)
+        name = "\\left(%s*%s\\right)"%(self.name, other_temp.name)
+        x = MatrixSymbolic(name=name)
+        self_expression = self.expression
+        other_expression = other_temp.expression
+        if self_expression is None or other_expression is None:
+            raise TypeError("unsupported operand type(s) for *: %s and %s" % (type(self_expression, other_expression)))
+        else:
+            x.expression = sympy.eye(*self.shape)
+            for j in range(self.shape[0]):
+                for k in range(self.shape[1]):
+                    x.expression[j, k] = sympy.simplify(self_expression[j, k]/other_expression[j, k])
+        return x
+    # ----------------------------------------------------------
     # Matrix multiplication
     def __matmul__(self, other):
         other_temp = self.prepare_other(other)
@@ -814,7 +844,6 @@ um
         """
         name = "\\left(%s^\\dagger\\right)"%self.name
         x = self.Conjugate().T()
-        x.value = x.value.astype(self.value.dtype)
         x.name = name
         return x
     # ----------------------------------------------------------
@@ -915,7 +944,6 @@ um
         Matrix trace distance
         """
         other_temp = self.prepare_other(other)
-        
         name = "\\left||%s-%s\\right||_{1}"%(self.name, other_temp.name)
         if self.expression is None or other_temp.expression is None:
             raise TypeError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
@@ -952,8 +980,8 @@ um
                 other_temp.expression = other*sympy.ones(*self.shape)
             except:
                 #Assuming other is a primitive numerical type
-                if type(other) in [int, numpy.int64, float, numpy.float64, complex, numpy.complex128]:
-                    if type(other) is int:
+                if type(other) in NUMBER_TYPES:
+                    if "int" in str(type(other)):
                         other = float(other)
                     is_real = numpy.isclose(numpy.imag(other), 0)
                     is_nonnegative = is_real is True and (other >= 0)
@@ -1344,6 +1372,21 @@ class MatrixNumeric(ParameterNumeric):
             x.value = numpy.multiply(self_value, other_value)
         return x
     # ----------------------------------------------------------
+    def __truediv__(self, other):
+        """
+        Elementwise division
+        """
+        other_temp = self.prepare_other(other)
+        name = "\\left(%s*%s\\right)"%(self.name, other_temp.name)
+        x = MatrixNumeric(name=name)
+        self_value = self.value
+        other_value = other_temp.value
+        if self_value is None or other_value is None:
+            raise TypeError("unsupported operand type(s) for *: %s and %s" % (type(self_value, other_value)))
+        else:
+            x.value = numpy.divide(self_value, other_value)
+        return x
+    # ----------------------------------------------------------
     #Matrix multiplication
     def __matmul__(self, other):
         other_temp = self.prepare_other(other)
@@ -1437,6 +1480,7 @@ class MatrixNumeric(ParameterNumeric):
         """
         name = "\\left(%s^\\dagger\\right)"%self.name
         x = self.Conjugate().T()
+        x.value = x.value.astype(self.value.dtype)
         x.name = name
         return x
     # ----------------------------------------------------------
@@ -1559,8 +1603,8 @@ class MatrixNumeric(ParameterNumeric):
                 other_temp.value = other.value*numpy.ones(self.shape)
                 return other_temp
         except:
-            if type(other) in [int, numpy.int64, float, numpy.float64, complex, numpy.complex128]:
-                if type(other) is int:
+            if type(other) in NUMBER_TYPES:
+                if "int" in str(type(other)):
                     other = float(other)
                 other_temp = MatrixNumeric(name=str(other))
                 other_temp.value = other*numpy.ones(self.shape)

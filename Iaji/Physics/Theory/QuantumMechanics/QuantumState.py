@@ -170,7 +170,8 @@ class QuantumStateSymbolic:
     """
     #------------------------------------------------------------
     def __init__(self, name="A"):
-        self.name = name
+        self.symbol = sympy.symbols(names=name)
+        self._name = name      
         self._hilbert_space = None
         self._density_operator = DensityMatrixSymbolic(name="\\rho_{%s}"%self.name)
         self._wigner_function = ParameterSymbolic(name="W_{%s}"%self.name)
@@ -186,10 +187,23 @@ class QuantumStateSymbolic:
     @name.setter
     def name(self, name):
         self._name = name   
+        self._symbol = sympy.symbols(names=name, real=self.symbol.is_real, nonnegative=self.symbol.is_nonnegative)
     @name.deleter
     def name(self):
         del self._name
     # ---------------------------------------------------------- 
+    @property
+    def symbol(self):
+        return self._symbol
+
+    @symbol.setter
+    def symbol(self, symbol):
+        self._symbol = symbol
+
+    @symbol.deleter
+    def symbol(self):
+        del self._symbol
+    #----------------------------------------------------------
     @property 
     def density_operator(self):
         return self._density_operator
@@ -239,10 +253,13 @@ class QuantumStateSymbolic:
         return "otimes" in self.hilbert_space.symbol.name
     # ----------------------------------------------------------
     def PlotWignerFunction(self, q, p, parameters=(), alpha=0.5, colormap=cmwig1, plot_name='untitled', plot_contour_on_3D=True):
+
          assert self.hilbert_space is not None, \
              "This quantum state is not associated with any Hilbert space"
          assert not self.isTensorProduct(),\
             "Cannot plot the Wigner function of a composite system is not supported"
+         assert len(self.wigner_function.expression_symbols) != 0, \
+            "Cannot plot the Wigner function of the null state %s"%self.name
          assert len(parameters) == len(self.wigner_function.expression_symbols)-2, \
              "Not enough input parameters to plot the wigner function. They should be %s"%\
              self.wigner_function.expression_symbols.__str__()     
@@ -272,7 +289,7 @@ class QuantumStateSymbolic:
          axis_3D.set_zlim([numpy.min(W)-0.1*W_max, W_max])
          axis_3D.set_xlabel('q (SNU)', fontsize=axis_font.get_size()*0.6, fontfamily=axis_font.get_family())
          axis_3D.set_ylabel('p (SNU)', fontsize=axis_font.get_size()*0.6, fontfamily=axis_font.get_family())
-         axis_3D.set_zlabel('W(q, p)/$\\pi$', fontsize=axis_font.get_size()*0.6, fontfamily=axis_font.get_family())
+         axis_3D.set_zlabel('$\pi$ W(q, p)', fontsize=axis_font.get_size()*0.6, fontfamily=axis_font.get_family())
          #2D plot
          #Set the color of the plot to white, when the Wigner function is close to 0
          #W[numpy.where(numpy.isclose(W, 0, rtol=1e-3))] = numpy.nan
@@ -290,7 +307,7 @@ class QuantumStateSymbolic:
          axis_2D.set_xlabel('q (SNU)', font=axis_font)
          axis_2D.set_ylabel('p (SNU)', font=axis_font)
          colorbar = figure_2D.colorbar(_contourf)
-         colorbar.set_label('W(q, p)/$\\pi$', fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
+         colorbar.set_label('$\pi$ W(q, p)', fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
          pyplot.pause(.05)
          axis_2D.set_xticklabels(axis_2D.get_xticks(), fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
          axis_2D.set_yticklabels(axis_2D.get_yticks(), fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
@@ -303,36 +320,6 @@ class QuantumStateSymbolic:
          
          figures = {'2D': figure_2D, '3D': figure_3D}
          return figures
-    # ----------------------------------------------------------
-    def PlotDensityOperator(self, parameters=(), alpha=0.5, colormap=cmwig1, plot_name='untitled'):
-         assert self.hilbert_space is not None, \
-             "This quantum state is not associated with any Hilbert space"
-         assert self.hilbert_space.isFiniteDimensional(),\
-             "Cannot plot the density operator of an infinite-dimensional Hilbert space"
-         assert not self.isTensorProduct(),\
-            "Cannot plot the density operator of a composite system is not supported"
-         assert len(parameters) == len(self.density_operator.expression_symbols), \
-             "Not enough input parameters to plot the wigner function. They should be %s"%\
-             self.density_operator.expression_symbols.__str__() 
-         #Basis enumerate vector
-         n = numpy.arange(0, self.hilbert_space.dimension)
-         #Compute the density operator
-         rho = self.density_operator.expression_lambda(*parameters)
-         #Define the figure
-         figure = pyplot.figure(num=plot_name, figsize=(11, 8))
-         axis = figure.add_subplot(111)
-         #Define the maximum modulus of the density operator
-         rho_max = numpy.max(numpy.abs(rho))
-         #Plot
-         axis.imshow(numpy.abs(rho), cmap=cmwig1, alpha=alpha, norm=matplotlib.colors.Normalize(vmin=-rho_max, vmax=rho_max))    
-         axis.set_xlabel("n", font=axis_font)
-         axis.set_ylabel("m", font=axis_font) 
-         pyplot.pause(.05)
-         axis.set_xticks(n)
-         axis.set_yticks(n)
-         axis.set_xticklabels(n, fontsize=ticks_fontsize)
-         axis.set_yticklabels(n, fontsize=ticks_fontsize)
-         axis.grid(True, color="grey", alpha=0.2)
 # In[numeric quantum state]
 class QuantumStateNumeric:
     """
@@ -344,7 +331,8 @@ class QuantumStateNumeric:
     """
     #------------------------------------------------------------
     def __init__(self, name="A"):
-        self.name = name
+        self.symbol = sympy.symbols(names=name)
+        self._name = name      
         self._hilbert_space = None
         self._density_operator = DensityMatrixNumeric(name="\\rho_{%s}"%self.name)
         self._wigner_function = ParameterNumeric(name="W_{%s}"%self.name)
@@ -359,11 +347,24 @@ class QuantumStateNumeric:
         return self._name
     @name.setter
     def name(self, name):
-        self._name = name   
+        self._name = name  
+        self._symbol = sympy.symbols(names=name, real=self.symbol.is_real, nonnegative=self.symbol.is_nonnegative)
     @name.deleter
     def name(self):
         del self._name
-    # ---------------------------------------------------------- 
+    # ----------------------------------------------------------
+    @property
+    def symbol(self):
+        return self._symbol
+
+    @symbol.setter
+    def symbol(self, symbol):
+        self._symbol = symbol
+
+    @symbol.deleter
+    def symbol(self):
+        del self._symbol
+    #----------------------------------------------------------
     @property 
     def density_operator(self):
         return self._density_operator
@@ -409,31 +410,3 @@ class QuantumStateNumeric:
     # ----------------------------------------------------------
     def isTensorProduct(self):
         return "otimes" in self.hilbert_space.symbol.name
-    # ----------------------------------------------------------
-    def PlotDensityOperator(self, alpha=0.5, colormap=cmwig1, plot_name='untitled'):
-         assert self.hilbert_space is not None, \
-             "This quantum state is not associated with any Hilbert space"
-         assert self.hilbert_space.isFiniteDimensional(),\
-             "Cannot plot the density operator of an infinite-dimensional Hilbert space"
-         assert not self.isTensorProduct(),\
-            "Cannot plot the density operator of a composite system is not supported"
-         #Basis enumerate vector
-         n = numpy.arange(0, self.hilbert_space.dimension)
-         #Compute the density operator
-         rho = self.density_operator.value
-         #Define the figure
-         figure = pyplot.figure(num=plot_name, figsize=(11, 8))
-         axis = figure.add_subplot(111)
-         #Define the maximum modulus of the density operator
-         rho_max = numpy.max(numpy.abs(rho))
-         #Plot
-         axis.imshow(numpy.abs(rho), cmap=cmwig1, alpha=alpha, norm=matplotlib.colors.Normalize(vmin=-rho_max, vmax=rho_max))    
-         axis.set_xlabel("n", font=axis_font)
-         axis.set_ylabel("m", font=axis_font) 
-         pyplot.pause(.05)
-         axis.set_xticks(n)
-         axis.set_yticks(n)
-         axis.set_xticklabels(n, fontsize=ticks_fontsize)
-         axis.set_yticklabels(n, fontsize=ticks_fontsize)
-         axis.grid(True, color="grey", alpha=0.2)
-    

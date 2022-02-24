@@ -7,7 +7,7 @@ Created on Sat Feb 19 23:52:52 2022
 This script tests the SimpleHarmonicOscillator module
 """
 # In[imports]
-from Iaji.Physics.Theory.QuantumMechanics.SimpleHarmonicOscillator.SimpleHarmonicOscillator import SimpleHarmonicOscillatorSymbolic
+from Iaji.Physics.Theory.QuantumMechanics.SimpleHarmonicOscillator.SimpleHarmonicOscillator import SimpleHarmonicOscillator
 from Iaji.Mathematics.Parameter import ParameterSymbolic
 import sympy, numpy
 sympy.init_printing()
@@ -17,7 +17,7 @@ from Iaji.Physics.Theory.QuantumMechanics.SimpleHarmonicOscillator.Utilities imp
 # In[]
 p, q = [numpy.linspace(-5, 5, 200) for j in range(2)]
 # In[basic harmonic oscillator]
-system = SimpleHarmonicOscillatorSymbolic(truncated_dimension=5).NumberState(0)
+system = SimpleHarmonicOscillator(truncated_dimension=10).symbolic.NumberState(0)
 #Plot the Wigner function of the quantum state
 system.state.PlotWignerFunction(q, p, plot_name="basic - Wigner function")
 #Plot the density operator

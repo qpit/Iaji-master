@@ -1,5 +1,7 @@
 """
 This module defines a parameter.
+TODO: correctly generalize a parameter to handle vector operation, 
+without recurring to the Matrix type (although I prefer using Matrix for every vector operation).
 """
 #%%
 import sympy
@@ -11,7 +13,8 @@ from Iaji.Utilities import strutils
 #%%
 print_separator = "-----------------------------------------------"
 _ACCEPTED_TYPES = ["scalar", "vector"]
-
+NUMBER_TYPES = [int, numpy.int64, float, numpy.float64, complex, numpy.complex64, numpy.complex128]
+# In[parameter]
 class Parameter:
     """
     This class defines a parameter.
@@ -139,11 +142,67 @@ class Parameter:
         x._numeric = self.numeric**y
         return x
     # ----------------------------------------------------------
-    def __Conjugate__(self):
+    def Conjugate(self):
         name = "\\left(%s^*\\right)"%self.name
         x = Parameter(name=name, type=self.type)
         x._symbolic = self.symbolic.Conjugate()
         x._numeric = self.numeric.Conjugate()
+        return x
+    # ----------------------------------------------------------
+    def Angle(self):
+        name = "\\left(%s^*\\right)"%self.name
+        x = Parameter(name=name, type=self.type)
+        x._symbolic = self.symbolic.Angle()
+        x._numeric = self.numeric.Angle()
+        return x
+    # ----------------------------------------------------------
+    def Exp(self):
+        name = "\\left(%s^*\\right)"%self.name
+        x = Parameter(name=name, type=self.type)
+        x._symbolic = self.symbolic.Exp()
+        x._numeric = self.numeric.Exp()
+        return x
+    # ----------------------------------------------------------
+    def Sin(self):
+        name = "\\left(%s^*\\right)"%self.name
+        x = Parameter(name=name, type=self.type)
+        x._symbolic = self.symbolic.Sin()
+        x._numeric = self.numeric.Sin()
+        return x
+    # ----------------------------------------------------------
+    def Cos(self):
+        name = "\\left(%s^*\\right)"%self.name
+        x = Parameter(name=name, type=self.type)
+        x._symbolic = self.symbolic.Cos()
+        x._numeric = self.numeric.Cos()
+        return x
+    # ----------------------------------------------------------
+    def Tan(self):
+        name = "\\left(%s^*\\right)"%self.name
+        x = Parameter(name=name, type=self.type)
+        x._symbolic = self.symbolic.Tan()
+        x._numeric = self.numeric.Tan()
+        return x
+    # ----------------------------------------------------------
+    def Cosh(self):
+        name = "\\left(%s^*\\right)"%self.name
+        x = Parameter(name=name, type=self.type)
+        x._symbolic = self.symbolic.Cosh()
+        x._numeric = self.numeric.Cosh()
+        return x
+    # ----------------------------------------------------------
+    def Sinh(self):
+        name = "\\left(%s^*\\right)"%self.name
+        x = Parameter(name=name, type=self.type)
+        x._symbolic = self.symbolic.Sinh()
+        x._numeric = self.numeric.Sinh()
+        return x
+    # ----------------------------------------------------------
+    def Tanh(self):
+        name = "\\left(%s^*\\right)"%self.name
+        x = Parameter(name=name, type=self.type)
+        x._symbolic = self.symbolic.Tanh()
+        x._numeric = self.numeric.Tanh()
         return x
     # ----------------------------------------------------------
   
@@ -165,19 +224,23 @@ class Parameter:
                 other_temp.numeric.value = other.numeric.value*numpy.ones(self.numeric.shape)
                 return other_temp
         except:
-            if type(other) in [int, float, numpy.float64, complex, numpy.complex128]:
-                if type(other) is int:
+            if type(other) in NUMBER_TYPES:
+                if "int" in str(type(other)):
                     other = float(other)
                 is_real = numpy.isclose(numpy.imag(other), 0)
                 is_nonnegative = is_real and (other >= 0)
                 other_temp = Parameter(name=str(other), type="scalar",\
                                     real=is_real, nonnegative=is_nonnegative)
-                other_temp.symbolic.expression = other*sympy.ones(*self.symbolic.shape)
-                other_temp.numeric.value = other*numpy.ones(self.numeric.shape)
+                if self.type == "scalar":
+                    other_temp.symbolic.expression = sympy.sympify(other)
+                    other_temp.numeric.value = other
+                else:
+                    other_temp.symbolic.expression = other*sympy.ones(*self.symbolic.shape[0])
+                    other_temp.numeric.value = other*numpy.ones(self.numeric.shape)
             else:
                 raise ValueError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
             return other_temp
-# In[]
+# In[symbolic parameter]
 class ParameterSymbolic:
     """
     This class defines a symbolic parameter.
@@ -196,10 +259,10 @@ class ParameterSymbolic:
             expression : sympy expression
                 Symbolic expression in terms of other symbols
         """
-        self.name = name
         self.type = type
         self.expression_changed = Signal()
         self.symbol = sympy.symbols(names=name, real=real, nonnegative=nonnegative)
+        self._name = name
         if expression is not None:
             self.expression = expression
         else:
@@ -232,7 +295,7 @@ class ParameterSymbolic:
     @name.setter
     def name(self, name):
         self._name = name
-        self.symbol = sympy.symbols(names=self.name)
+        self._symbol = sympy.symbols(names=name, real=self.symbol.is_real, nonnegative=self.symbol.is_nonnegative)
     
     @name.deleter
     def name(self):
@@ -334,80 +397,71 @@ class ParameterSymbolic:
     # ----------------------------------------------------------
     def __add__(self, other):
         try:
-            
             if other.type == "vector":
                 return other + self
         except:
             other_temp = self.prepare_other(other)
-            new_type = "scalar" * (self.type == "scalar" and other_temp.type == "scalar") \
-                       + "vector" * (self.type == "vector" or other_temp.type == "vector")
             name = "\\left(%s+%s\\right)"%(self.name, other_temp.name)
-            x = ParameterSymbolic(name=name, type=new_type)
+            x = ParameterSymbolic(name=name)
             self_expression = self.expression
-            other_temp_expression = other_temp.expression
-            if self_expression is None or other_temp_expression is None:
-                raise TypeError("unsupported operand type(s) for +: %s and %s" % (type(self_expression, other_temp_expression)))
+            other_expression = other_temp.expression
+            if self_expression is None or other_expression is None:
+                raise TypeError("unsupported operand type(s) for +: %s and %s" % (type(self_expression, other_expression)))
             else:
-                if new_type == "vector":
-                    if self.type == "scalar":
-                        self_expression *= sympy.ones(*other_temp_expression.shape)
-                    elif other_temp.type == "scalar":
-                        other_temp_expression *= sympy.ones(*self_expression.shape)
-                    else:
-                        pass
-            x.expression = sympy.simplify(self_expression + other_temp_expression)
+                x.expression = self_expression + other_expression
             return x
     # ----------------------------------------------------------
+    def __sub__(self, other):
+        try:
+            if other.type == "vector":
+                return other - self
+        except:
+            other_temp = self.prepare_other(other)
+            name = "\\left(%s-%s\\right)"%(self.name, other_temp.name)
+            x = ParameterSymbolic(name=name)
+            self_expression = self.expression
+            other_expression = other_temp.expression
+            if self_expression is None or other_expression is None:
+                raise TypeError("unsupported operand type(s) for -: %s and %s" % (type(self_expression, other_expression)))
+            else:
+                x.expression = self_expression - other_expression
+            return x
+    # ----------------------------------------------------------
+    #Elementwise multiplication
     def __mul__(self, other):
         try:
             if other.type == "vector":
                 return other * self
         except:
             other_temp = self.prepare_other(other)
-            new_type = "scalar"*(self.type=="scalar" and other_temp.type=="scalar")\
-                     + "vector"*(self.type=="vector" or other_temp.type=="vector")
-            name = "\\left(%s%s\\right)"%(self.name, other_temp.name)         
-            x = ParameterSymbolic(name=name, type=new_type)
+            name = "\\left(%s*%s\\right)"%(self.name, other_temp.name)
+            x = ParameterSymbolic(name=name)
             self_expression = self.expression
-            other_temp_expression = other_temp.expression
-            if self_expression is None or other_temp_expression is None:
-                raise TypeError("unsupported operand type(s) for *: %s and %s"%(type(self_expression, other_temp_expression)))
+            other_expression = other_temp.expression
+            if self_expression is None or other_expression is None:
+                raise TypeError("unsupported operand type(s) for *: %s and %s" % (type(self_expression, other_expression)))
             else:
-                if new_type == "vector":
-                    if self.type == "scalar":
-                        self_expression *= sympy.ones(*other_temp_expression.shape)
-                    elif other_temp.type == "scalar":
-                        other_temp_expression *= sympy.ones(*self_expression.shape)
-                    else:
-                        pass
-            x.expression = sympy.simplify(self_expression * other_temp_expression)
+                x.expression = self_expression * other_expression
             return x
     # ----------------------------------------------------------
     def __truediv__(self, other):
-        try:     
+        """
+        Elementwise division
+        """
+        try:
             if other.type == "vector":
                 return other / self
         except:
             other_temp = self.prepare_other(other)
-            new_type = "scalar"*(self.type=="scalar" and other_temp.type=="scalar")\
-                     + "vector"*(self.type=="vector" or other_temp.type=="vector")
-            name = "\\left(\\frac{%s}{%s}\\right)"%(self.name, other_temp.name)         
-            x = ParameterSymbolic(name=name, type=new_type)
+            name = "\\left(%s*%s\\right)"%(self.name, other_temp.name)
+            x = ParameterSymbolic(name=name)
             self_expression = self.expression
-            other_temp_expression = other_temp.expression
-            if self_expression is None or other_temp_expression is None:
-                raise TypeError("unsupported operand type(s) for *: %s and %s"%(type(self_expression, other_temp_expression)))
+            other_expression = other_temp.expression
+            if self_expression is None or other_expression is None:
+                raise TypeError("unsupported operand type(s) for *: %s and %s" % (type(self_expression, other_expression)))
             else:
-                if new_type == "vector":
-                    if self.type == "scalar":
-                        self_expression *= sympy.ones(*other_temp_expression.shape)
-                    elif other_temp.type == "scalar":
-                        other_temp_expression *= sympy.ones(*self_expression.shape)
-                    else:
-                        pass
-            x.expression = sympy.simplify(self_expression / other_temp_expression)
+                x.expression = self_expression / other_expression
             return x
-    # ----------------------------------------------------------
     def __pow__(self, y):
         """
         Power
@@ -433,43 +487,121 @@ class ParameterSymbolic:
             x.expression = sympy.simplify(sympy.conjugate(self.expression))
         return x
     # ----------------------------------------------------------
+    def Angle(self):
+        """
+        Complex argument
+        """
+        name = "arg\\left(%s\\right)"%self.name
+        x = ParameterSymbolic(name=name)
+        if self.expression is None:
+            raise TypeError("unsupported operand type for Conjugate: %s" % (type(self.expression)))
+        else:
+            x.expression = sympy.atan2(sympy.im(self.expression), sympy.re(self.expression))
+            if "atan2(0" in x.expression.__str__():
+                x.expression = 0
+        return x
+    # ----------------------------------------------------------
+    def Exp(self):
+        """
+        cosine
+        """
+        name = "e^{%s}"%self.name
+        x = ParameterSymbolic(name=name)
+        if self.expression is None:
+            raise TypeError("unsupported operand type for Exp: %s" % (type(self.expression)))
+        else:
+            x.expression = sympy.exp(self.expression)
+        return x
+    # ----------------------------------------------------------
+    def Cos(self):
+        """
+        cosine
+        """
+        name = "\\cos\\left(%s\\right)"%self.name
+        x = ((self*1j).Exp() + (self*(-1j)).Exp())/2
+        x.name = name
+        return x
+    # ----------------------------------------------------------
+    def Sin(self):
+        """
+        cosine
+        """
+        name = "\\sin\\left(%s\\right)"%self.name
+        x = ParameterSymbolic(name=name)
+        x = ((self*1j).Exp() - (self*(-1j)).Exp())/(2j)
+        x.name = name
+        return x
+    # ----------------------------------------------------------  
+    def Tan(self):
+        """
+        tangent
+        """
+        name = "\\tan\\left(%s\\right)"%self.name
+        x = ParameterSymbolic(name=name)
+        x = self.Sin()/self.Cos()
+        x.name = name
+        return x
+    # ----------------------------------------------------------  
+    def Cosh(self):
+        """
+        hyperbolic cosine
+        """
+        name = "\\cosh\\left(%s\\right)"%self.name
+        x = ParameterSymbolic(name=name)
+        x = (self.Exp() + self.Exp())/(2)
+        x.name = name
+        return x
+    # ----------------------------------------------------------
+    def Sinh(self):
+        """
+        hyperbolic sine
+        """
+        name = "\\sinh\\left(%s\\right)"%self.name
+        x = ParameterSymbolic(name=name)
+        x = (self.Exp() - self.Exp())/(2)
+        x.name = name
+        return x
+    # ---------------------------------------------------------- 
+    def Tanh(self):
+        """
+        hyperbolic tangent
+        """
+        name = "\\tanh\\left(%s\\right)"%self.name
+        x = ParameterSymbolic(name=name)
+        x = self.Sinh()/self.Cosh()
+        x.name = name
+        return x
+    # ---------------------------------------------------------- 
     def prepare_other(self, other):
         """
         Checks if the other operand is of the same type as self and, in case not
         returns a compatible type object
         """
         try:
-            is_real = other.symbol.is_real is True
-            is_nonnegative = other.symbol.is_nonnegative is True
-            other_temp = ParameterSymbolic(name=other.name, type="scalar",\
-                                real=is_real, nonnegative=is_nonnegative)
-            other_temp.expression = other.expression
-            return other_temp
+            if other.type == "scalar":
+                return other
         except:
             try:
                 #assuming other is a sympy symbol or expression
                 is_real = other.is_real is True
                 is_nonnegative = other.is_real is True and other.is_nonnegative is True
-                other_temp = ParameterSymbolic(name=str(other), type="scalar",\
+                other_temp = ParameterSymbolic(name=str(other), \
                                     real=is_real, nonnegative=is_nonnegative)
                 other_temp.expression = other
             except:
                 #Assuming other is a primitive numerical type
-                if type(other) in [int, float, numpy.float64, complex, numpy.complex128]:
-                    if type(other) is int:
+                if type(other) in NUMBER_TYPES:
+                    if "int" in str(type(other)):
                         other = float(other)
                     is_real = numpy.isclose(numpy.imag(other), 0)
-                    is_nonnegative = is_real and (other >= 0)
-                    other_temp = ParameterSymbolic(name=str(other), type="scalar",\
+                    is_nonnegative = is_real is True and (other >= 0)
+                    other_temp = ParameterSymbolic(name=str(other), \
                                         real=is_real, nonnegative=is_nonnegative)
-                    if self.type == "scalar":
-                        other_temp.value = other
-                    else:
-                        other_temp.value = other*sympy.ones(self.shape[0])
+                    other_temp.expression = sympy.sympify(other)
                 else:
-                    raise ValueError("Incompatible operand types (%s, %s)"%(type(self), type(other)))
-            return other_temp                
-# In[]
+                    raise TypeError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
+            return other_temp
+# In[numeric parameter]
 class ParameterNumeric:
     """
     This class describes a numerical parameter.
@@ -479,7 +611,8 @@ class ParameterNumeric:
     """
     # ----------------------------------------------------------
     def __init__(self, name="x", type="scalar", value=None):
-        self.name = name
+        self.symbol = sympy.symbols(names=name)
+        self._name = name
         self.type = type
         self.value_changed = Signal()
         self.value = value
@@ -498,17 +631,28 @@ class ParameterNumeric:
             +"value: " + self.value.__str__()
         return s
     # ----------------------------------------------------------
-    # ----------------------------------------------------------
     @property
     def name(self):
         return self._name
     @name.setter
     def name(self, name):
         self._name = name
+        self._symbol = sympy.symbols(names=name, real=self.symbol.is_real, nonnegative=self.symbol.is_nonnegative)
     @name.deleter
     def name(self):
         del self._name
     # ----------------------------------------------------------
+    @property
+    def symbol(self):
+        return self._symbol
+
+    @symbol.setter
+    def symbol(self, symbol):
+        self._symbol = symbol
+
+    @symbol.deleter
+    def symbol(self):
+        del self._symbol
     # ----------------------------------------------------------
     @property
     def type(self):
@@ -542,82 +686,56 @@ class ParameterNumeric:
         del self._value
     # ----------------------------------------------------------
     def __add__(self, other):
-        try:
-            
-            if other.type == "vector":
-                return other + self
-        except:
-            other_temp = self.prepare_other(other)
-            new_type = "scalar" * (self.type == "scalar" and other_temp.type == "scalar") \
-                       + "vector" * (self.type == "vector" or other_temp.type == "vector")
-            name = "\\left(%s+%s\\right)"%(self.name, other_temp.name)
-            x = ParameterNumeric(name=name, type=new_type)
-            self_value = self.value
-            other_temp_value = other_temp.value
-            if self_value is None or other_temp_value is None:
-                raise TypeError("unsupported operand type(s) for +: %s and %s" % (type(self_value, other_temp_value)))
-            else:
-                if new_type == "vector":
-                    if self.type == "scalar":
-                        self_value *= sympy.ones(*other_temp_value.shape)
-                    elif other_temp.type == "scalar":
-                        other_temp_value *= sympy.ones(*self_value.shape)
-                    else:
-                        pass
-            x.value = self_value + other_temp_value
-            return x
+        other_temp = self.prepare_other(other)
+        name = "\\left(%s+%s\\right)"%(self.name, other_temp.name)
+        x = ParameterNumeric(name=name)
+        self_value = self.value
+        other_value = other_temp.value
+        if self_value is None or other_value is None:
+            raise TypeError("unsupported operand type(s) for +: %s and %s" % (type(self_value, other_value)))
+        else:
+            x.value = self_value + other_value
+        return x
     # ----------------------------------------------------------
+    def __sub__(self, other):
+        other_temp = self.prepare_other(other)
+        name = "\\left(%s-%s\\right)"%(self.name, other_temp.name)
+        x = ParameterNumeric(name=name)
+        self_value = self.value
+        other_value = other_temp.value
+        if self_value is None or other_value is None:
+            raise TypeError("unsupported operand type(s) for -: %s and %s" % (type(self_value, other_value)))
+        else:
+            x.value = self_value - other_value
+        return x
+    # ----------------------------------------------------------
+    #Elementwise multiplication
     def __mul__(self, other):
-        try:
-            
-            if other.type == "vector":
-                return other * self
-        except:
-            other_temp = self.prepare_other(other)
-            new_type = "scalar"*(self.type=="scalar" and other_temp.type=="scalar")\
-                     + "vector"*(self.type=="vector" or other_temp.type=="vector")
-            name = "\\left(%s%s\\right)"%(self.name, other_temp.name)
-            x = ParameterNumeric(name=name, type=new_type)
-            self_value = self.value
-            other_temp_value = other_temp.value
-            if self_value is None or other_temp_value is None:
-                raise TypeError("unsupported operand type(s) for *: %s and %s"%(type(self_value, other_temp_value)))
-            else:
-                if new_type == "vector":
-                    if self.type == "scalar":
-                        self_value *= sympy.ones(*other_temp_value.shape)
-                    elif other_temp.type == "scalar":
-                        other_temp_value *= sympy.ones(*self_value.shape)
-                    else:
-                        pass
-            x.value = self_value * other_temp_value
-            return x
+        other_temp = self.prepare_other(other)
+        name = "\\left(%s*%s\\right)"%(self.name, other_temp.name)
+        x = ParameterNumeric(name=name)
+        self_value = self.value
+        other_value = other_temp.value
+        if self_value is None or other_value is None:
+            raise TypeError("unsupported operand type(s) for *: %s and %s" % (type(self_value, other_value)))
+        else:
+            x.value = self_value * other_value
+        return x
     # ----------------------------------------------------------
     def __truediv__(self, other):
-        try:
-            
-            if other.type == "vector":
-                return other / self
-        except:
-            other_temp = self.prepare_other(other)
-            new_type = "scalar"*(self.type=="scalar" and other_temp.type=="scalar")\
-                     + "vector"*(self.type=="vector" or other_temp.type=="vector")
-            name = "\\left(\\frac{%s}{%s}\\right)"%(self.name, other_temp.name)
-            x = ParameterNumeric(name=name, type=new_type)
-            self_value = self.value
-            other_temp_value = other_temp.value
-            if self_value is None or other_temp_value is None:
-                raise TypeError("unsupported operand type(s) for *: %s and %s"%(type(self_value, other_temp_value)))
-            else:
-                if new_type == "vector":
-                    if self.type == "scalar":
-                        self_value *= sympy.ones(*other_temp_value.shape)
-                    elif other_temp.type == "scalar":
-                        other_temp_value *= sympy.ones(*self_value.shape)
-                    else:
-                        pass
-            x.value = self_value / other_temp_value
-            return x
+        """
+        Elementwise division
+        """
+        other_temp = self.prepare_other(other)
+        name = "\\left(%s*%s\\right)"%(self.name, other_temp.name)
+        x = ParameterNumeric(name=name)
+        self_value = self.value
+        other_value = other_temp.value
+        if self_value is None or other_value is None:
+            raise TypeError("unsupported operand type(s) for *: %s and %s" % (type(self_value, other_value)))
+        else:
+            x.value = self_value / other_value
+        return x
     # ----------------------------------------------------------
     def __pow__(self, y):
         """
@@ -644,31 +762,106 @@ class ParameterNumeric:
             x.value = numpy.conjugate(self.value)
         return x
     # ----------------------------------------------------------
+    def Angle(self):
+        """
+        Complex argument
+        """
+        name = "arg\\left(%s\\right)"%self.name
+        x = ParameterNumeric(name=name)
+        if self.value is None:
+            raise TypeError("unsupported operand type for Conjugate: %s" % (type(self.value)))
+        else:
+            x.value = numpy.angle(self.value)
+        return x
+    # ----------------------------------------------------------
+    def Exp(self):
+        """
+        cosine
+        """
+        name = "e^{%s}"%self.name
+        x = ParameterNumeric(name=name)
+        if self.value is None:
+            raise TypeError("unsupported operand type for Exp: %s" % (type(self.value)))
+        else:
+            x.value = numpy.exp(self.value)
+        return x
+    # ----------------------------------------------------------
+    def Cos(self):
+        """
+        cosine
+        """
+        name = "\\cos\\left(%s\\right)"%self.name
+        x = ((self*1j).Exp() + (self*(-1j)).Exp())/2
+        x.name = name
+        return x
+    # ----------------------------------------------------------
+    def Sin(self):
+        """
+        cosine
+        """
+        name = "\\sin\\left(%s\\right)"%self.name
+        x = ParameterNumeric(name=name)
+        x = ((self*1j).Exp() - (self*(-1j)).Exp())/(2j)
+        x.name = name
+        return x
+    # ----------------------------------------------------------  
+    def Tan(self):
+        """
+        tangent
+        """
+        name = "\\tan\\left(%s\\right)"%self.name
+        x = ParameterNumeric(name=name)
+        x = self.Sin()/self.Cos()
+        x.name = name
+        return x
+    # ----------------------------------------------------------  
+    def Cosh(self):
+        """
+        hyperbolic cosine
+        """
+        name = "\\cosh\\left(%s\\right)"%self.name
+        x = ParameterNumeric(name=name)
+        x = (self.Exp() + self.Exp())/(2)
+        x.name = name
+        return x
+    # ----------------------------------------------------------
+    def Sinh(self):
+        """
+        hyperbolic sine
+        """
+        name = "\\sinh\\left(%s\\right)"%self.name
+        x = ParameterNumeric(name=name)
+        x = (self.Exp() - self.Exp())/(2)
+        x.name = name
+        return x
+    # ---------------------------------------------------------- 
+    def Tanh(self):
+        """
+        hyperbolic tangent
+        """
+        name = "\\tanh\\left(%s\\right)"%self.name
+        x = ParameterNumeric(name=name)
+        x = self.Sinh()/self.Cosh()
+        x.name = name
+        return x
+    # ---------------------------------------------------------- 
     def prepare_other(self, other):
         """
         Checks if the other operand is of the same type as self and, in case not
         returns a compatible type object
         """
         try:
-            if other.type == "vector":
+            if other.type == "scalar":
                 return other
-            elif other.type == "scalar":
-                other_temp = ParameterNumeric(name=other.name, type="scalar")
-                other_temp.value = other.value*numpy.ones(self.shape)
-                return other_temp
         except:
-            if type(other) in [int, float, numpy.float64, complex, numpy.complex128]:
-                if type(other) is int:
+            if type(other) in NUMBER_TYPES:
+                if "int" in str(type(other)):
                     other = float(other)
-                other_temp = ParameterNumeric(name=str(other), type="scalar")
-                if self.type == "scalar":
-                    other_temp.value = other
-                else:
-                    other_temp.value = other*numpy.ones(self.shape)
+                other_temp = ParameterNumeric(name=str(other))
+                other_temp.value = other
             else:
-                raise ValueError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
+                raise TypeError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
             return other_temp
-
 
 
 

@@ -103,7 +103,7 @@ class QuantumStateFockSymbolic(QuantumStateSymbolic):
      
           """
           assert n == int(n)
-          en= self.hilbert_space.canonical_basis[n].symbolic
+          en= self.hilbert_space.canonical_basis[int(n)].symbolic
           rho = en @ en.T()
           self._density_operator = DensityMatrixSymbolic(name="\hat{\\rho}_{%s}"%self.name) 
           self.density_operator.expression = rho.expression
@@ -142,6 +142,66 @@ class QuantumStateFockSymbolic(QuantumStateSymbolic):
         self.wigner_function.expression /= \
             sympy.integrate(self.wigner_function.expression, (q, -sympy.oo, sympy.oo), (p, -sympy.oo, sympy.oo))
         return self.wigner_function
+    # ----------------------------------------------------------
+    def PlotDensityOperator(self, parameters=(), alpha=0.5, colormap=cmwig1, plot_name='untitled'):
+         assert self.hilbert_space is not None, \
+             "This quantum state is not associated with any Hilbert space"
+         assert self.hilbert_space.isFiniteDimensional(),\
+             "Cannot plot the density operator of an infinite-dimensional Hilbert space"
+         assert not self.isTensorProduct(),\
+            "Cannot plot the density operator of a composite system is not supported"
+         assert len(self.wigner_function.expression_symbols) != 0, \
+           "Cannot plot the density operator of the null state %s"%self.name
+         assert len(parameters) == len(self.density_operator.expression_symbols), \
+             "Not enough input parameters to plot the density operator. They should be %s"%\
+             self.density_operator.expression_symbols.__str__() 
+         #Basis enumerate vector
+         n = numpy.arange(0, self.hilbert_space.dimension)
+         #Compute the density operator
+         rho = self.density_operator.expression_lambda(*parameters)
+         #Define the figure
+         figure = pyplot.figure(num=plot_name, figsize=(11, 8))
+         axis = figure.add_subplot(111)
+         #Define the maximum modulus of the density operator
+         rho_max = numpy.max(numpy.abs(rho))
+         #Plot
+         axis.imshow(numpy.abs(rho), cmap=cmwig1, alpha=alpha, norm=matplotlib.colors.Normalize(vmin=-rho_max, vmax=rho_max))    
+         axis.set_xlabel("n", font=axis_font)
+         axis.set_ylabel("m", font=axis_font) 
+         pyplot.pause(.05)
+         axis.set_xticks(n)
+         axis.set_yticks(n)
+         axis.set_xticklabels(n, fontsize=ticks_fontsize)
+         axis.set_yticklabels(n, fontsize=ticks_fontsize)
+         axis.grid(True, color="grey", alpha=0.2)
+    #----------------------------------------------------------
+    def PlotNumberDistribution(self, parameters=(), alpha=0.7, color="tab:blue", plot_name='untitled'):
+       assert self.hilbert_space is not None, \
+           "This quantum state is not associated with any Hilbert space"
+       assert self.hilbert_space.isFiniteDimensional(),\
+           "Cannot plot the number distribution of an infinite-dimensional Hilbert space"
+       assert not self.isTensorProduct(),\
+          "Cannot plot the number distribution of a composite system is not supported"
+       assert len(self.wigner_function.expression_symbols) != 0, \
+         "Cannot plot the number distribution of the null state %s"%self.name
+       assert len(parameters) == len(self.density_operator.expression_symbols), \
+           "Not enough input parameters to plot the number distribution. They should be %s"%\
+           self.density_operator.expression_symbols.__str__() 
+       #Basis enumerate vector
+       n = numpy.arange(0, self.hilbert_space.dimension)
+       #Compute the density operator
+       rho = self.density_operator.expression_lambda(*parameters)
+       #Define figure
+       figure = pyplot.figure(num=plot_name, figsize=(11, 8))
+       axis = figure.add_subplot(111)
+       axis.set_xlabel("number", font=axis_font)
+       axis.set_ylabel("probability", font=axis_font)
+       photon_number_dsitribution = [numpy.abs(rho[j, j]) for j in range(rho.shape[0])]
+       #Plot
+       axis.bar(n, photon_number_dsitribution, color=color, alpha=alpha)
+       pyplot.pause(.05)
+       axis.set_xticklabels(axis.get_xticklabels(), fontsize=ticks_fontsize)
+       axis.set_yticklabels(axis.get_yticklabels(), fontsize=ticks_fontsize)
 # In[]
 class QuantumStateFockNumeric(QuantumStateNumeric):
     """
@@ -167,7 +227,7 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
          """
          e0 = self.hilbert_space.canonical_basis[0].numeric
          self._density_operator = e0 @ e0.T()
-         #self.WignerFunction()
+         self._wigner_function = ParameterNumeric(name="W_{%s}"%self.name)
          return self
     # ---------------------------------------------------------- 
     def NumberState(self, n):
@@ -179,9 +239,9 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
      
           """
           assert n == int(n)
-          en = self.hilbert_space.canonical_basis[n].numeric
+          en = self.hilbert_space.canonical_basis[int(n)].numeric
           self._density_operator = en @ en.T()
-          #self.WignerFunction()
+          self._wigner_function = ParameterNumeric(name="W_{%s}"%self.name)
           return self
     #----------------------------------------------------------
     def WignerFunction(self, q, p):
@@ -248,7 +308,7 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
          axis_3D.set_zlim([numpy.min(W)-0.1*W_max, W_max])
          axis_3D.set_xlabel('q (SNU)', fontsize=axis_font.get_size()*0.6, fontfamily=axis_font.get_family())
          axis_3D.set_ylabel('p (SNU)', fontsize=axis_font.get_size()*0.6, fontfamily=axis_font.get_family())
-         axis_3D.set_zlabel('W(q, p)/$\\pi$', fontsize=axis_font.get_size()*0.6, fontfamily=axis_font.get_family())
+         axis_3D.set_zlabel('$\pi$ W(q, p)', fontsize=axis_font.get_size()*0.6, fontfamily=axis_font.get_family())
          #2D plot
          #Set the color of the plot to white, when the Wigner function is close to 0
          #W[numpy.where(numpy.isclose(W, 0, rtol=1e-3))] = numpy.nan
@@ -266,7 +326,7 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
          axis_2D.set_xlabel('q (SNU)', font=axis_font)
          axis_2D.set_ylabel('p (SNU)', font=axis_font)
          colorbar = figure_2D.colorbar(_contourf)
-         colorbar.set_label('W(q, p)/$\\pi$', fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
+         colorbar.set_label('$\pi$ W(q, p)', fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
          pyplot.pause(.05)
          axis_2D.set_xticklabels(axis_2D.get_xticks(), fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
          axis_2D.set_yticklabels(axis_2D.get_yticks(), fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
@@ -279,3 +339,54 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
          
          figures = {'2D': figure_2D, '3D': figure_3D}
          return figures
+     # ----------------------------------------------------------
+    def PlotDensityOperator(self, alpha=0.5, colormap=cmwig1, plot_name='untitled'):
+        assert self.hilbert_space is not None, \
+            "This quantum state is not associated with any Hilbert space"
+        assert self.hilbert_space.isFiniteDimensional(),\
+            "Cannot plot the density operator of an infinite-dimensional Hilbert space"
+        assert not self.isTensorProduct(),\
+           "Cannot plot the density operator of a composite system is not supported"
+        #Basis enumerate vector
+        n = numpy.arange(0, self.hilbert_space.dimension)
+        #Compute the density operator
+        rho = self.density_operator.value
+        #Define the figure
+        figure = pyplot.figure(num=plot_name, figsize=(11, 8))
+        axis = figure.add_subplot(111)
+        #Define the maximum modulus of the density operator
+        rho_max = numpy.max(numpy.abs(rho))
+        #Plot
+        axis.imshow(numpy.abs(rho), cmap=cmwig1, alpha=alpha, norm=matplotlib.colors.Normalize(vmin=-rho_max, vmax=rho_max))    
+        axis.set_xlabel("n", font=axis_font)
+        axis.set_ylabel("m", font=axis_font) 
+        pyplot.pause(.05)
+        axis.set_xticks(n)
+        axis.set_yticks(n)
+        axis.set_xticklabels(n, fontsize=ticks_fontsize)
+        axis.set_yticklabels(n, fontsize=ticks_fontsize)
+        axis.grid(True, color="grey", alpha=0.2)
+        #----------------------------------------------------------
+    def PlotNumberDistribution(self, parameters=(), alpha=0.7, color="tab:blue", plot_name='untitled'):
+       assert self.hilbert_space is not None, \
+           "This quantum state is not associated with any Hilbert space"
+       assert self.hilbert_space.isFiniteDimensional(),\
+           "Cannot plot the number distribution of an infinite-dimensional Hilbert space"
+       assert not self.isTensorProduct(),\
+          "Cannot plot the number distribution of a composite system is not supported"
+       #Basis enumerate vector
+       n = numpy.arange(0, self.hilbert_space.dimension)
+       #Compute the density operator
+       rho = self.density_operator.value
+       #Define figure
+       figure = pyplot.figure(num=plot_name, figsize=(11, 8))
+       axis = figure.add_subplot(111)
+       axis.set_xlabel("number", font=axis_font)
+       axis.set_ylabel("probability", font=axis_font)
+       photon_number_dsitribution = [numpy.abs(rho[j, j]) for j in range(rho.shape[0])]
+       #Plot
+       axis.bar(n, photon_number_dsitribution, color=color, alpha=alpha)
+       pyplot.pause(.05)
+       axis.set_xticklabels(axis.get_xticklabels(), fontsize=ticks_fontsize)
+       axis.set_yticklabels(axis.get_yticklabels(), fontsize=ticks_fontsize)
+     
