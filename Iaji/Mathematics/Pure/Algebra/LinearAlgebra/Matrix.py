@@ -13,6 +13,7 @@ import Iaji
 from Iaji.Mathematics.Parameter import Parameter, ParameterSymbolic, ParameterNumeric
 from Iaji.Exceptions import InvalidArgumentError, InconsistentArgumentsError, MissingArgumentsError, MethodNotImplementedError
 from .Exceptions import InconsistentShapeError, TestFailedError
+from Iaji.Utilities import strutils
 #%%
 ACCEPTED_VALUE_TYPES = [numpy.matrix, numpy.ndarray, uncertainties.unumpy.core.matrix]
 ACCEPTED_SHAPE_TYPES = [tuple, list, numpy.array, numpy.ndarray]
@@ -407,9 +408,24 @@ class MatrixSymbolic(ParameterSymbolic):
         self._expression = expression
         if expression is not None:
             try:
+                #Construct the lambda function associated to the symbolic expression
                 self.expression_symbols = sorted(list(expression.free_symbols), key=lambda x: x.name)
-                self.expression_lambda = sympy.lambdify(self.expression_symbols, expression, modules="numpy")
+                """
+                If an expression has symbols whose names have proper latex
+                math formatting, sympy.lambdify will complain. So, convert
+                all symbol names from lateX to python variable friendly names.
+                """
+                expression_symbols_non_latex_names = []
+                for s in self.expression_symbols:
+                    name = strutils.de_latexify(s.name) #convert from lateX name to python-friendly name  
+                    expression_symbols_non_latex_names.append(\
+                    sympy.symbols(names=name, real=s.is_real, nonnegative=s.is_nonnegative))
+                
+                expression_non_latex = strutils.de_latexify(str(expression))
+                self.expression_lambda = sympy.lambdify(expression_symbols_non_latex_names,\
+                                                        expression_non_latex, modules="numpy")
             except AttributeError:
+                
                 self.expression_lambda = None
             self._expression = sympy.Matrix(sympy.Array(self._expression))
             self._shape = self._expression.shape
