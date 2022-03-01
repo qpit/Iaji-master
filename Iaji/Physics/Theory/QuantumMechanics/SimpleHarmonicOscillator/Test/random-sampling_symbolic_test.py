@@ -31,10 +31,7 @@ legend_font = font_manager.FontProperties(family='Times New Roman',
                                    style='normal', size=int(numpy.floor(0.9*title_fontsize)))
 ticks_fontsize = axis_font.get_size()*0.8
 # In[define PDFs]
-k = sympy.symbols("k")
-lamda = sympy.sympify("lamda")
-pdf_poisson = lamda**k*sympy.exp(-lamda)/factorial(k)
-poisson = stats.DiscreteRV(k, pdf_poisson, set=sympy.Naturals0)
+#Discrete
  #%%
 def PDF_histogram(x, x_range, n_bins):
     """
@@ -48,9 +45,13 @@ def PDF_histogram(x, x_range, n_bins):
     return PDF_values, PDF_histogram
 
 # In[discrete random sampling]
-l = 50
+k = sympy.symbols("k")
+lamda = sympy.symbols("lamda", real=True, nonnegative=True)
+pdf_poisson = lamda**k*sympy.exp(-lamda)/factorial(k)
+poisson = stats.DiscreteRV(k, pdf_poisson, set=sympy.Naturals0, lamda=lamda)
+#
 n_samples = 1000
-samples = stats.sample(poisson, size=(n_samples,))
+samples = stats.sample(poisson.subs([(lamda, 10)]), size=(n_samples,))
 #samples = stats.sample(sympy.stats.Poisson("poisson", lamda=l), numsamples=n_samples)
 figure_discrete = pyplot.figure(figsize=(11, 8))
 figure_discrete.subplots_adjust(wspace=0.5)
@@ -68,13 +69,24 @@ axis_pdf.hist(samples, color="tab:blue", alpha=0.7, ec="black")
 #axis_pdf.set_xticklabels(axis_pdf.get_xticklabels(), fontsize=ticks_fontsize)
 #axis_pdf.set_yticklabels(axis_pdf.get_yticklabels(), fontsize=ticks_fontsize)
 # In[continuous random sampling]
-n = 0
-theta = 0
-rv_continuous = QuadratureNumberState()
-n_samples = 10000
-samples = rv_continuous.rvs(n, theta, size=n_samples)
+#Continuous
+x, theta = sympy.symbols("x, theta", real=True)
+n = sympy.symbols("n", natural=True)
+n0 = 0
+theta0 = 0
+if n0 != 0:
+    pdf_continuous = sympy.Abs(1/sympy.sqrt(2**n*factorial(n)*sympy.sqrt(sympy.pi))\
+            *sympy.exp(-x**2/2)*sympy.exp(-sympy.I*n*theta)*sympy.hermite(n, x))**2
+else:
+    pdf_continuous = sympy.Abs(1/sympy.sqrt(sympy.sqrt(sympy.pi))\
+            *sympy.exp(-x**2/2))**2
+rv_continuous = stats.ContinuousRV(x, pdf_continuous, set=sympy.Reals, theta=theta, n=n)
+#
+n_samples = 1000
+
+samples = stats.sample(rv_continuous.subs([(n, n0), (theta, theta0)]), size=(n_samples,))
 title = "Generalized quadrature distribution for the %d-th number state"\
-        " along the angle %.1f degrees"%(n, theta)
+        " along the angle %.1f degrees"%(n0, theta0)
 figure_continuous = pyplot.figure(num=title, figsize=(11, 8))
 figure_continuous.subplots_adjust(wspace=0.5)
 axis_samples = figure_continuous.add_subplot(1, 2, 1)
@@ -87,6 +99,6 @@ axis_pdf.set_xlabel("sample value", font=axis_font)
 axis_pdf.set_ylabel("probability density", font=axis_font)
 #Plot
 values, pdf =PDF_histogram(samples, [numpy.min(samples), numpy.max(samples)],\
-                            n_bins=20)
+                            n_bins=50)
 axis_pdf.plot(values, pdf, color="tab:blue", alpha=0.7, marker="o", \
                               linestyle="None")

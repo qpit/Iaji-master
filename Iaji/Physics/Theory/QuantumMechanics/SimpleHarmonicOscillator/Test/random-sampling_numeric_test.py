@@ -37,15 +37,12 @@ class Poisson(rv_discrete):
 class Gaussian(rv_continuous):
     def _pdf(self, x, mu, sigma):
        return 1/numpy.sqrt(2*numpy.pi*sigma**2)*numpy.exp(-(x-mu)**2/(2*sigma**2))
-   
+n = 1
+theta = 0  
 class QuadratureNumberState(rv_continuous):
-    def _pdf(self, x, n, theta):
-        return numpy.abs(1/numpy.sqrt(2**n*factorial(n)*numpy.sqrt(numpy.pi))\
-                *numpy.exp(-x**2/2)*numpy.exp(-1j*n*theta)*hermite(n)(x))**2
-    def _argcheck(self, *args):
-        return args[0] >= 0 \
-                and args[0]==int(args[0]) \
-                    and "complex" not in args[1].dtype.__str__()
+    def _pdf(self, x):
+        return numpy.math.pow(numpy.abs(1/numpy.sqrt(2**n*factorial(n)*numpy.sqrt(numpy.pi))\
+                *numpy.exp(-x**2/2)*numpy.exp(-1j*n*theta)*hermite(n)(x)), 2)
  #%%
 def PDF_histogram(x, x_range, n_bins):
     """
@@ -60,7 +57,7 @@ def PDF_histogram(x, x_range, n_bins):
 # In[discrete random sampling]
 l = 50
 rv_discrete = Poisson()
-n_samples = 100
+n_samples = 1000
 samples = rv_discrete.rvs(l=l, size=n_samples)
 
 figure_discrete = pyplot.figure(figsize=(11, 8))
@@ -81,9 +78,9 @@ axis_pdf.hist(samples, color="tab:blue", alpha=0.7, ec="black")
 # In[continuous random sampling]
 n = 1
 theta = 0
-rv_continuous = QuadratureNumberState()
-n_samples = 100
-samples = rv_continuous.rvs(n, theta, size=n_samples)
+continuous = QuadratureNumberState()
+n_samples = 1000
+samples = continuous.rvs(size=n_samples)
 title = "Generalized quadrature distribution for the %d-th number state"\
         " along the angle %.1f degrees"%(n, theta)
 figure_continuous = pyplot.figure(num=title, figsize=(11, 8))
@@ -98,6 +95,6 @@ axis_pdf.set_xlabel("sample value", font=axis_font)
 axis_pdf.set_ylabel("probability density", font=axis_font)
 #Plot
 values, pdf =PDF_histogram(samples, [numpy.min(samples), numpy.max(samples)],\
-                            n_bins=20)
+                            n_bins=50)
 axis_pdf.plot(values, pdf, color="tab:blue", alpha=0.7, marker="o", \
                               linestyle="None")

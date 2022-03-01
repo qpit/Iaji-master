@@ -19,6 +19,7 @@ from sympy import assoc_laguerre
 ACCEPTED_HBAR_VALUES = [1] #TODO: adapt the calculation of the Wigner function from the 
                            #density operator in the Fock basis to admit values of hbar 
                            #different from 1. The calculation is performed in the module QuantumStateFock
+MEASURABLES = ["n", "a", "x"]
 """
 For hbar=1, the vacuum quadrature variance is equal to 1/2 and the Heisenberg
 inequality reads Var(q)Var(p) >= 1/4
@@ -104,7 +105,7 @@ class SimpleHarmonicOscillatorSymbolic:
         self.H.name = "\\hat{\\mathcal{H}}_{%s}"%self.name
         self.H.symbol = sympy.symbols(names=self.H.name)
         #Canonical variables
-        self._q = self.hbar**(1/2)/(sympy.sqrt(2)*sympy.I)*(self.a + self.a.Dagger())
+        self._q = self.hbar**(1/2)/(sympy.sqrt(2))*(self.a + self.a.Dagger())
         self.q.name = "\\hat{q}_{%s}"%self.name
         self.q.symbol = sympy.symbols(names=self.q.name)
         
@@ -357,8 +358,7 @@ class SimpleHarmonicOscillatorSymbolic:
          x.state._density_operator = x.a.Dagger() @ self.state._density_operator @ x.a
          x.state._density_operator /= x.state._density_operator.Trace()
          x.state.WignerFunction()
-         return x
-      #---------------------------------------------------------   
+         return x     
 # In[symbolic simple harmonic oscillator]
 class SimpleHarmonicOscillatorNumeric: 
     """
@@ -387,7 +387,7 @@ class SimpleHarmonicOscillatorNumeric:
         self._H = (self.n + 1/2)*self.hbar
         self.H.name = "\\hat{\\mathcal{H}}_{%s}"%self.name
         #Canonical variables
-        self._q = (self.a + self.a.Dagger())*self.hbar**(1/2)/(numpy.sqrt(2)*1j)
+        self._q = (self.a + self.a.Dagger())*self.hbar**(1/2)/numpy.sqrt(2)
         self.q.name = "\\hat{q}_{%s}"%self.name
         
         self._p = (self.a - self.a.Dagger())*self.hbar**(1/2)/(numpy.sqrt(2)*1j)
@@ -608,7 +608,7 @@ class SimpleHarmonicOscillatorNumeric:
         x.state._density_operator = x.a @ self.state._density_operator @ x.a.Dagger()
         x.state._density_operator /= x.state._density_operator.Trace()
         return x
-     #---------------------------------------------------------   
+    #---------------------------------------------------------   
     def Create(self):
          """
          Applies the creation operator to the quantum state, and renormalizes
@@ -620,4 +620,115 @@ class SimpleHarmonicOscillatorNumeric:
          x.state._density_operator = x.a.Dagger() @ self.state._density_operator @ x.a
          x.state._density_operator /= x.state._density_operator.Trace()
          return x
-      #--------------------------------------------------------- 
+    #--------------------------------------------------------- 
+    def ProjectiveMeasurement(self, measurable, ntimes=1, **kwargs):
+        """
+        Peforms a projective measurement of a measurable quantity associated
+        to a linear operator following the generalized Born rule.
+        It repeats the measurement 'ntimes' times (assuming 'ntimes' identical
+                                                   copies of the system exist)
+        """
+        assert measurable in MEASURABLES,\
+        "%s is not supported as a measurable quantity. \n It should be one of these: %s"\
+            %(measurable, MEASURABLES)
+        def _generalized_born_rule(projector):
+            p = (self.state.density_operator @ projector).Trace() #outcome probability density
+            state = QuantumStateFockNumeric(truncated_dimension=self.hilbert_space.dimension, \
+                                            name=self.state.name)
+            state._density_operator = projector @ self.state._density_operator \
+                                      @ projector
+            state._density_operator /= p
+            return state, p
+        #-------------------
+        if measurable == "n":
+            def Projector(n):
+                en = self.hilbert_space.canonical_basis[n].numeric
+                return en @ en.T()
+            #Calculate the probabilities of outcomes
+            values = numpy.arange(self.hilbert_space.dimension)
+            p = numpy.zeros((len(values), ))           
+            for j in numpy.arange(len(values)):
+                n = values[j]
+                projector = Projector(n) 
+                p[j] = _generalized_born_rule(projector)[1].value
+            p = numpy.real(p)
+            p /= numpy.sum(p)
+            #Sample according to the calculated probabilities
+            outcomes = numpy.random.choice(values, size=(ntimes,), p=p)
+            #Apply the generalized born rule to the last measurement
+            projector = Projector(outcomes[-1])
+            post_measurement_state = _generalized_born_rule(projector)[0]
+        #-------------------
+        elif measurable == "a":
+            def Projector(alpha):
+                return \
+                    SimpleHarmonicOscillator(truncated_dimension=self.hilbert_space.dimension, \
+                    name=self.name).Displace(alpha_values[i]).state._density_operator
+            #Consider a range of values that spans a few standard deviations beyond
+            #the mean value of the number operator, which defines the energy
+            #of the harmonic oscillator
+            max_alpha = self.state.Mean(self.a).value \
+                + self.state.Std(self.a).value*5
+            #Calculate the probabilities of outcomes
+            n_values = 300
+            q_values, p_values = [2*numpy.sqrt(self.hbar.value/2)\
+                                  *numpy.linspace(-max_alpha, max_alpha, n_values)\
+                                      for j in range(2)]
+            alpha_values = numpy.zeros((n_values*n_values,)) 
+            p = numpy.zeros((n_values*n_values,))
+            for j in numpy.arange(p.shape[0]):
+                for k in numpy.arange(p.shape[1]):
+                    i = j*p.shape[1] + k
+                    alpha_values[i] = numpy.sqrt(self.hbar.value/2) * \
+                        (q_values[j] + 1j*p_values[k])
+                    projector = Projector(alpha_values[j])
+                    p[i] = _generalized_born_rule(projector)[1].value
+            p = numpy.real(p)
+            p /= numpy.sum(p)
+            #Sample according to the calculated probabilities
+            outcomes = numpy.random.choice(alpha_values, size=(ntimes,), p=p)
+            #Apply the generalized born rule to the last measurement  
+            projector = Projector(outcomes[-1])
+            post_measurement_state = _generalized_born_rule(projector)[0]
+            values = alpha_values
+        #-------------------
+        elif measurable == "x":
+            def Projector(x, theta):
+                proj = MatrixNumeric(name=name)
+                proj.value = numpy.matrix(numpy.zeros((self.hilbert_space.dimension, 1)))    
+                for n in numpy.arange(N):
+                    if n==0:
+                        proj.value[n] = 1/(numpy.sqrt(numpy.sqrt(numpy.pi)))*numpy.exp(-0.5*x**2)
+                    elif n==1:
+                        proj.value[n] = x*numpy.sqrt(2)*numpy.exp(1j*theta) * proj.value[0]
+                    else:
+                        proj.value[n] = numpy.exp(1j*theta)/numpy.sqrt(n)*(numpy.sqrt(2)*x*proj.value[n-1] - numpy.exp(1j*theta)*numpy.sqrt(n-1)*proj.value[n-2]) 
+                return proj @ proj.Dagger()    
+            theta = kwargs["theta"]    
+            N = self.hilbert_space.dimension - 1
+            #Consider a range of values that spans a few standard deviations beyond
+            #the mean value of the number operator, which defines the energy
+            #of the harmonic oscillator
+            q_theta = self.q*numpy.cos(theta) + self.p*numpy.sin(theta)
+            max_x = (self.state.Mean(q_theta).value + self.state.Std(q_theta).value*5)
+            n_values = 300
+            x_values = numpy.linspace(-max_x, max_x, n_values)
+            p = numpy.zeros((n_values,))
+            for j in range(n_values):
+                x = x_values[j]
+                name = "\\hat{\\Pi}_{%.1f}(%0.3f)"%(theta, x)
+                projector = Projector(x, theta)
+                p[j] = _generalized_born_rule(projector)[1].value
+            p = numpy.abs(p)
+            p /= numpy.sum(p) 
+            from matplotlib import pyplot
+            pyplot.figure()
+            pyplot.plot(x_values, p)
+            #Sample according to the calculated probabilities
+            outcomes = numpy.random.choice(x_values, size=(ntimes,), p=p)
+            #Apply the generalized born rule to the last measurement  
+            projector = Projector(outcomes[-1], theta)
+            post_measurement_state = _generalized_born_rule(projector)[0]
+            values = x_values
+        return outcomes, values, p, post_measurement_state
+            

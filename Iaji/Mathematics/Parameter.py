@@ -142,6 +142,13 @@ class Parameter:
         x._numeric = self.numeric**y
         return x
     # ----------------------------------------------------------
+    def __abs__(self):
+        name = "\\left|%s\\right|"%self.name
+        x = Parameter(name=name, type=self.type)
+        x._symbolic = abs(self.symbolic)
+        x._numeric = abs(self.numeric)
+        return x
+    # ----------------------------------------------------------
     def Conjugate(self):
         name = "\\left(%s^*\\right)"%self.name
         x = Parameter(name=name, type=self.type)
@@ -462,6 +469,7 @@ class ParameterSymbolic:
             else:
                 x.expression = self_expression / other_expression
             return x
+    # ----------------------------------------------------------
     def __pow__(self, y):
         """
         Power
@@ -471,6 +479,19 @@ class ParameterSymbolic:
         x.expression = self.expression
         if self.type == "scalar":
             x.expression = sympy.simplify(x.expression**y)
+        else:
+            raise TypeError("unsupported operant type for **: %s"%(type(x)))
+        return x
+    # ----------------------------------------------------------
+    def __abs__(self):
+        """
+        Power
+        """
+        name = "\\left(|%s\\right|"%self.name
+        x = ParameterSymbolic(name=name, type=self.type)
+        x.expression = self.expression
+        if self.type == "scalar":
+            x.expression = sympy.simplify(sympy.Abs(x.expression))
         else:
             raise TypeError("unsupported operant type for **: %s"%(type(x)))
         return x
@@ -746,6 +767,19 @@ class ParameterNumeric:
         x.value = self.value
         if self.type == "scalar":
             x.value **= y
+        else:
+            raise TypeError("unsupported operant type for **: %s"%(type(x)))
+        return x
+    # ----------------------------------------------------------
+    def __abs__(self):
+        """
+        Power
+        """
+        name = "\\left(|%s\\right|"%self.name
+        x = ParameterNumeric(name=name, type=self.type)
+        x.value = self.value
+        if self.type == "scalar":
+            x.value = numpy.abs(x.value)
         else:
             raise TypeError("unsupported operant type for **: %s"%(type(x)))
         return x

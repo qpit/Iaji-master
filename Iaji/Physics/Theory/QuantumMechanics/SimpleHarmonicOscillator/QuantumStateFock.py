@@ -89,8 +89,10 @@ class QuantumStateFockSymbolic(QuantumStateSymbolic):
          """
          e0 = self.hilbert_space.canonical_basis[0].symbolic
          rho = e0 @ e0.T()
-         self._density_operator = DensityMatrixSymbolic(name="\\hat{\\rho}_{%s}"%self.name) 
+         self._density_operator = DensityMatrixSymbolic() 
          self.density_operator.expression = rho.expression
+         self.density_operator.name = "\\left|%d\\right\\rangle\\left\\langle%d\\right|_{%s}"\
+             %(0, 0, self.name)
          self.WignerFunction()
          return self
     # ---------------------------------------------------------- 
@@ -105,8 +107,10 @@ class QuantumStateFockSymbolic(QuantumStateSymbolic):
           assert n == int(n)
           en= self.hilbert_space.canonical_basis[int(n)].symbolic
           rho = en @ en.T()
-          self._density_operator = DensityMatrixSymbolic(name="\hat{\\rho}_{%s}"%self.name) 
+          self._density_operator = DensityMatrixSymbolic() 
           self.density_operator.expression = rho.expression
+          self.density_operator.name = "\\left|%d\\right\\rangle\\left\\langle%d\\right|_{%s}"\
+              %(int(n), int(n), self.name)
           self.WignerFunction()
           return self
     #----------------------------------------------------------
@@ -227,6 +231,8 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
          """
          e0 = self.hilbert_space.canonical_basis[0].numeric
          self._density_operator = e0 @ e0.T()
+         self.density_operator.name = "\\left|%d\\right\\rangle\\left\\langle%d\\right|_{%s}"\
+             %(int(0), int(0), self.name)
          self._wigner_function = ParameterNumeric(name="W_{%s}"%self.name)
          return self
     # ---------------------------------------------------------- 
@@ -241,6 +247,8 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
           assert n == int(n)
           en = self.hilbert_space.canonical_basis[int(n)].numeric
           self._density_operator = en @ en.T()
+          self.density_operator.name = "\\left|%d\\right\\rangle\\left\\langle%d\\right|_{%s}"\
+              %(int(n), int(n), self.name)
           self._wigner_function = ParameterNumeric(name="W_{%s}"%self.name)
           return self
     #----------------------------------------------------------
@@ -381,7 +389,7 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
        #Define figure
        figure = pyplot.figure(num=plot_name, figsize=(11, 8))
        axis = figure.add_subplot(111)
-       axis.set_xlabel("number", font=axis_font)
+       axis.set_xlabel("quantum number", font=axis_font)
        axis.set_ylabel("probability", font=axis_font)
        photon_number_dsitribution = [numpy.abs(rho[j, j]) for j in range(rho.shape[0])]
        #Plot

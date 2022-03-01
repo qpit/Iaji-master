@@ -320,6 +320,40 @@ class QuantumStateSymbolic:
          
          figures = {'2D': figure_2D, '3D': figure_3D}
          return figures
+     # ----------------------------------------------------------
+    def Mean(self, operator):
+        """
+        Compute the average value of the input linear operator
+        given the quantum state
+        """
+        result = (self.density_operator @ operator).Trace()
+        result.name = "\\left\\langle%s\\right\\rangle_{%s}"\
+                      %(operator.name, self.density_operator.name)
+        return result
+    # ----------------------------------------------------------
+    def Var(self, operator):
+        """
+        Compute the variance of the input linear operator
+        given the quantum state
+        """
+        mu = self.Mean(operator)
+        x = operator - mu
+        #return self.Mean(x.Anticommutator(x))*0.5
+        return self.Mean(x**2)
+    # ----------------------------------------------------------
+    def Std(self, operator):
+        """
+        Compute the standard deviation of the input linear operator
+        given the quantum state
+        """
+        return self.Var(operator)**(0.5)
+    # ----------------------------------------------------------
+    def RMS(self, operator):
+        """
+        Compute the RMS value of the input linear operator
+        given the quantum state
+        """
+        return self.Mean(operator**2)
 # In[numeric quantum state]
 class QuantumStateNumeric:
     """
@@ -410,3 +444,35 @@ class QuantumStateNumeric:
     # ----------------------------------------------------------
     def isTensorProduct(self):
         return "otimes" in self.hilbert_space.symbol.name
+    # ----------------------------------------------------------
+    def Mean(self, operator):
+        """
+        Compute the average value of the input linear operator
+        given the quantum state
+        """
+        result = (self.density_operator @ operator).Trace()
+        result.name = "\\left\\langle%s\\right\\rangle_{%s}"\
+                      %(operator.name, self.density_operator.name)
+        return result
+    # ----------------------------------------------------------
+    def Var(self, operator):
+        """
+        Compute the variance of the input linear operator
+        given the quantum state
+        """
+        #return self.Mean(x.Anticommutator(x))*0.5
+        return self.RMS(operator) - self.Mean(operator)**2
+    # ----------------------------------------------------------
+    def Std(self, operator):
+        """
+        Compute the standard deviation of the input linear operator
+        given the quantum state
+        """
+        return self.Var(operator)**(0.5)
+    # ----------------------------------------------------------
+    def RMS(self, operator):
+        """
+        Compute the RMS value of the input linear operator
+        given the quantum state
+        """
+        return self.Mean(operator**2)
