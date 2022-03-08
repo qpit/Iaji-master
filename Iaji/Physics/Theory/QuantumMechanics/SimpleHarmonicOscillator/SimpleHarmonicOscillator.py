@@ -576,7 +576,7 @@ class SimpleHarmonicOscillatorNumeric:
         try:
             #assume alpha is of type ParameterNumeric
             D = (self.a.Dagger()*alpha-self.a*alpha.Conjugate()).Exp()
-            D.name = "\\hat{\\mathcal{D}}_{%s}\\left(%s\\right)"%(self.name, str(alpha.value))
+            D.name = "\\hat{\\mathcal{D}}_{%s}\\left(%s\\right)"%(self.name, alpha.name)
         except:
             D = (self.a.Dagger()*alpha-self.a*numpy.conjugate(alpha)).Exp()
             D.name = "\\hat{\\mathcal{D}}_{%s}\\left(%s\\right)"%(self.name, str(alpha))
@@ -589,7 +589,7 @@ class SimpleHarmonicOscillatorNumeric:
         try:
             #assume zeta is of type ParameterNumeric
             S = ((self.a.Dagger()**2*zeta-self.a**2*zeta.Conjugate())*0.5).Exp()
-            S.name = "\\hat{\\mathcal{S}}_{%s}\\left(%s\\right)"%(self.name, str(zeta.value))
+            S.name = "\\hat{\\mathcal{S}}_{%s}\\left(%s\\right)"%(self.name, zeta.name)
         except:
             S = ((self.a.Dagger()**2*zeta-self.a**2*numpy.conjugate(zeta))*0.5).Exp()
             S.name = "\\hat{\\mathcal{S}}_{%s}\\left(%s\\right)"%(self.name, str(zeta))

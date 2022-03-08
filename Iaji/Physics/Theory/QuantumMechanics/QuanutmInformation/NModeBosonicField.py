@@ -241,19 +241,20 @@ class NModeBosonicFieldNumeric:
         """
         Traces out the mode with name 'traced_mode'
         """
-        assert traced_mode_name in self.mode_names, \
+        field = copy(self)
+        assert traced_mode_name in field.mode_names, \
             "No mode named %s in the field"%(traced_mode_name)
-        traced_index = numpy.where(numpy.array(self.mode_names) == traced_mode_name)[0][0]
-        traced_mode = self._modes_list[traced_index]
-        modes_before = self._modes_list[0:traced_index]
-        modes_after = self._modes_list[traced_index+1:]
+        traced_index = numpy.where(numpy.array(field.mode_names) == traced_mode_name)[0][0]
+        traced_mode = field._modes_list[traced_index]
+        modes_before = field._modes_list[0:traced_index]
+        modes_after = field._modes_list[traced_index+1:]
         modes_list = modes_before + modes_after
-        name = "Tr_{%s}\\left(%s\\right)"%(traced_mode_name, self._name)
-        x = NModeBosonicFieldNumeric(modes_list, name, self._hbar.value)
+        name = "Tr_{%s}\\left(%s\\right)"%(traced_mode_name, field._name)
+        x = NModeBosonicFieldNumeric(modes_list, name, field._hbar.value)
         x.state.wigner_function.value = None
         x.state.covariance_matrix.value = None
         #Compute the partial trace of the density operator
-        rho = copy(self).state._density_operator
+        rho = copy(field).state._density_operator
         rho_new = MatrixNumeric.Zeros((x.hilbert_space.dimension, x.hilbert_space.dimension))
         for i in traced_mode.hilbert_space.canonical_basis:
             M_i = MatrixNumeric.TensorProduct(\
@@ -262,8 +263,8 @@ class NModeBosonicFieldNumeric:
                     *[MatrixNumeric.Eye(mode.hilbert_space.dimension) for mode in modes_after]])
             rho_new += M_i @ rho @ M_i.T()
         x.state._density_operator = rho_new
-        x.state.name = "Tr_{%s}\\left(%s\\right)"%(traced_mode.name, self._state.name)
-        x.state.density_operator.name = "Tr_{%s}\\left(%s\\right)"%(traced_mode.name, self._state.density_operator.name)
+        x.state.name = "Tr_{%s}\\left(%s\\right)"%(traced_mode.name, field._state.name)
+        x.state.density_operator.name = "Tr_{%s}\\left(%s\\right)"%(traced_mode.name, field._state.density_operator.name)
         return x
     #----------------------------------------------------------
     def Displace(self, alphas):
@@ -289,7 +290,7 @@ class NModeBosonicFieldNumeric:
                                            for j in range(x.N)])
         #Apply the displacement operator
         x.state._density_operator = D @ x.state.density_operator @ D.Dagger()
-        x.state.density_operator.name = "%s\\left(%s\\right)"%(D.name, self.state.density_operator.name)
+        x.state.density_operator.name = "%s\\left(%s\\right)"%(D.name, x.state.density_operator.name)
         return x
     #----------------------------------------------------------
     def Squeeze(self, zetas):
@@ -378,7 +379,7 @@ class NModeBosonicFieldNumeric:
         try:
             exponent2 *= zeta.Conjugate()
             name = "\\hat{\\mathcal{S}}_{%s%s}\\left(%s\\right)\\left(%s\\right)"\
-                %(modes[0].name, modes[1].name, zeta.value, x.state.density_operator.name)
+                %(modes[0].name, modes[1].name, zeta.valuename, x.state.density_operator.name)
         except:
             exponent2 *= numpy.conjugate(zeta)
             name = "\\hat{\\mathcal{S}}_{%s%s}\\left(%s\\right)\\left(%s\\right)"\
@@ -397,6 +398,9 @@ class NModeBosonicFieldNumeric:
          assert modes.size == 2, \
              "Two modes must be specified"
          if "str" in str(type(modes[0])):
+             assert numpy.all([modes[j] in self.mode_names for j in range(len(modes))]), \
+                 "Not all the specified modes %s are contained in the field"\
+                     %(modes)
              #Transform names in indices
              mode_indices = [numpy.where(numpy.array(self.mode_names) == modes[j])[0][0] \
                              for j in range(modes.size)]
@@ -423,16 +427,16 @@ class NModeBosonicFieldNumeric:
                                                  modes[1].a.Dagger(), \
                                                  *[MatrixNumeric.Zeros((m.hilbert_space.dimension, m.hilbert_space.dimension)) for m in modes_after]])
          try:
-             name = "\\hat{\\mathcal{B}}_{%s%s}\\left(%s\\right)\\left(%s\\right)"\
-                 %(modes[0].name, modes[1].name, theta.value, x.state.density_operator.name)
+             name = "\\hat{\\mathcal{B}}_{%s%s}\\left(R=%s\\right)\\left(%s\\right)"\
+                 %(modes[0].name, modes[1].name, R.name, x.state.density_operator.name)
          except:
-             name = "\\hat{\\mathcal{B}}_{%s%s}\\left(%s\\right)\\left(%s\\right)"\
-                 %(modes[0].name, modes[1].name, theta, x.state.density_operator.name)
+             name = "\\hat{\\mathcal{B}}_{%s%s}\\left(R=%s\\right)\\left(%s\\right)"\
+                 %(modes[0].name, modes[1].name, R, x.state.density_operator.name)
          B = ((exponent1+exponent2)*theta*1j).Exp()
          x.state._density_operator = B @ x.state.density_operator @ B.Dagger()
          x.state.density_operator.name = name
          return x       
-     #----------------------------------------------------------
+    #----------------------------------------------------------
     def ProjectiveMeasurement(self, mode, measurable, ntimes=1, return_all_fields=False, **kwargs):
         """
         Peforms a projective measurement of a measurable quantity associated
@@ -555,4 +559,52 @@ class NModeBosonicFieldNumeric:
                 post_measurement_field = _generalized_born_rule(projector)[0]
             values = x_values
         return outcomes, values, p, post_measurement_field
+    #----------------------------------------------------------
+    def Loss(self, modes, etas):
+        """
+        Applies bosonic loss to the selected field modes
+        
+        TODO NOTE: this is not working. For some reason, the following operations
+        have no effect on the original modes of the field. 
+        Instead, having a vacuum mode already in the original field and applying
+        the same operations seems to yield the correct result. 
+        It might have something to do with the composition of N-mode bosonic fields
+        (self.Otimes), but I cannot see how.
+        """
+        field = copy(self)
+        modes = numpy.atleast_1d(modes)
+        if "str" in str(type(modes[0])):
+            assert numpy.all([modes[j] in self.mode_names for j in range(len(modes))]), \
+                "Not all the specified modes %s are contained in the field"\
+                    %(modes)
+            #Transform names in indices
+            mode_indices = [numpy.where(numpy.array(self.mode_names) == modes[j])[0][0] \
+                            for j in range(modes.size)]
+        modes = [field.modes_list[j] for j in mode_indices]
+        vacuum_field = NModeBosonicFieldNumeric.Vacuum(N=len(modes), \
+                                                       truncated_dimensions=[m.hilbert_space.dimension for m in modes], \
+                                                           name="Vacuum")
+        field = field.Otimes(vacuum_field)
+        for j in range(len(mode_indices)):
+            mode_index = mode_indices[j]
+            field = field.BeamSplitter(modes=[modes[mode_index].name, vacuum_field.mode_names[j]], R=1-etas[j])\
+                .PartialTrace(vacuum_field.mode_names[j])
+        return field
+    #----------------------------------------------------------
+    def Otimes(self, other):
+        """
+        Composition of two N-mode bosonic fields
+        """
+        field_self = copy(self)
+        field_other = copy(other)
+        assert field_self.hbar.value == field_other.hbar.value, \
+            "The two fields %s and %s must have the same value of hbar"\
+                %(field_self.name, field_other.name)
+        field = NModeBosonicFieldNumeric(modes_list = field_self.modes_list+field_other.modes_list, \
+                                         name="%s%s"%(field_self.name, field_other.name), \
+                                             hbar=field_self.hbar.value)
+        field._state = field_self.state.Otimes(field_other.state)
+        field._hilbert_space = field.state.hilbert_space
+        return field
+
         

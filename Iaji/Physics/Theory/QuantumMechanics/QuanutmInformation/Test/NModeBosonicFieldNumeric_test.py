@@ -43,5 +43,31 @@ system = NModeBosonicFieldNumeric.Vacuum(N=2, truncated_dimensions=[10, 10], nam
 #mode2 = OneModeBosonicFieldNumeric(truncated_dimension=5, name="B").Squeeze(numpy.log(2)/2)
 #mode3 = OneModeBosonicFieldNumeric(truncated_dimension=3, name="C").NumberState(2)
 #system = NModeBosonicFieldNumeric(modes_list=[mode1, mode2, mode3], name="S")
-system_squeezed = system.Squeeze([0.1, 0.1]).BeamSplitter(["A_{0}", "A_{1}"], 0.5)
+system_squeezed = system.Squeeze([0.3, 0])
 #system_squeezed = system.TwoModeSqueeze(modes=system.mode_names, zeta=0.15)
+#%%
+system_BS = system_squeezed.BeamSplitter(system_squeezed.mode_names, R=0.7)\
+    .PartialTrace("A_{1}")
+system_BS.state.PlotWignerFunction(q, p, plot_name="BS")
+#%%
+system_loss = system_squeezed.Loss(["A_{0}"], [0.7]).PartialTrace("A_{1}")
+system_loss.state.PlotWignerFunction(q, p, plot_name="loss")
+# In[Simulate the conditional generation of a single-boson state from two-mode squeezed vacuum]
+#Two-mode squeezed vacuum from single-mode squeezing and beam splitting
+zeta = 0.1
+system_TMSV = system.Squeeze([zeta, zeta]).BeamSplitter(modes=system.mode_names, R=0.5)
+#Perform boson number measurements and find a configuration of the field where
+#a single boson has been measured
+outcomes, _, _, post_measurement_fields = system_TMSV\
+    .ProjectiveMeasurement(mode="A_{0}", measurable="n", ntimes=int(1e4), return_all_fields=True)
+system_single_boson = post_measurement_fields[numpy.where(outcomes==1)[0][0]]
+system_single_boson.PartialTrace("A_{1}").state.PlotWignerFunction(q, p, plot_name="single-boson - measured mode")
+system_single_boson.PartialTrace("A_{0}").state.PlotWignerFunction(q, p, plot_name="single-boson - other mode")
+# In[Simulate the conditional generation of single-mode displaced squeezed states form two-mode squeezed vacuum]
+zeta = 0.5
+system_TMSV = system.Squeeze([zeta, zeta]).BeamSplitter(modes=system.mode_names, R=0.5)
+#Perform a quadrature measurement
+outcomes, _, _, system_displaced_squeezed = system_TMSV\
+    .ProjectiveMeasurement(mode="A_{0}", measurable="x", ntimes=1, theta=-numpy.pi/4)
+system_displaced_squeezed.PartialTrace("A_{1}").state.PlotWignerFunction(q, p, plot_name="single-mode squeezed and displaced - measured mode")
+system_displaced_squeezed.PartialTrace("A_{0}").state.PlotWignerFunction(q, p, plot_name="single-mode squeezed and displaced - other mode")

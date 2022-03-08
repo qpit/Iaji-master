@@ -177,6 +177,13 @@ class Parameter:
         x._numeric = self.numeric.Sin()
         return x
     # ----------------------------------------------------------
+    def Arcsin(self):
+        name = "\\arcsin\\left(%s\\right)"%self.name
+        x = Parameter(name=name, type=self.type)
+        x._symbolic = self.symbolic.Arcsin()
+        x._numeric = self.numeric.Arcsin()
+        return x 
+    # ----------------------------------------------------------
     def Cos(self):
         name = "\\cos\\left(%s\\right)"%self.name
         x = Parameter(name=name, type=self.type)
@@ -561,14 +568,23 @@ class ParameterSymbolic:
     # ----------------------------------------------------------
     def Sin(self):
         """
-        cosine
+        sine
         """
         name = "\\sin\\left(%s\\right)"%self.name
         x = ParameterSymbolic(name=name)
         x = ((self*1j).Exp() - (self*(-1j)).Exp())/(2j)
         x.name = name
         return x
-    # ----------------------------------------------------------  
+    # ---------------------------------------------------------- 
+    def Arcsin(self):
+        """
+        arc sine
+        """
+        name = "\\arcsin\\left(%s\\right)"%self.name
+        x = ParameterSymbolic(name=name)
+        x.expression_symbolic = sympy.asin(x)
+        return x
+    # ----------------------------------------------------------
     def Tan(self):
         """
         tangent
@@ -857,7 +873,7 @@ class ParameterNumeric:
     # ----------------------------------------------------------
     def Sin(self):
         """
-        cosine
+        sine
         """
         name = "\\sin\\left(%s\\right)"%self.name
         x = ParameterNumeric(name=name)
@@ -865,6 +881,15 @@ class ParameterNumeric:
         x.name = name
         return x
     # ----------------------------------------------------------  
+    def Arcsin(self):
+        """
+        arc sine
+        """
+        name = "\\arcsin\\left(%s\\right)"%self.name
+        x = ParameterNumeric(name=name)
+        x.value = numpy.asin(x)
+        return x
+    # ----------------------------------------------------------
     def Tan(self):
         """
         tangent
