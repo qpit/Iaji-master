@@ -23,9 +23,9 @@ system.state.PlotWignerFunction(q, p, plot_name="basic - Wigner function")
 #Plot the density operator
 system.state.PlotDensityOperator(plot_name="basic - density operator")
 # In[displaced]
-#alpha = ParameterSymbolic(name="\\alpha")
-alpha_0 = 0.2+0.1j
-system_displaced = system.Vacuum().Displace(alpha_0)
+alpha = ParameterSymbolic(name="\\alpha")
+#alpha_0 = 0.2+0.1j
+system_displaced = system.Vacuum().Displace(alpha)
 system_displaced.state.PlotWignerFunction(q, p, plot_name="displaced - Wigner function")
 #Plot the density operator
 system_displaced.state.PlotDensityOperator(plot_name="displaced - density operator")

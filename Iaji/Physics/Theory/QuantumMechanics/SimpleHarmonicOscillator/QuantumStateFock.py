@@ -21,6 +21,7 @@ from Iaji.Physics.Theory.QuantumMechanics.QuantumState import QuantumStateSymbol
                                                               QuantumState
 import sympy, numpy, scipy
 from sympy import assoc_laguerre
+from copy import deepcopy as copy
 # In[GUI imports]
 import matplotlib
 from matplotlib import pyplot
@@ -234,7 +235,7 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
          self.density_operator.name = "\\left|%d\\right\\rangle\\left\\langle%d\\right|_{%s}"\
              %(int(0), int(0), self.name)
          self._wigner_function = ParameterNumeric(name="W_{%s}"%self.name)
-         return self
+         return copy(self)
     # ---------------------------------------------------------- 
     def NumberState(self, n):
           """
@@ -250,7 +251,7 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
           self.density_operator.name = "\\left|%d\\right\\rangle\\left\\langle%d\\right|_{%s}"\
               %(int(n), int(n), self.name)
           self._wigner_function = ParameterNumeric(name="W_{%s}"%self.name)
-          return self
+          return copy(self)
     #----------------------------------------------------------
     def WignerFunction(self, q, p):
         """
@@ -374,7 +375,7 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
         axis.set_xticklabels(n, fontsize=ticks_fontsize)
         axis.set_yticklabels(n, fontsize=ticks_fontsize)
         axis.grid(True, color="grey", alpha=0.2)
-        #----------------------------------------------------------
+    #----------------------------------------------------------
     def PlotNumberDistribution(self, parameters=(), alpha=0.7, color="tab:blue", plot_name='untitled'):
        assert self.hilbert_space is not None, \
            "This quantum state is not associated with any Hilbert space"
@@ -397,4 +398,3 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
        pyplot.pause(.05)
        axis.set_xticklabels(axis.get_xticklabels(), fontsize=ticks_fontsize)
        axis.set_yticklabels(axis.get_yticklabels(), fontsize=ticks_fontsize)
-     

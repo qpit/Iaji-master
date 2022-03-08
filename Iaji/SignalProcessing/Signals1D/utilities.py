@@ -3,7 +3,7 @@
 """
 #%%
 #imports
-import numpy as np
+import numpy
 from scipy import signal
 #%%
 def NyquistReconstruct(x, fs, upsampling_factor, n_low_pass=501):
@@ -42,7 +42,7 @@ def detectPhaseIQ(x, fs, f_low_pass, n_low_pass=501, n_hilbert=None):
     at a well-defined Fourier frequency, by demodulating it with two orthogonal sinusoidal functions
     at that frequency, yielding the signals 'i' and 'q'. The phase is then computed as
     
-        phase = np.unwrap(np.angle(i + 1j*q))
+        phase = numpy.unwrap(numpy.angle(i + 1j*q))
         
     where 1j is the imaginary unit in Python language. The user can input the reference signal,
     from which the reference sinusoidal functions are computed, as a second column to the array x; 
@@ -71,45 +71,78 @@ def detectPhaseIQ(x, fs, f_low_pass, n_low_pass=501, n_hilbert=None):
     input_signal = []
     reference_signal = []
     #See if the reference signal has been provided by the user
-    if (len(np.shape(x))==2):
+    if (len(numpy.shape(x))==2):
         input_signal = x[:, 0]
         reference_signal = x[:, 1]
-        reference_signal /= np.std(reference_signal)*np.sqrt(2)
+        reference_signal /= numpy.std(reference_signal)*numpy.sqrt(2)
     #Else, construct it by estimating the central frequency of the reference signal from the input signal
     else:
         input_signal = x
-        t = np.array(range(len(input_signal)))*1/fs#time [same units as 1/fs]
+        t = numpy.array(range(len(input_signal)))*1/fs#time [same units as 1/fs]
         #Compute the central frequency from the periodogram of the input signal
         frequency, PSD = signal.periodogram(x=input_signal, fs=fs)
         #Estimate the central frequency as the maximum of the periodogram
-        f_r = np.atleast_1d(frequency[np.where(abs(PSD)==max(abs(PSD)))])
+        f_r = numpy.atleast_1d(frequency[numpy.where(abs(PSD)==max(abs(PSD)))])
         f_r = f_r[int(len(f_r)/2)]        
         #Construct the reference signal
-        reference_signal = np.cos(2*np.pi*f_r*t)
+        reference_signal = numpy.cos(2*numpy.pi*f_r*t)
     #Construct the orthogonal reference signal
     reference_signal_orthogonal = []
     if n_hilbert: #if the number of coefficients of the Hilbert transformer has been specified
-        reference_signal_orthogonal = np.imag(signal.hilbert(x=reference_signal, N=n_hilbert))
+        reference_signal_orthogonal = numpy.imag(signal.hilbert(x=reference_signal, N=n_hilbert))
         #Discard the first samples due to the filter's transient response
-        n_samples_excluded = int(np.ceil(n_hilbert/2))
+        n_samples_excluded = int(numpy.ceil(n_hilbert/2))
         input_signal = input_signal[n_samples_excluded-1:]
         reference_signal = reference_signal[n_samples_excluded-1:]
         reference_signal_orthogonal = reference_signal_orthogonal[n_samples_excluded-1:]
     else:
-        reference_signal_orthogonal = -np.gradient(reference_signal)
-    reference_signal_orthogonal /= np.std(reference_signal_orthogonal)*np.sqrt(2)
+        reference_signal_orthogonal = -numpy.gradient(reference_signal)
+    reference_signal_orthogonal /= numpy.std(reference_signal_orthogonal)*numpy.sqrt(2)
     #Construct the low-pass filter
     b_low_pass = signal.firwin(numtaps=n_low_pass, cutoff=f_low_pass, nyq=fs/2)
     #Demodulate the input signal
     i = signal.filtfilt(b_low_pass, 1, input_signal*reference_signal)
     q = signal.filtfilt(b_low_pass, 1, input_signal*reference_signal_orthogonal)
-    n_samples_excluded = int(np.ceil(n_low_pass/2))
+    n_samples_excluded = int(numpy.ceil(n_low_pass/2))
     i = i[n_samples_excluded-1:]
     i = i[::int(fs/(2*f_low_pass))]
     q = q[n_samples_excluded-1:]
     q = q[::int(fs/(2*f_low_pass))]
-    instantaneous_phase = np.unwrap(np.angle(i+1j*q))
+    instantaneous_phase = numpy.unwrap(numpy.angle(i+1j*q))
     return instantaneous_phase
+#%%
+#Define a function that computes the "moving" root mean squared of an input signal
+#with windows of chosen length (in number of samples)
+def movingAverage(x, Fs, sampling_times):
+    """
+    This function computes the moving average of the input signal 'x', sampled
+    with sampling frequency 'Fs', by averaging within the time intervals specified
+    by the sequence 'sampling_times'.
+    
+    INPUTS
+    -------------
+    x : array-like of float
+        Input signal [a.u.]
+    Fs : float (>0)
+        Sampling frequency of the input signal  [Hz]
+    sampling_times : array-like of float
+        Sampling instants for averaging
+        
+    OUTPUTS
+    --------------
+    x_mean : array-like of float
+        Moving mean of the input signal 
+    """
+    n_samples = len(x)
+    n_points = len(sampling_times)
+    x_mean = numpy.zeros(n_points-1)
+    time = numpy.array(range(n_samples))/Fs
+    for j in range(n_points-1):
+        if sampling_times[j+1] > time[-1]:
+            break
+        interval = numpy.where(numpy.logical_and(time>=sampling_times[j], time<sampling_times[j+1]))
+        x_mean[j] = numpy.mean(x[interval])
+    return x_mean
        
         
     

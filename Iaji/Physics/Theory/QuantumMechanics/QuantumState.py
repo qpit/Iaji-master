@@ -94,10 +94,10 @@ class QuantumState:
         return s
     # ---------------------------------------------------------- 
     #Tensor product
-    def otimes(self, other):
-        x = QuantumState(name=self.name.__str__() + " \\otimes\\; " + other.name.__str__())
-        x._symbolic = self.symbolic.otimes(other.symbolic)
-        x._numeric = self.numeric.otimes(other.numeric)
+    def Otimes(self, other):
+        x = QuantumState(name=self.name.__str__() + " \\Otimes\\; " + other.name.__str__())
+        x._symbolic = self.symbolic.Otimes(other.symbolic)
+        x._numeric = self.numeric.Otimes(other.numeric)
         return x
     # ----------------------------------------------------------
 # In[symbolic Wigner function]
@@ -233,14 +233,14 @@ class QuantumStateSymbolic:
             + "covariance matrix: \n" + self.covariance_matrix.__str__() + "\n" + print_separator
         return s
     # ----------------------------------------------------------
-    def otimes(self, other):
+    def Otimes(self, other):
         """
         Tensor product
         """
-        name = "\\left(%s\\otimes\\;%s\\right)"%(self.name, other.name)
+        name = "\\left(%s\\Otimes\\;%s\\right)"%(self.name, other.name)
         x = QuantumStateSymbolic(name=name)
-        x._hilbert_space = self.hilbert_space.otimes(other.hilbert_space)
-        x._density_operator = self.density_operator.otimes(other.density_operator)
+        x._hilbert_space = self.hilbert_space.Otimes(other.hilbert_space)
+        x._density_operator = self.density_operator.Otimes(other.density_operator)
         x._wigner_function = self.wigner_function * other.wigner_function
         #x._covariance_matrix = self.covariance_matrix.oplus(other.covariance_matrix)
         return x
@@ -250,7 +250,7 @@ class QuantumStateSymbolic:
         return X.TraceDistance(0)**2
     # ----------------------------------------------------------
     def isTensorProduct(self):
-        return "otimes" in self.hilbert_space.symbol.name
+        return "Otimes" in self.hilbert_space.symbol.name
     # ----------------------------------------------------------
     def PlotWignerFunction(self, q, p, parameters=(), alpha=0.5, colormap=cmwig1, plot_name='untitled', plot_contour_on_3D=True):
 
@@ -336,17 +336,21 @@ class QuantumStateSymbolic:
         Compute the variance of the input linear operator
         given the quantum state
         """
-        mu = self.Mean(operator)
-        x = operator - mu
         #return self.Mean(x.Anticommutator(x))*0.5
-        return self.Mean(x**2)
+        result = self.RMS(operator) - self.Mean(operator)**2
+        result.name = "Var\\left(%s\\right)_{%s}" \
+            %(operator.name, self.density_operator.name)
+        return result
     # ----------------------------------------------------------
     def Std(self, operator):
         """
         Compute the standard deviation of the input linear operator
         given the quantum state
         """
-        return self.Var(operator)**(0.5)
+        result = self.Var(operator)**(0.5)
+        result.name = "Std\\left(%s\\right)_{%s}" \
+            %(operator.name, self.density_operator.name)
+        return result
     # ----------------------------------------------------------
     def RMS(self, operator):
         """
@@ -429,21 +433,27 @@ class QuantumStateNumeric:
         return s
     # ----------------------------------------------------------
     # Tensor product
-    def otimes(self, other):
-        name = "\\left(%s\\otimes\\;%s\\right)"%(self.name, other.name)
+    def Otimes(self, other):
+        name = "\\left(%s\\Otimes\\;%s\\right)"%(self.name, other.name)
         x = QuantumStateSymbolic(name=name)
-        x._hilbert_space = self.hilbert_space.otimes(other.hilbert_space)
-        x._density_operator = self.density_operator.otimes(other.density_operator)
+        x._hilbert_space = self.hilbert_space.Otimes(other.hilbert_space)
+        x._density_operator = self.density_operator.Otimes(other.density_operator)
         x._wigner_function = self.wigner_function * other.wigner_function
         #x._covariance_matrix = self.covariance_matrix.oplus(other.covariance_matrix)
         return x
     # ----------------------------------------------------------
     def Fidelity(self, other):
-        X = self.density_operator.Sqrt() @ other.density_operator.Sqrt()
-        return X.TraceDistance(0)**2
+        """
+        Fidelity between two quantum states
+        
+        """
+        x = (((self.density_operator.Sqrt() @ other.density_operator @ self.density_operator.Sqrt()).Sqrt()).Trace())**2
+        x.name = "\\mathcal{F}\\left(%s\\;%s\\right)"\
+            %(self.density_operator.name, other.density_operator.name)
+        return x
     # ----------------------------------------------------------
     def isTensorProduct(self):
-        return "otimes" in self.hilbert_space.symbol.name
+        return "Otimes" in self.hilbert_space.symbol.name
     # ----------------------------------------------------------
     def Mean(self, operator):
         """
@@ -461,14 +471,20 @@ class QuantumStateNumeric:
         given the quantum state
         """
         #return self.Mean(x.Anticommutator(x))*0.5
-        return self.RMS(operator) - self.Mean(operator)**2
+        result = self.RMS(operator) - self.Mean(operator)**2
+        result.name = "Var\\left(%s\\right)_{%s}" \
+            %(operator.name, self.density_operator.name)
+        return result
     # ----------------------------------------------------------
     def Std(self, operator):
         """
         Compute the standard deviation of the input linear operator
         given the quantum state
         """
-        return self.Var(operator)**(0.5)
+        result = self.Var(operator)**(0.5)
+        result.name = "Std\\left(%s\\right)_{%s}" \
+            %(operator.name, self.density_operator.name)
+        return result
     # ----------------------------------------------------------
     def RMS(self, operator):
         """

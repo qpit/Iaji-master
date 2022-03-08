@@ -25,7 +25,7 @@ class HilbertSpace:
             name : str
         """
         self._dimension = dimension
-        if type(dimension) == int:
+        if "int" in str(type(dimension)):
             if dimension < 0 :
                 raise ValueError("The value "+dimension.__str__()+" for the dimension of Hilber space "+self.name.__str__()+" is not valid.")
         elif not self.isFiniteDimensional():
@@ -114,6 +114,9 @@ class HilbertSpace:
         """
         return not(self.dimension == numpy.inf or self.dimension == sympy.oo)
     # ---------------------------------------------------------------
+    def isTensorProduct(self):
+        return "otimes" in self.symbol.name
+    # ---------------------------------------------------------------
     def CanonicalBasis(self):
         """
         Sets and returns the canonical basis.
@@ -146,7 +149,7 @@ class HilbertSpace:
              +"dimension: "+self.dimension.__str__()+"\n"
         return s
     # ---------------------------------------------------------------
-    def otimes(self, other):
+    def Otimes(self, other):
         """
         Tensor product of Hilbert spaces
         """
@@ -156,8 +159,7 @@ class HilbertSpace:
             return None
         else:
             name = "\\left(%s\\otimes\\;%s\\right)"%(self.name, other.name)
-            return HilbertSpace(dimension=self.dimension+other.dimension, scalars=self.scalars, name=name)
-    
+            return HilbertSpace(dimension=self.dimension*other.dimension, scalars=self.scalars, name=name)
     # ---------------------------------------------------------------
     def SetInnerProduct(self):     
         if not self.isFiniteDimensional():
@@ -203,8 +205,14 @@ class HilbertSpace:
                             result_parameter.value = result.value[0, 0]
                         return result_parameter
             self._inner_product = InnerProduct
-                        
-               
-               
-
-
+    @classmethod
+    def TensorProduct(cls, H_list):
+        """
+        Tensor product of a list of hilbert spaces
+        """
+        scalars = H_list[0].scalars
+        dimension = numpy.prod([H.dimension for H in H_list])
+        name = H_list[0].name
+        for H in H_list[1:]:
+            name += "\\otimes\\;%s"%(H.name)
+        return HilbertSpace(dimension=dimension, scalars=scalars, name=name)

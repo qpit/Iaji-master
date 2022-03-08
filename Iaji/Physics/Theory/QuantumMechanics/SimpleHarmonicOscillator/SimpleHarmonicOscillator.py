@@ -15,6 +15,7 @@ from Iaji.Physics.Theory.QuantumMechanics.SimpleHarmonicOscillator.QuantumStateF
     QuantumStateFockNumeric
 import sympy, numpy
 from sympy import assoc_laguerre
+from copy import deepcopy as copy
 # In[]
 ACCEPTED_HBAR_VALUES = [1] #TODO: adapt the calculation of the Wigner function from the 
                            #density operator in the Fock basis to admit values of hbar 
@@ -79,6 +80,9 @@ class SimpleHarmonicOscillator: #TODO
 class SimpleHarmonicOscillatorSymbolic: 
     """
     This class describes a symbolic simple harmonic oscillator.
+    TODO: implement a symbolic version of a projective measurement.
+    So far, I have only found a useful way of doing so in SimpleHarmonicOscillatorNumeric
+    class.
     """
     #----------------------------------------------------------
     def __init__(self, truncated_dimension, name="A", hbar=1):
@@ -217,9 +221,9 @@ class SimpleHarmonicOscillatorSymbolic:
             if n==0:
                 projector.expression[n] = 1/(sympy.sqrt(sympy.sqrt(sympy.pi)))*sympy.exp(-0.5*expression(x)**2)
             elif n==1:
-                projector.expression[n] = expression(x)*sympy.sqrt(2)*sympy.exp(-1j*expression(theta)) * projector.expression[0]
+                projector.expression[n] = expression(x)*sympy.sqrt(2)*sympy.exp(1j*expression(theta)) * projector.expression[0]
             else:
-                projector.expression[n] = sympy.exp(-1j*expression(theta))/sympy.sqrt(n)*(sympy.sqrt(2)*expression(x)*projector.expression[n-1] - sympy.exp(-1j*expression(theta))*sympy.sqrt(n-1)*projector.expression[n-2])
+                projector.expression[n] = sympy.exp(1j*expression(theta))/sympy.sqrt(n)*(sympy.sqrt(2)*expression(x)*projector.expression[n-1] - sympy.exp(1j*expression(theta))*sympy.sqrt(n-1)*projector.expression[n-2])
         projector = projector @ projector.Dagger()
         projector.name = name
         return projector
@@ -237,7 +241,7 @@ class SimpleHarmonicOscillatorSymbolic:
                 return x
         #--------------------------------------------
         name = "\\hat{\\Pi}_{\\alpha_{%s}}(%s)"%(self.name, expression(alpha))
-        projector = self.Vacuum().Displace(alpha).state.density_operator
+        projector = copy(self.Vacuum()).Displace(alpha).state.density_operator
         projector.name = name
         return projector
     #----------------------------------------------------------
@@ -254,15 +258,54 @@ class SimpleHarmonicOscillatorSymbolic:
                 return x
         #--------------------------------------------
         name = "\\hat{\\Pi}_{n_{%s}}(%s)"%(self.name, expression(n))
-        projector = self.NumberState(n).state.density_operator
+        projector = copy(self.NumberState(n)).state.density_operator
         projector.name = name
         return projector    
-    #----------------------------------------------------------    
+    #----------------------------------------------------------  
+    def _DisplacementOperator(self, alpha):
+        """
+        Returns the displacement operator with parameter alpha
+        """
+        try:
+            #assume alpha is of type ParameterSymbolic
+            D = (self.a.Dagger()*alpha-self.a*alpha.Conjugate()).ExpTruncated(10)
+            D.name = "\\hat{\\mathcal{D}}_{%s}\\left(%s\\right)"%(self.name, alpha.expression.__str__())
+        except:
+            D = (self.a.Dagger()*alpha-self.a*sympy.conjugate(alpha)).ExpTruncated(10)     
+            D.name = "\\hat{\\mathcal{D}}_{%s}\\left(%s\\right)"%(self.name, alpha)
+        return D
+    #----------------------------------------------------------  
+    def _SqueezingOperator(self, zeta):
+        """
+        Returns the squeezing operator with parameter zeta
+        """
+        try:
+            #assume zeta is of type ParameterSymbolic
+            S = ((self.a.Dagger()**2*zeta-self.a**2*zeta.Conjugate())*sympy.sympify(1/2)).ExpTruncated(10)
+            S.name = "\\hat{\\mathcal{S}}_{%s}\\left(%s\\right)"%(self.name, zeta.expression.__str__())
+        except:
+            S = ((self.a.Dagger()**2*zeta-self.a**2*sympy.conjugate(zeta))*sympy.sympify(1/2)).ExpTruncated(10)
+            S.name = "\\hat{\\mathcal{S}}_{%s}\\left(%s\\right)"%(self.name, zeta)
+        return S
+    #---------------------------------------------------------- 
+    def _RotationOperator(self, theta):
+        """
+        Returns the rotation operator with parameter theta
+        """
+        try:
+            #assume theta is of type ParameterSymbolic
+            R = (self.n*sympy.sympify(1j)*theta).ExpTruncated(10)
+            R.name = "\\hat{\\mathcal{R}}_{%s}\\left(%s\\right)"%(self.name, theta.expression.__str__())
+        except:
+            R = (self.n*sympy.sympify(1j*float(theta))).ExpTruncated(10)
+            R.name = "\\hat{\\mathcal{R}}_{%s}\\left(%s\\right)"%(self.name, theta)
+        return R
+    #---------------------------------------------------------- 
     def Vacuum(self):
         """
         Sets the system to the vacuum state
         """
-        x = SimpleHarmonicOscillatorSymbolic(self.hilbert_space.dimension, self.name, float(self.hbar.expression))
+        x = copy(self)
         x.state.Vacuum()
         return x
     #----------------------------------------------------------
@@ -270,7 +313,10 @@ class SimpleHarmonicOscillatorSymbolic:
         """
         Sets the system to the n-th number state
         """
-        x = SimpleHarmonicOscillatorSymbolic(self.hilbert_space.dimension, self.name, float(self.hbar.expression))
+        assert n < self.hilbert_space.dimension, \
+            "n=%d must be lower than the Hilbert space dimension %d"\
+                %(n, self.hilbert_space.dimension)
+        x = copy(self)
         x.state.NumberState(n)
         return x
     #----------------------------------------------------------
@@ -278,13 +324,10 @@ class SimpleHarmonicOscillatorSymbolic:
         """
         Displaces the system, by applying the unitary displacement operator
         """
-        x = SimpleHarmonicOscillatorSymbolic(self.hilbert_space.dimension, self.name, float(self.hbar.expression))
-        try:
-            #assume alpha is of type ParameterSymbolic
-            D = (x.a.Dagger()*alpha-x.a*alpha.Conjugate()).ExpTruncated(10)
-        except:
-            D = (x.a.Dagger()*alpha-x.a*sympy.conjugate(alpha)).ExpTruncated(10)     
+        x = copy(self)
+        D = x._DisplacementOperator(alpha)
         x.state._density_operator = D @ self.state._density_operator @ D.Dagger()
+        x.state.density_operator.name = "%s\\left(%s\\right)"%(D.name, self.state.density_operator.name)
         x.state.WignerFunction()
         return x
     #----------------------------------------------------------
@@ -292,13 +335,10 @@ class SimpleHarmonicOscillatorSymbolic:
         """
         Squeezes the system, by applying the unitary squeezing operator
         """
-        x = SimpleHarmonicOscillatorSymbolic(self.hilbert_space.dimension, self.name, float(self.hbar.expression))
-        try:
-            #assume zeta is of type ParameterSymbolic
-            S = ((x.a.Dagger()**2*zeta-x.a**2*zeta.Conjugate())*sympy.sympify(1/2)).ExpTruncated(10)
-        except:
-            S = ((x.a.Dagger()**2*zeta-x.a**2*sympy.conjugate(zeta))*sympy.sympify(1/2)).ExpTruncated(10)
+        x = copy(self)
+        S = x._SqueezingOperator(zeta)
         x.state._density_operator = S @ self.state._density_operator @ S.Dagger()
+        x.state.density_operator.name = "%s\\left(%s\\right)"%(S.name, self.state.density_operator.name)
         x.state.WignerFunction()
         return x
     #----------------------------------------------------------
@@ -306,13 +346,10 @@ class SimpleHarmonicOscillatorSymbolic:
         """
         Rotates the system, by applying the unitary rotation operator
         """
-        x = SimpleHarmonicOscillatorSymbolic(self.hilbert_space.dimension, self.name, float(self.hbar.expression))
-        try:
-            #assume theta is of type ParameterSymbolic
-            R = (x.n*sympy.sympify(1j)*theta).ExpTruncated(10)
-        except:
-            R = (x.n*sympy.sympify(1j*float(theta))).ExpTruncated(10)
+        x = copy(self)
+        R = x._RotationOperator(theta)
         x.state._density_operator = R @ self.state._density_operator @ R.Dagger()
+        x.state.density_operator.name = "%s\\left(%s\\right)"%(R.name, self.state.density_operator.name)
         x.state.WignerFunction()
         return x
     #----------------------------------------------------------
@@ -327,10 +364,11 @@ class SimpleHarmonicOscillatorSymbolic:
             "The interaction Hamiltonian operator must be Hermitian"
         assert H.shape == self.H.shape, \
             "The interaction Hamiltonian has incompatible shape %s"%H.shape.__str__()
-        x = SimpleHarmonicOscillatorSymbolic(self.hilbert_space.dimension, self.name, float(self.hbar.expression))
+        x = copy(self)
         x._state = self._state
         U = (H*x.hbar*sympy.sympify(-sympy.I)).ExpTruncated(10)
         x.state._density_operator = U @ x.state._density_operator @ U.Dagger()
+        x.state.density_operator.name = "%s\\left(%s\\right)"%(U.name, self.state.density_operator.name)
         x.state.WignerFunction()
         return x
     #---------------------------------------------------------
@@ -341,7 +379,7 @@ class SimpleHarmonicOscillatorSymbolic:
         """
         #e0 = self.hilbert_space.canonical_basis[0]
         #vacuum =  e0 @ e0.T()
-        x = SimpleHarmonicOscillatorSymbolic(self.hilbert_space.dimension, self.name, float(self.hbar.expression))
+        x = copy(self)
         x.state._density_operator = x.a @ self.state._density_operator @ x.a.Dagger()
         x.state._density_operator /= x.state._density_operator.Trace()
         x.state.WignerFunction()
@@ -354,7 +392,7 @@ class SimpleHarmonicOscillatorSymbolic:
          """
          #e0 = self.hilbert_space.canonical_basis[0]
          #vacuum =  e0 @ e0.T()
-         x = SimpleHarmonicOscillatorSymbolic(self.hilbert_space.dimension, self.name, float(self.hbar.expression))
+         x = copy(self)
          x.state._density_operator = x.a.Dagger() @ self.state._density_operator @ x.a
          x.state._density_operator /= x.state._density_operator.Trace()
          x.state.WignerFunction()
@@ -485,17 +523,17 @@ class SimpleHarmonicOscillatorNumeric:
         N = self.hilbert_space.dimension - 1
         name = "\\hat{\\Pi}_{q_{{%s}_{%.3f\\pi}}}(%s)"%(self.name, value(theta)/numpy.pi, x)
         projector = MatrixNumeric(name=name)
-        projector.value = numpy.zeros((N+1, 0), dtype=complex)
         for n in numpy.arange(N):
             if n==0:
                 projector.value[n] = 1/(numpy.sqrt(numpy.sqrt(numpy.pi)))*numpy.exp(-0.5*x**2)
             elif n==1:
-                projector.value[n] = value(x)*numpy.sqrt(2)*numpy.exp(-1j*value(theta)) * projector.value[0]
+                projector.value[n] = x*numpy.sqrt(2)*numpy.exp(1j*theta) * projector.value[0]
             else:
-                projector.value[n] = numpy.exp(-1j*value(theta))/numpy.sqrt(n)*(numpy.sqrt(2)*value(x)*projector.value[n-1] - numpy.exp(-1j*value(theta))*numpy.sqrt(n-1)*projector.value[n-2])
-        projector = projector @ projector.Dagger()
+                projector.value[n] = numpy.exp(1j*theta)/numpy.sqrt(n)*(numpy.sqrt(2)*x*projector.value[n-1] - numpy.exp(1j*theta)*numpy.sqrt(n-1)*projector.value[n-2]) 
+        projector = projector @ projector.Dagger() 
         projector.name = name
         return projector
+
     #----------------------------------------------------------
     def _AnnihilationProjector(self, alpha):
         """
@@ -510,7 +548,7 @@ class SimpleHarmonicOscillatorNumeric:
                 return x
         #--------------------------------------------
         name = "\\hat{\\Pi}_{\\alpha_{%s}}(%s)"%(self.name, value(alpha))
-        projector = self.Vacuum().Displace(alpha).state.density_operator
+        projector = copy(self.Vacuum()).Displace(alpha).state.density_operator
         projector.name = name
         return projector
     #----------------------------------------------------------
@@ -527,15 +565,50 @@ class SimpleHarmonicOscillatorNumeric:
                 return x
         #--------------------------------------------
         name = "\\hat{\\Pi}_{n_{%s}}(%s)"%(self.name, value(n))
-        projector = self.NumberState(n).state.density_operator
+        projector = copy(self.NumberState(n)).state.density_operator
         projector.name = name
         return projector    
     #----------------------------------------------------------    
+    def _DisplacementOperator(self, alpha):
+        """
+        Returns the displacement operator with parameter alpha
+        """
+        try:
+            #assume alpha is of type ParameterNumeric
+            D = (self.a.Dagger()*alpha-self.a*alpha.Conjugate()).Exp()
+            D.name = "\\hat{\\mathcal{D}}_{%s}\\left(%s\\right)"%(self.name, str(alpha.value))
+        except:
+            D = (self.a.Dagger()*alpha-self.a*numpy.conjugate(alpha)).Exp()
+            D.name = "\\hat{\\mathcal{D}}_{%s}\\left(%s\\right)"%(self.name, str(alpha))
+        return D
+    #----------------------------------------------------------  
+    def _SqueezingOperator(self, zeta):
+        """
+        Returns the squeezing operator with parameter zeta
+        """
+        try:
+            #assume zeta is of type ParameterNumeric
+            S = ((self.a.Dagger()**2*zeta-self.a**2*zeta.Conjugate())*0.5).Exp()
+            S.name = "\\hat{\\mathcal{S}}_{%s}\\left(%s\\right)"%(self.name, str(zeta.value))
+        except:
+            S = ((self.a.Dagger()**2*zeta-self.a**2*numpy.conjugate(zeta))*0.5).Exp()
+            S.name = "\\hat{\\mathcal{S}}_{%s}\\left(%s\\right)"%(self.name, str(zeta))
+        return S
+    #---------------------------------------------------------- 
+    def _RotationOperator(self, theta):
+        """
+        Returns the rotation operator with parameter theta
+        """
+        R = (self.n*1j*theta).Exp()
+        R.name = "\\hat{\\mathcal{R}}_{%s}\\left(%.3f\\right)"%(self.name, theta)
+        return R
+    #---------------------------------------------------------- 
+        
     def Vacuum(self):
         """
         Sets the system to the vacuum state
         """
-        x = SimpleHarmonicOscillatorNumeric(self.hilbert_space.dimension, self.name, float(self.hbar.value))
+        x = copy(self)
         x.state.Vacuum()
         return x
     #----------------------------------------------------------
@@ -543,7 +616,10 @@ class SimpleHarmonicOscillatorNumeric:
         """
         Sets the system to the n-th number state
         """
-        x = SimpleHarmonicOscillatorNumeric(self.hilbert_space.dimension, self.name, float(self.hbar.value))
+        assert n < self.hilbert_space.dimension, \
+            "n=%d must be lower than the Hilbert space dimension %d"\
+                %(n, self.hilbert_space.dimension)
+        x = copy(self)
         x.state.NumberState(n)
         return x
     #----------------------------------------------------------
@@ -551,35 +627,30 @@ class SimpleHarmonicOscillatorNumeric:
         """
         Displaces the system, by applying the unitary displacement operator
         """
-        x = SimpleHarmonicOscillatorNumeric(self.hilbert_space.dimension, self.name, float(self.hbar.value))
-        try:
-            #assume alpha is of type ParameterNumeric
-            D = (x.a.Dagger()*alpha-x.a*alpha.Conjugate()).Exp()
-        except:
-            D = (x.a.Dagger()*alpha-x.a*numpy.conjugate(alpha)).Exp()
-        x.state._density_operator = D @ self.state._density_operator @ D.Dagger()
+        x = copy(self)
+        D = x._DisplacementOperator(alpha)
+        x.state._density_operator = D @ x.state.density_operator @ D.Dagger()
+        x.state.density_operator.name = "%s\\left(%s\\right)"%(D.name, self.state.density_operator.name)
         return x
     #----------------------------------------------------------
     def Squeeze(self, zeta):
         """
         Squeezes the system, by applying the unitary squeezing operator
         """
-        x = SimpleHarmonicOscillatorNumeric(self.hilbert_space.dimension, self.name, float(self.hbar.value))
-        try:
-            #assume zeta is of type ParameterNumeric
-            S = ((x.a.Dagger()**2*zeta-x.a**2*zeta.Conjugate())*0.5).Exp()
-        except:
-            S = ((x.a.Dagger()**2*zeta-x.a**2*numpy.conjugate(zeta))*0.5).Exp()
-        x.state._density_operator = S @ self.state._density_operator @ S.Dagger()
+        x = copy(self)
+        S = x._SqueezingOperator(zeta)
+        x.state._density_operator = S @ x.state.density_operator @ S.Dagger()
+        x.state.density_operator.name = "%s\\left(%s\\right)"%(S.name, self.state.density_operator.name)
         return x
     #----------------------------------------------------------
     def Rotate(self, theta):
         """
         Rotates the system, by applying the unitary rotation operator
         """
-        x = SimpleHarmonicOscillatorNumeric(self.hilbert_space.dimension, self.name, float(self.hbar.value))
-        R = (x.n*1j*theta).Exp()
-        x.state._density_operator = R @ self.state._density_operator @ R.Dagger()
+        x = copy(self)
+        R = x._RotationOperator(theta)
+        x.state._density_operator = R @ x.state.density_operator @ R.Dagger()
+        x.state.density_operator.name = "%s\\left(%s\\right)"%(R.name, self.state.density_operator.name)
         return x
     #----------------------------------------------------------
     def Unitary(self, H):
@@ -593,9 +664,11 @@ class SimpleHarmonicOscillatorNumeric:
             "The interaction Hamiltonian operator must be Hermitian"
         assert H.shape == self.H.shape, \
             "The interaction Hamiltonian has incompatible shape %s"%H.shape.__str__()
-        x = SimpleHarmonicOscillatorNumeric(self.hilbert_space.dimension, self.name, float(self.hbar.value))
+        x = copy(self)
         U = (H*x.hbar*(-1j)).Exp()
         x.state._density_operator = U @ self.state._density_operator @ U.Dagger()
+        x.state.density_operator.name = "%s\\left(%s\\right)"%(U.name, self.state.density_operator.name)
+        return x
     #---------------------------------------------------------
     def Annihilate(self):
         """
@@ -604,7 +677,7 @@ class SimpleHarmonicOscillatorNumeric:
         """
         #e0 = self.hilbert_space.canonical_basis[0]
         #vacuum =  e0 @ e0.T()
-        x = SimpleHarmonicOscillatorNumeric(self.hilbert_space.dimension, self.name, self.hbar.value)
+        x = copy(self)
         x.state._density_operator = x.a @ self.state._density_operator @ x.a.Dagger()
         x.state._density_operator /= x.state._density_operator.Trace()
         return x
@@ -616,12 +689,12 @@ class SimpleHarmonicOscillatorNumeric:
          """
          #e0 = self.hilbert_space.canonical_basis[0]
          #vacuum =  e0 @ e0.T()
-         x = SimpleHarmonicOscillatorNumeric(self.hilbert_space.dimension, self.name, self.hbar.value)
+         x = copy(self)
          x.state._density_operator = x.a.Dagger() @ self.state._density_operator @ x.a
          x.state._density_operator /= x.state._density_operator.Trace()
          return x
     #--------------------------------------------------------- 
-    def ProjectiveMeasurement(self, measurable, ntimes=1, **kwargs):
+    def ProjectiveMeasurement(self, measurable, ntimes=1, return_all_systems=False, **kwargs):
         """
         Peforms a projective measurement of a measurable quantity associated
         to a linear operator following the generalized Born rule.
@@ -631,47 +704,56 @@ class SimpleHarmonicOscillatorNumeric:
         assert measurable in MEASURABLES,\
         "%s is not supported as a measurable quantity. \n It should be one of these: %s"\
             %(measurable, MEASURABLES)
+        system = copy(self)
         def _generalized_born_rule(projector):
-            p = (self.state.density_operator @ projector).Trace() #outcome probability density
-            state = QuantumStateFockNumeric(truncated_dimension=self.hilbert_space.dimension, \
-                                            name=self.state.name)
-            state._density_operator = projector @ self.state._density_operator \
+            system0 = copy(self)
+            p = (system0.state.density_operator @ projector).Trace() #outcome probability density
+            system0._state = QuantumStateFockNumeric(truncated_dimension=system0.hilbert_space.dimension, \
+                                            name=system0.state.name)
+            system0.state._density_operator = projector @ system0.state._density_operator \
                                       @ projector
-            state._density_operator /= p
-            return state, p
+            system0.state._density_operator /= p
+            return system0, p
         #-------------------
         if measurable == "n":
             def Projector(n):
-                en = self.hilbert_space.canonical_basis[n].numeric
+                en = system.hilbert_space.canonical_basis[n].numeric
                 return en @ en.T()
             #Calculate the probabilities of outcomes
-            values = numpy.arange(self.hilbert_space.dimension)
+            values = numpy.arange(system.hilbert_space.dimension)
             p = numpy.zeros((len(values), ))           
             for j in numpy.arange(len(values)):
                 n = values[j]
                 projector = Projector(n) 
                 p[j] = _generalized_born_rule(projector)[1].value
-            p = numpy.real(p)
+            p = numpy.abs(p)
             p /= numpy.sum(p)
             #Sample according to the calculated probabilities
             outcomes = numpy.random.choice(values, size=(ntimes,), p=p)
-            #Apply the generalized born rule to the last measurement
-            projector = Projector(outcomes[-1])
-            post_measurement_state = _generalized_born_rule(projector)[0]
+            if return_all_systems:
+                #Apply the generalized born rule to the all measurements
+                projector = []
+                post_measurement_system = []
+                for j in range(ntimes):
+                    projector.append(Projector(outcomes[j]))
+                    post_measurement_system.append(_generalized_born_rule(projector[j])[0])
+            else:
+                #Apply the generalized born rule to the last measurement
+                projector = Projector(outcomes[-1])
+                post_measurement_system = _generalized_born_rule(projector)[0]
         #-------------------
         elif measurable == "a":
             def Projector(alpha):
                 return \
-                    SimpleHarmonicOscillator(truncated_dimension=self.hilbert_space.dimension, \
-                    name=self.name).Displace(alpha_values[i]).state._density_operator
+                    system.Displace(alpha_values[i]).state.density_operator
             #Consider a range of values that spans a few standard deviations beyond
             #the mean value of the number operator, which defines the energy
             #of the harmonic oscillator
-            max_alpha = self.state.Mean(self.a).value \
-                + self.state.Std(self.a).value*5
+            max_alpha = system.state.Mean(system.a).value \
+                + system.state.Std(system.a).value*5
             #Calculate the probabilities of outcomes
             n_values = 300
-            q_values, p_values = [2*numpy.sqrt(self.hbar.value/2)\
+            q_values, p_values = [2*numpy.sqrt(system.hbar.value/2)\
                                   *numpy.linspace(-max_alpha, max_alpha, n_values)\
                                       for j in range(2)]
             alpha_values = numpy.zeros((n_values*n_values,)) 
@@ -679,23 +761,31 @@ class SimpleHarmonicOscillatorNumeric:
             for j in numpy.arange(p.shape[0]):
                 for k in numpy.arange(p.shape[1]):
                     i = j*p.shape[1] + k
-                    alpha_values[i] = numpy.sqrt(self.hbar.value/2) * \
+                    alpha_values[i] = numpy.sqrt(system.hbar.value/2) * \
                         (q_values[j] + 1j*p_values[k])
                     projector = Projector(alpha_values[j])
                     p[i] = _generalized_born_rule(projector)[1].value
-            p = numpy.real(p)
+            p = numpy.abs(p)
             p /= numpy.sum(p)
             #Sample according to the calculated probabilities
             outcomes = numpy.random.choice(alpha_values, size=(ntimes,), p=p)
-            #Apply the generalized born rule to the last measurement  
-            projector = Projector(outcomes[-1])
-            post_measurement_state = _generalized_born_rule(projector)[0]
+            if return_all_systems:
+                #Apply the generalized born rule to the all measurements
+                projector = []
+                post_measurement_system = []
+                for j in range(ntimes):
+                    projector.append(Projector(outcomes[j]))
+                    post_measurement_system.append(_generalized_born_rule(projector[j])[0])
+            else:
+                #Apply the generalized born rule to the last measurement
+                projector = Projector(outcomes[-1])
+                post_measurement_system = _generalized_born_rule(projector)[0]
             values = alpha_values
         #-------------------
         elif measurable == "x":
             def Projector(x, theta):
                 proj = MatrixNumeric(name=name)
-                proj.value = numpy.matrix(numpy.zeros((self.hilbert_space.dimension, 1)))    
+                proj.value = numpy.matrix(numpy.zeros((system.hilbert_space.dimension, 1)))    
                 for n in numpy.arange(N):
                     if n==0:
                         proj.value[n] = 1/(numpy.sqrt(numpy.sqrt(numpy.pi)))*numpy.exp(-0.5*x**2)
@@ -705,12 +795,12 @@ class SimpleHarmonicOscillatorNumeric:
                         proj.value[n] = numpy.exp(1j*theta)/numpy.sqrt(n)*(numpy.sqrt(2)*x*proj.value[n-1] - numpy.exp(1j*theta)*numpy.sqrt(n-1)*proj.value[n-2]) 
                 return proj @ proj.Dagger()    
             theta = kwargs["theta"]    
-            N = self.hilbert_space.dimension - 1
+            N = system.hilbert_space.dimension - 1
             #Consider a range of values that spans a few standard deviations beyond
             #the mean value of the number operator, which defines the energy
             #of the harmonic oscillator
-            q_theta = self.q*numpy.cos(theta) + self.p*numpy.sin(theta)
-            max_x = (self.state.Mean(q_theta).value + self.state.Std(q_theta).value*5)
+            q_theta = system.q*numpy.cos(theta) + system.p*numpy.sin(theta)
+            max_x = (system.state.Mean(q_theta).value + system.state.Std(q_theta).value*5)
             n_values = 300
             x_values = numpy.linspace(-max_x, max_x, n_values)
             p = numpy.zeros((n_values,))
@@ -726,9 +816,17 @@ class SimpleHarmonicOscillatorNumeric:
             pyplot.plot(x_values, p)
             #Sample according to the calculated probabilities
             outcomes = numpy.random.choice(x_values, size=(ntimes,), p=p)
-            #Apply the generalized born rule to the last measurement  
-            projector = Projector(outcomes[-1], theta)
-            post_measurement_state = _generalized_born_rule(projector)[0]
+            if return_all_systems:
+                #Apply the generalized born rule to the all measurements
+                projector = []
+                post_measurement_system = []
+                for j in range(ntimes):
+                    projector.append(Projector(outcomes[j], theta))
+                    post_measurement_system.append(_generalized_born_rule(projector[j])[0])
+            else:
+                #Apply the generalized born rule to the last measurement
+                projector = Projector(outcomes[-1], theta)
+                post_measurement_system = _generalized_born_rule(projector)[0]
             values = x_values
-        return outcomes, values, p, post_measurement_state
+        return outcomes, values, p, post_measurement_system
             

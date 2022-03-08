@@ -18,4 +18,3 @@ def PDF_histogram(x, x_range, n_bins):
     PDF_values = PDF_bin_edges+half_bin #center the bin values
     PDF_values = PDF_values[1:] #discard the first bin value
     return PDF_values, PDF_histogram
-

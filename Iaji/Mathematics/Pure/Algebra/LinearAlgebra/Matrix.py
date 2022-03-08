@@ -14,6 +14,7 @@ from Iaji.Mathematics.Parameter import Parameter, ParameterSymbolic, ParameterNu
 from Iaji.Exceptions import InvalidArgumentError, InconsistentArgumentsError, MissingArgumentsError, MethodNotImplementedError
 from .Exceptions import InconsistentShapeError, TestFailedError
 from Iaji.Utilities import strutils
+from copy import deepcopy as copy
 #%%
 ACCEPTED_VALUE_TYPES = [numpy.matrix, numpy.ndarray, uncertainties.unumpy.core.matrix]
 ACCEPTED_SHAPE_TYPES = [tuple, list, numpy.array, numpy.ndarray]
@@ -130,7 +131,7 @@ class Matrix:
         Elementwise multiplication
         """
         other_temp = self.prepare_other(other)
-        name = "\\left(%s*%s\\right)"%(self.name, other_temp.name)
+        name = "%s*%s"%(self.name, other_temp.name)
         x = Matrix(name=name)
         x._symbolic = self.symbolic * other_temp.symbolic
         x._numeric = self.numeric * other_temp.numeric
@@ -141,7 +142,7 @@ class Matrix:
         Elementwise division
         """
         other_temp = self.prepare_other(other)
-        name = "\\left(%s*%s\\right)"%(self.name, other_temp.name)
+        name = "%s/%s"%(self.name, other_temp.name)
         x = Matrix(name=name)
         x._symbolic = self.symbolic / other_temp.symbolic
         x._numeric = self.numeric / other_temp.numeric
@@ -152,7 +153,7 @@ class Matrix:
         Matrix multiplication
         """
         other_temp = self.prepare_other(other)
-        name = "\\left(%s%s\\right)"%(self.name, other_temp.name)
+        name = "%s%s"%(self.name, other_temp.name)
         x = Matrix(name=name)
         x._symbolic = self.symbolic @ other_temp.symbolic
         x._numeric = self.numeric @ other_temp.numeric
@@ -162,7 +163,7 @@ class Matrix:
         """
         Matrix-multiplication power
         """
-        name = "\\left(%s^{%d}\\right)"%(self.name, n)
+        name = "\\left(%s\\right)^{%d}"%(self.name, n)
         x = Matrix(name=name)
         x._symbolic = self.symbolic**n
         x._numeric = self.numeric**n
@@ -182,7 +183,7 @@ class Matrix:
         """
         Inversion with respect to addition
         """
-        name = "\\left(-%s\\right)"%(self.name)
+        name = "-%s"%(self.name)
         x = Matrix(name=name)
         x._symbolic = -self.symbolic
         x._numeric = -self.numeric
@@ -204,7 +205,7 @@ class Matrix:
         Direct product (Kroneker product)
         """
         other_temp = self.prepare_other(other)
-        name = "\\left(%s\\otimes\\;%s\\right)"%(self.name, other_temp.name)
+        name = "%s\\otimes\\;%s"%(self.name, other_temp.name)
         x = Matrix(name=name)
         x._symbolic = self.symbolic.Otimes(other_temp.symbolic)
         x._numeric = self.numeric.Otimes(other_temp.numeric)
@@ -236,7 +237,7 @@ class Matrix:
         """
         Hermitian conjugate
         """
-        name = "\\left(%s^\\dagger\\right)"%self.name
+        name = "\\left(%s\\right)^\\dagger"%self.name
         x = Matrix(name=name)
         x._numeric = self.numeric.Dagger()
         x._symbolic = self.symbolic.Dagger()
@@ -341,6 +342,63 @@ class Matrix:
             else:
                 raise TypeError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
             return other_temp
+    # ----------------------------------------------------------
+    @classmethod
+    def Zeros(cls, shape, name=None):
+        """
+        Creates a matrix filled with zeros, of the given shape
+        """
+        if name is None:
+            name = "\\mathbf{0}_{{%s\\times%s}"%(shape[0], shape[1])
+        else:    
+            name = "\\mathbf{0}^{\\left(%s\\right)}_{%s\\times%s}"%(name, shape[0], shape[1])
+        x = Matrix(name=name)
+        x._symbolic = MatrixSymbolic.Zeros(shape)
+        x._numeric = MatrixNumeric.Zeros(shape)
+        return x
+    # ----------------------------------------------------------
+    @classmethod
+    def Ones(cls, shape, name=None):
+        """
+        Creates a matrix filled with zeros, of the given shape
+        """
+        if name is None:
+            name = "\\mathbf{1}_{{%s\\times%s}"%(shape[0], shape[1])
+        else:    
+            name = "\\mathbf{1}^{\\left(%s\\right)}_{%s\\times%s}"%(name, shape[0], shape[1])
+        x = Matrix(name=name)
+        x._symbolic = MatrixSymbolic.Ones(shape)
+        x._numeric = MatrixNumeric.Ones(shape)
+        return x
+    # ----------------------------------------------------------
+    @classmethod
+    def Eye(cls, n, name=None):
+        """
+        Creates a matrix filled with zeros, of the given shape
+        """
+        if name is None:
+            name = "\\mathbb{I}_{%d}"%(n)
+        else:    
+            name = "\\mathbb{I}^{\\left(%s\\right)}_{%d}"%(name, n)
+        x = Matrix(name=name)
+        x._symbolic = MatrixSymbolic.Eye(n)
+        x._numeric = MatrixNumeric.Eye(n)
+        return x
+    # ----------------------------------------------------------
+    @classmethod
+    def TensorProduct(cls, matrices):
+        """
+        Calculates the tensor product of a list of matrices
+        INPUTS
+        ---------------
+            matrices: 1D array-like of Iaji Matrix
+        """
+        x = Matrix()
+        x._symbolic = MatrixSymbolic.TensorProduct([m.symbolic for m in matrices])
+        x._numeric = MatrixNumeric.TensorProduct([m.numeric for m in matrices])
+        x.name = x.symbolic.name
+        return x
+    # ----------------------------------------------------------
 # In[]
 
 class MatrixSymbolic(ParameterSymbolic):
@@ -735,7 +793,7 @@ um
     # Elementwise multiplication
     def __mul__(self, other):
         other_temp = self.prepare_other(other)
-        name = "\\left(%s*%s\\right)"%(self.name, other_temp.name)
+        name = "%s*%s"%(self.name, other_temp.name)
         x = MatrixSymbolic(name=name)
         self_expression = self.expression
         other_expression = other_temp.expression
@@ -754,7 +812,7 @@ um
         Elementwise division
         """
         other_temp = self.prepare_other(other)
-        name = "\\left(%s*%s\\right)"%(self.name, other_temp.name)
+        name = "%s/%s"%(self.name, other_temp.name)
         x = MatrixSymbolic(name=name)
         self_expression = self.expression
         other_expression = other_temp.expression
@@ -770,7 +828,7 @@ um
     # Matrix multiplication
     def __matmul__(self, other):
         other_temp = self.prepare_other(other)
-        name = "\\left(%s%s\\right)"%(self.name, other_temp.name)
+        name = "%s%s"%(self.name, other_temp.name)
         x = MatrixSymbolic(name=name)
         self_expression = self.expression
         other_expression = other_temp.expression
@@ -789,7 +847,7 @@ um
             integer exponent
         """
         assert n == int(n)
-        name = "\\left(%s^{%d}\\right)"%(self.name, n)
+        name = "\\left(%s\\right)^{%d}"%(self.name, n)
         x = MatrixSymbolic(name=name)
         x.expression = sympy.eye(*self.shape)
         for j in range(n):
@@ -805,7 +863,7 @@ um
             return self.Determinant()
     # ----------------------------------------------------------
     def __neg__(self):
-        name = "\\left(-%s\\right)"%(self.name)
+        name = "-%s"%(self.name)
         x = MatrixSymbolic(name=name)
         x.expression = -self.expression
         return x
@@ -829,7 +887,7 @@ um
     # Matrix Kronecker tensor product
     def Otimes(self, other):
         other_temp = self.prepare_other(other)
-        name = "\\left(%s\\otimes\\;%s\\right)"%(self.name, other_temp.name)
+        name = "%s\\otimes\\;%s"%(self.name, other_temp.name)
         x = MatrixSymbolic(name=name)
         x.expression = sympy.simplify(TensorProduct(self.expression, other_temp.expression))
         return x
@@ -858,7 +916,7 @@ um
         """
         Hermitian conjugate
         """
-        name = "\\left(%s^\\dagger\\right)"%self.name
+        name = "\\left(%s\\right)^\\dagger"%self.name
         x = self.Conjugate().T()
         x.name = name
         return x
@@ -1007,6 +1065,62 @@ um
                 else:
                     raise TypeError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
             return other_temp
+    # ----------------------------------------------------------
+    @classmethod
+    def Zeros(cls, shape, name=None):
+        """
+        Creates a matrix filled with zeros, of the given shape
+        """
+        if name is None:
+            name = "\\mathbf{0}_{{%s\\times%s}"%(shape[0], shape[1])
+        else:    
+            name = "\\mathbf{0}^{\\left(%s\\right)}_{%s\\times%s}"%(name, shape[0], shape[1])
+        x = MatrixSymbolic(name=name)
+        x.expression = sympy.zeros(*shape)
+        return x
+    #-------------------------------------------------------------
+    @classmethod
+    def Ones(cls, shape, name=None):
+        """
+        Creates a matrix filled with ones, of the given shape
+        """
+        if name is None:
+            name = "\\mathbf{1}_{{%s\\times%s}"%(shape[0], shape[1])
+        else:    
+            name = "\\mathbf{1}^{\\left(%s\\right)}_{%s\\times%s}"%(name, shape[0], shape[1])
+        x = MatrixSymbolic(name=name)
+        x.expression = sympy.ones(*shape)
+        return x
+    #-------------------------------------------------------------
+    @classmethod
+    def Eye(cls, n, name=None):
+        """
+        Creates an identity matrix, of the given size 
+        """
+        if name is None:
+            name = "\\mathbb{I}_{%d}"%(n)
+        else:    
+            name = "\\mathbb{I}^{\\left(%s\\right)}_{%d}"%(name, n)
+        x = MatrixSymbolic(name=name)
+        x.expression = sympy.eye(n)
+        return x
+    #-------------------------------------------------------------
+    @classmethod
+    def TensorProduct(cls, matrices):
+        """
+        Calculates the tensor product of a list of matrices
+        
+        INPUTS
+        ---------------
+            matrices: 1D array-like of Iaji MatrixSymbolic
+        """
+        assert len(matrices) > 1, \
+            "At least two input matrices are expected"
+        x = matrices[0]
+        for matrix in matrices[1:]:
+            x = x.Otimes(matrix)
+        return x
+    #-------------------------------------------------------------
 # In[]
 class MatrixNumeric(ParameterNumeric):
     """
@@ -1378,7 +1492,7 @@ class MatrixNumeric(ParameterNumeric):
     #Elementwise multiplication
     def __mul__(self, other):
         other_temp = self.prepare_other(other)
-        name = "\\left(%s*%s\\right)"%(self.name, other_temp.name)
+        name = "%s*%s"%(self.name, other_temp.name)
         x = MatrixNumeric(name=name)
         self_value = self.value
         other_value = other_temp.value
@@ -1393,7 +1507,7 @@ class MatrixNumeric(ParameterNumeric):
         Elementwise division
         """
         other_temp = self.prepare_other(other)
-        name = "\\left(%s*%s\\right)"%(self.name, other_temp.name)
+        name = "%s/%s"%(self.name, other_temp.name)
         x = MatrixNumeric(name=name)
         self_value = self.value
         other_value = other_temp.value
@@ -1406,7 +1520,7 @@ class MatrixNumeric(ParameterNumeric):
     #Matrix multiplication
     def __matmul__(self, other):
         other_temp = self.prepare_other(other)
-        name = "\\left(%s%s\\right)"%(self.name, other_temp.name)
+        name = "%s%s"%(self.name, other_temp.name)
         x = MatrixNumeric(name=name)
         self_value = self.value
         other_value = other_temp.value
@@ -1425,7 +1539,7 @@ class MatrixNumeric(ParameterNumeric):
             integer exponent
         """
         assert n == int(n)
-        name = "\\left(%s^{%d}\\right)"%(self.name, n)
+        name = "\\left(%s\\right)^{%d}"%(self.name, n)
         x = MatrixNumeric(name=name)
         x.value = numpy.eye(self.shape[0])
         for j in range(n):
@@ -1441,7 +1555,7 @@ class MatrixNumeric(ParameterNumeric):
             return self.Determinant()
     # ----------------------------------------------------------
     def __neg__(self):
-        name = "\\left(-%s\\right)"%(self.name)
+        name = "-%s"%(self.name)
         x = MatrixNumeric(name=name)
         x.value = -self.value
         return x
@@ -1465,7 +1579,7 @@ class MatrixNumeric(ParameterNumeric):
     # Matrix Kronecker tensor product
     def Otimes(self, other):
         other_temp = self.prepare_other(other)
-        name = "\\left(%s\\otimes\\;%s\\right)"%(self.name, other_temp.name)
+        name = "%s\\otimes\\;%s"%(self.name, other_temp.name)
         x = MatrixNumeric(name=name)
         x.value = numpy.kron(self.value, other_temp.value)
         return x
@@ -1494,7 +1608,7 @@ class MatrixNumeric(ParameterNumeric):
         """
         Hermitian conjugate
         """
-        name = "\\left(%s^\\dagger\\right)"%self.name
+        name = "\\left(%s\\right)^\\dagger"%self.name
         x = self.Conjugate().T()
         x.value = x.value.astype(self.value.dtype)
         x.name = name
@@ -1558,7 +1672,7 @@ class MatrixNumeric(ParameterNumeric):
         if self.value is None:
             raise TypeError("unsupported operand type for Inverse: %s" % (type(self.value)))
         else:
-            x.value = numpy.eye(self.shape[0])
+            x = MatrixNumeric.Eye(self.shape[0])
             for k in numpy.arange(n)+1:
                 x += self**k/numpy.math.factorial(k)   
         return x
@@ -1580,13 +1694,13 @@ class MatrixNumeric(ParameterNumeric):
         Matrix square root truncated up to finite order 'n'
         in the Taylor expansion
         """
-        name = "\\tilde{e}^{%s}"%self.name
+        name = "\\tilde{\\sqrt{%s}}"%self.name
         x = MatrixNumeric(name=name)
         if self.value is None:
             raise TypeError("unsupported operand type for Inverse: %s" % (type(self.value)))
         else:
-            x.value = numpy.eye(self.shape[0])
-            I = numpy.eye(self.shape[0])
+            x = MatrixNumeric.Eye(self.shape[0])
+            I = MatrixNumeric.Eye(self.shape[0])
             for k in numpy.arange(n)+1:
                 x -= (I-self)**k*numpy.abs(binom(0.5, k))
         return x
@@ -1627,3 +1741,60 @@ class MatrixNumeric(ParameterNumeric):
             else:
                 raise TypeError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
             return other_temp
+    #-------------------------------------------------------------
+    @classmethod
+    def Zeros(cls, shape, name=None):
+        """
+        Creates a matrix filled with zeros, of the given shape
+        """
+        if name is None:
+            name = "\\mathbf{0}_{{%s\\times%s}"%(shape[0], shape[1])
+        else:    
+            name = "\\mathbf{0}^{\\left(%s\\right)}_{%s\\times%s}"%(name, shape[0], shape[1])
+        x = MatrixNumeric(name=name)
+        x.value = numpy.zeros(shape)
+        return x
+    #-------------------------------------------------------------
+    @classmethod
+    def Ones(cls, shape, name=None):
+        """
+        Creates a matrix filled with ones, of the given shape
+        """
+        if name is None:
+            name = "\\mathbf{1}_{{%s\\times%s}"%(shape[0], shape[1])
+        else:    
+            name = "\\mathbf{1}^{\\left(%s\\right)}_{%s\\times%s}"%(name, shape[0], shape[1])
+        x = MatrixNumeric(name=name)
+        x.value = numpy.ones(shape)
+        return x
+    #-------------------------------------------------------------
+    @classmethod
+    def Eye(cls, n, name=None):
+        """
+        Creates an identity matrix, of the given size 
+        """
+        if name is None:
+            name = "\\mathbb{I}_{%d}"%(n)
+        else:    
+            name = "\\mathbb{I}^{\\left(%s\\right)}_{%d}"%(name, n)
+        x = MatrixNumeric(name=name)
+        x.value = numpy.eye(n)
+        return x
+    #-------------------------------------------------------------
+    @classmethod
+    def TensorProduct(cls, matrices):
+        """
+        Calculates the tensor product of a list of matrices
+        
+        INPUTS
+        ---------------
+            matrices: 1D array-like of Iaji MatrixNumeric 
+        """
+        assert len(matrices) > 0, \
+            "At least one input matrix is expected"
+        x = copy(matrices[0])
+        for matrix in matrices[1:]:
+            x = x.Otimes(matrix)
+        return x
+    #-------------------------------------------------------------
+        

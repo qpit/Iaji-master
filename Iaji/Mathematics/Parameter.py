@@ -114,7 +114,7 @@ class Parameter:
             other_temp = self.prepare_other(other)
             new_type = "scalar" * (self.type == "scalar" and other_temp.type == "scalar") \
                        + "vector" * (self.type == "vector" or other_temp.type == "vector")
-            name = "\\left(%s%s\\right)"%(self.name, other_temp.name)
+            name = "%s%s"%(self.name, other_temp.name)
             x = Parameter(name=name, type=new_type)
             x._symbolic = self.symbolic * other_temp.symbolic
             x._numeric = self.numeric * other_temp.numeric
@@ -129,7 +129,7 @@ class Parameter:
             other_temp = self.prepare_other(other)
             new_type = "scalar" * (self.type == "scalar" and other_temp.type == "scalar") \
                        + "vector" * (self.type == "vector" or other_temp.type == "vector")
-            name = "\\left(\\frac{%s}{%s}\\right)"%(self.name, other_temp.name)
+            name = "\\frac{%s}{%s}"%(self.name, other_temp.name)
             x = Parameter(name=name, type=new_type)
             x._symbolic = self.symbolic / other_temp.symbolic
             x._numeric = self.numeric / other_temp.numeric
@@ -150,63 +150,70 @@ class Parameter:
         return x
     # ----------------------------------------------------------
     def Conjugate(self):
-        name = "\\left(%s^*\\right)"%self.name
+        name = "\\left(%s\\right)^*"%self.name
         x = Parameter(name=name, type=self.type)
         x._symbolic = self.symbolic.Conjugate()
         x._numeric = self.numeric.Conjugate()
         return x
     # ----------------------------------------------------------
     def Angle(self):
-        name = "\\left(%s^*\\right)"%self.name
+        name = "arg\\left(%s\\right)"%self.name
         x = Parameter(name=name, type=self.type)
         x._symbolic = self.symbolic.Angle()
         x._numeric = self.numeric.Angle()
         return x
     # ----------------------------------------------------------
     def Exp(self):
-        name = "\\left(%s^*\\right)"%self.name
+        name = "e^{%s}"%self.name
         x = Parameter(name=name, type=self.type)
         x._symbolic = self.symbolic.Exp()
         x._numeric = self.numeric.Exp()
         return x
     # ----------------------------------------------------------
     def Sin(self):
-        name = "\\left(%s^*\\right)"%self.name
+        name = "\\sin\\left(%s\\right)"%self.name
         x = Parameter(name=name, type=self.type)
         x._symbolic = self.symbolic.Sin()
         x._numeric = self.numeric.Sin()
         return x
     # ----------------------------------------------------------
     def Cos(self):
-        name = "\\left(%s^*\\right)"%self.name
+        name = "\\cos\\left(%s\\right)"%self.name
         x = Parameter(name=name, type=self.type)
         x._symbolic = self.symbolic.Cos()
         x._numeric = self.numeric.Cos()
         return x
     # ----------------------------------------------------------
+    def Arccos(self):
+        name = "\\arccos\\left(%s\\right)"%self.name
+        x = Parameter(name=name, type=self.type)
+        x._symbolic = self.symbolic.Arccos()
+        x._numeric = self.numeric.Arccos()
+        return x
+    # ----------------------------------------------------------
     def Tan(self):
-        name = "\\left(%s^*\\right)"%self.name
+        name = "\\tan\\left(%s\\right)"%self.name
         x = Parameter(name=name, type=self.type)
         x._symbolic = self.symbolic.Tan()
         x._numeric = self.numeric.Tan()
         return x
     # ----------------------------------------------------------
     def Cosh(self):
-        name = "\\left(%s^*\\right)"%self.name
+        name = "\\cosh\\left(%s\\right)"%self.name
         x = Parameter(name=name, type=self.type)
         x._symbolic = self.symbolic.Cosh()
         x._numeric = self.numeric.Cosh()
         return x
     # ----------------------------------------------------------
     def Sinh(self):
-        name = "\\left(%s^*\\right)"%self.name
+        name = "\\sinh\\left(%s\\right)"%self.name
         x = Parameter(name=name, type=self.type)
         x._symbolic = self.symbolic.Sinh()
         x._numeric = self.numeric.Sinh()
         return x
     # ----------------------------------------------------------
     def Tanh(self):
-        name = "\\left(%s^*\\right)"%self.name
+        name = "\\tanh\\left(%s\\right)"%self.name
         x = Parameter(name=name, type=self.type)
         x._symbolic = self.symbolic.Tanh()
         x._numeric = self.numeric.Tanh()
@@ -441,7 +448,7 @@ class ParameterSymbolic:
                 return other * self
         except:
             other_temp = self.prepare_other(other)
-            name = "\\left(%s*%s\\right)"%(self.name, other_temp.name)
+            name = "%s*%s"%(self.name, other_temp.name)
             x = ParameterSymbolic(name=name)
             self_expression = self.expression
             other_expression = other_temp.expression
@@ -460,7 +467,7 @@ class ParameterSymbolic:
                 return other / self
         except:
             other_temp = self.prepare_other(other)
-            name = "\\left(%s*%s\\right)"%(self.name, other_temp.name)
+            name = "\\frac{%s}{%s}"%(self.name, other_temp.name)
             x = ParameterSymbolic(name=name)
             self_expression = self.expression
             other_expression = other_temp.expression
@@ -474,7 +481,7 @@ class ParameterSymbolic:
         """
         Power
         """
-        name = "\\left(%s^{%.1f}\\right)"%(self.name, y)
+        name = "\\left(%s\\right)^{%.1f}"%(self.name, y)
         x = ParameterSymbolic(name=name, type=self.type)
         x.expression = self.expression
         if self.type == "scalar":
@@ -487,7 +494,7 @@ class ParameterSymbolic:
         """
         Power
         """
-        name = "\\left(|%s\\right|"%self.name
+        name = "\\left|%s\\right|"%self.name
         x = ParameterSymbolic(name=name, type=self.type)
         x.expression = self.expression
         if self.type == "scalar":
@@ -500,7 +507,7 @@ class ParameterSymbolic:
         """
         Complex conjugate
         """
-        name = "\\left(%s^*\\right)"%self.name
+        name = "\\left(%s\\right)^*"%self.name
         x = ParameterSymbolic(name=name)
         if self.expression is None:
             raise TypeError("unsupported operand type for Conjugate: %s" % (type(self.expression)))
@@ -541,6 +548,15 @@ class ParameterSymbolic:
         name = "\\cos\\left(%s\\right)"%self.name
         x = ((self*1j).Exp() + (self*(-1j)).Exp())/2
         x.name = name
+        return x
+    # ----------------------------------------------------------
+    def Arccos(self):
+        """
+        arc cosine
+        """
+        name = "\\arccos\\left(%s\\right)"%self.name
+        x = ParameterSymbolic(name=name)
+        x.expression_symbolic = sympy.acos(x)
         return x
     # ----------------------------------------------------------
     def Sin(self):
@@ -733,12 +749,13 @@ class ParameterNumeric:
     #Elementwise multiplication
     def __mul__(self, other):
         other_temp = self.prepare_other(other)
-        name = "\\left(%s*%s\\right)"%(self.name, other_temp.name)
+        name = "%s*%s"%(self.name, other_temp.name)
         x = ParameterNumeric(name=name)
         self_value = self.value
         other_value = other_temp.value
         if self_value is None or other_value is None:
-            raise TypeError("unsupported operand type(s) for *: %s and %s" % (type(self_value, other_value)))
+            #raise TypeError("unsupported operand type(s) for *: %s and %s" % (type(self_value, other_value)))
+            pass
         else:
             x.value = self_value * other_value
         return x
@@ -748,7 +765,7 @@ class ParameterNumeric:
         Elementwise division
         """
         other_temp = self.prepare_other(other)
-        name = "\\left(%s*%s\\right)"%(self.name, other_temp.name)
+        name = "\\frac{%s}{%s}"%(self.name, other_temp.name)
         x = ParameterNumeric(name=name)
         self_value = self.value
         other_value = other_temp.value
@@ -762,7 +779,7 @@ class ParameterNumeric:
         """
         Power
         """
-        name = "\\left(%s^{%.1f}\\right)"%(self.name, y)
+        name = "\\left(%s\\right)^{%.1f}"%(self.name, y)
         x = ParameterNumeric(name=name, type=self.type)
         x.value = self.value
         if self.type == "scalar":
@@ -775,7 +792,7 @@ class ParameterNumeric:
         """
         Power
         """
-        name = "\\left(|%s\\right|"%self.name
+        name = "\\left|%s\\right|"%self.name
         x = ParameterNumeric(name=name, type=self.type)
         x.value = self.value
         if self.type == "scalar":
@@ -788,7 +805,7 @@ class ParameterNumeric:
         """
         Complex conjugate
         """
-        name = "\\left(%s^*\\right)"%self.name
+        name = "\\left(%s\\right)^*"%self.name
         x = ParameterNumeric(name=name)
         if self.value is None:
             raise TypeError("unsupported operand type for Conjugate: %s" % (type(self.value)))
@@ -827,6 +844,15 @@ class ParameterNumeric:
         name = "\\cos\\left(%s\\right)"%self.name
         x = ((self*1j).Exp() + (self*(-1j)).Exp())/2
         x.name = name
+        return x
+    # ----------------------------------------------------------
+    def Arccos(self):
+        """
+        arc cosine
+        """
+        name = "\\arccos\\left(%s\\right)"%self.name
+        x = ParameterNumeric(name=name)
+        x.value = numpy.acos(x)
         return x
     # ----------------------------------------------------------
     def Sin(self):
