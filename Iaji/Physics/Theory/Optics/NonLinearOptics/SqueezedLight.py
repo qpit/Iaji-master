@@ -44,10 +44,9 @@ def quadraturePSD(frequency, bandwidth, gain_factor, efficiency, \
    frequency = np.array(frequency)
    sign = -1*(quadrature_type=='squeezed')+1*(quadrature_type=='antisqueezed')
    #print("\n\n \sign*2 = "+str(sign*2))
-   b = 2/bandwidth
-   PSD = 1+efficiency*4*gain_factor*\
-         (sign*(1+np.exp(-2*phase_noise_std**2))/2/((1-sign*gain_factor)**2+(b*frequency)**2)\
-          -sign*(1-np.exp(-2*phase_noise_std**2))/2/((1+sign*gain_factor)**2+(b*frequency)**2))
+   P_plus = 1+efficiency*4*gain_factor/((1-gain_factor)**2+(frequency/(bandwidth/2))**2)
+   P_minus = 1-efficiency*4*gain_factor/((1+gain_factor)**2+(frequency/(bandwidth/2))**2)
+   PSD = (P_plus+P_minus)/2+sign*0.5*np.exp(-2*phase_noise_std**2)*(P_plus-P_minus)
    #Plot the PSD, if required
    if plot:
        figure_squeezed_light_quadrature_PSD = plt.figure(num="Squeezed light quadrature power spectral density", figsize=default_figure_size)

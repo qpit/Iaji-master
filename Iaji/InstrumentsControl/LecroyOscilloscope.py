@@ -60,10 +60,10 @@ class LecroyOscilloscope:
         vertical_setup = channel.get_vertical_setup()
 
         self.instrument.write("C" + str(channel.number) + ":ASET")
-        if setup_type is "horizontal":
+        if setup_type == "horizontal":
             channel.setup_vertical(voltage_range=vertical_setup["full range"],
                                 offset=vertical_setup["offset"])
-        elif setup_type is "vertical":
+        elif setup_type == "vertical":
             self.setup_horizontal(duration=horizontal_setup["duration"])
         else:
             raise InvalidParameterError("The setup type is not valid. See documentation for valid arguments.")
@@ -118,7 +118,7 @@ class LecroyOscilloscope:
         :return:
         """
         self.instrument.write('TRSE '+trigger_type+',SR,' + trigger_source+',HT,'+hold_type)  # set trigger type and source
-        if trigger_source is not "LINE":
+        if trigger_source != "LINE":
            self.instrument.write(trigger_source + ':TRIG_LEVEL '+str(trigger_level))  # set trigger level
         self.instrument.ask('*OPC?')
 
@@ -387,7 +387,7 @@ class LecroyOscilloscpeChannel:
             vertical offset of the scope for the input channel.
         :return:
         """
-        command_string.append("C"+str(self.number) + ":OFST " + str(offset))
+        command_string = "C"+str(self.number) + ":OFST " + str(offset)
         self.instrument.write(command_string)
         self.instrument.ask('*OPC?')
         return command_string
@@ -412,7 +412,7 @@ class LecroyOscilloscpeChannel:
 
     def is_enabled(self):
         reply = self.instrument.ask("C"+str(self.number) + ":TRACE?").split("TRA")[1].replace(" ", "")
-        if reply is "ON":
+        if reply == "ON":
             return True
         else:
             return False
