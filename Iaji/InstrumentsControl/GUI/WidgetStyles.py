@@ -13,46 +13,46 @@ class WidgetStyle:
 class LecroyOscilloscopeWidgetStyle(WidgetStyle):
     def __init__(self):
         super().__init__()
-        background_color = "#e91e63"
-        self.style_sheets["main"]["dark"] = "background-color: %s; color:white;"
+        background_color = "#E91E63"
+        self.style_sheets["main"]["dark"] = "background-color: #E91E63; color:white;"
         self.style_sheets["button"]["dark"] = """
                                               QPushButton
                                               {
-                                              background-color: %s; 
+                                              background-color: #E91E63; 
                                               color: 'white'; 
                                               border-color: 'white';
                                               font-family: Times New Roman;
                                               font-size: 13pt;
                                               }
-                                              """%(background_color)
+                                              """
         self.style_sheets["label"]["dark"] =  """
                                             QLabel
                                             {
-                                            background-color : %s; 
+                                            background-color : #E91E63; 
                                             color: 'white';
                                             border-color: 'white'; 
                                             font-family: Times New Roman ;
                                             font-size: 15pt;
                                             }
-                                            """%(background_color)
+                                            """
         self.style_sheets["slider"]["dark"] = """
                                               QSlider
                                               {
-                                              background-color: %s;
+                                              background-color: #E91E63;
                                               color: 'white';
                                               border-color: 'white'
                                               }
-                                              """%(background_color)
+                                              """
         self.style_sheets["tabs"]["dark"] = """
                                             QTabWidget
                                             {
-                                            background-color: %s;
+                                            background-color: #E91E63;
                                             color: 'white';
                                             border-color: 'white'
                                             font-family: Times New Roman;
                                             font-size: 12pt
                                             }
-                                            """%(background_color)
+                                            """
 class SigilentSignalGeneratorWidgetStyle(WidgetStyle):
     def __init__(self):
         super().__init__()
