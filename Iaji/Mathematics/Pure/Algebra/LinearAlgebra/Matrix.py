@@ -1797,4 +1797,3 @@ class MatrixNumeric(ParameterNumeric):
             x = x.Otimes(matrix)
         return x
     #-------------------------------------------------------------
-        

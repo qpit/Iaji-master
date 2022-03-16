@@ -21,6 +21,7 @@ from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.HilbertSpace import \
 from copy import deepcopy as copy
 # In[]
 MEASURABLES = ["n", "x"]
+POVM_TYPES = ["on/off detection"]
 # In[N-mode bosonic field]
 class NModeBosonicField: #TODO
     """
@@ -256,44 +257,68 @@ class NModeBosonicFieldNumeric:
         #Compute the partial trace of the density operator
         rho = copy(field).state._density_operator
         rho_new = MatrixNumeric.Zeros((x.hilbert_space.dimension, x.hilbert_space.dimension))
-        for i in traced_mode.hilbert_space.canonical_basis:
-            M_i = MatrixNumeric.TensorProduct(\
+        for j in range(traced_mode.hilbert_space.dimension):
+            ej = traced_mode.hilbert_space.CanonicalBasisVector(j)
+            M_j = MatrixNumeric.TensorProduct(\
                   [*[MatrixNumeric.Eye(mode.hilbert_space.dimension) for mode in modes_before], \
-                   i.numeric.T(), \
+                   ej.numeric.T(), \
                     *[MatrixNumeric.Eye(mode.hilbert_space.dimension) for mode in modes_after]])
-            rho_new += M_i @ rho @ M_i.T()
+            rho_new += M_j @ rho @ M_j.T()
         x.state._density_operator = rho_new
         x.state.name = "Tr_{%s}\\left(%s\\right)"%(traced_mode.name, field._state.name)
         x.state.density_operator.name = "Tr_{%s}\\left(%s\\right)"%(traced_mode.name, field._state.density_operator.name)
         return x
     #----------------------------------------------------------
-    def Displace(self, alphas):
+    def SelectModes(self, modes):
         """
-        Performs single-mode displacement operations on the individual modes
-        
+        Traces out all the modes that have not been selected
+        INPUTS
+        ----------------
+            mode : type in {str, int}
+                name or index of the selected modes
+        """
+        modes = numpy.atleast_1d(modes)
+        if "str" in str(type(modes[0])):
+            assert numpy.all([modes[j] in self.mode_names for j in range(len(modes))]), \
+                "Not all the specified modes %s are contained in the field"\
+                    %(modes)
+        field = self
+        traced_modes_names = list(set(self.mode_names)-set(modes))
+        for mode_name in traced_modes_names:
+            field = field.PartialTrace(mode_name)
+        return field
+    #----------------------------------------------------------
+    def Displace(self, mode, alpha):
+        """
+        Performs single-mode displacement operations on the selected mode       
         INPUTS
         ------------------
-            alphas: iterable of Iaji ParameterNumeric or complex
-                Displacements to be performed on each mode. If alphas
-                is a dictionary, the corresponding keys must be equal to the mode names.
-                If it is an array-like object, then the displacements will follow 
-                the same order as self.modes_list
+            mode : type in {str, int}
+                name or index of the mode to be displaced
+            alpha: type in {Iaji ParameterNumeric, complex}
+                Displacement to be applied on the selected mode
         """
-        if type(alphas) == dict:
-            assert set(list(alphas.keys())) == set(self.mode_names), \
-                "names associated to the input alphas do not match the mode names"
-            #reorder the alphas and return a list of alphas
-            alphas = [alphas[mode.name] for mode in self.modes_list]
+        if "str" in str(type(mode)):
+            assert mode in self.mode_names, \
+                "No such mode with name %s in the field"%mode
+            #Transform names in indices
+            mode_index = numpy.where(numpy.array(self.mode_names) == mode)[0][0]
         #Compute the multimode displacement operator#
-        x = copy(self)
-        D = MatrixNumeric.TensorProduct([x.modes_list[j]._DisplacementOperator(alphas[j]) \
-                                           for j in range(x.N)])
+        field = copy(self)
+        mode = field.modes_list[mode_index]
+        modes_before = field.modes_list[0:mode_index]
+        modes_after = field.modes_list[mode_index+1:]
+        #Construct the displacement operator
+        D = MatrixNumeric.TensorProduct([*[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_before], \
+                                         mode._DisplacementOperator(alpha), \
+                                        *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_after]])
         #Apply the displacement operator
-        x.state._density_operator = D @ x.state.density_operator @ D.Dagger()
-        x.state.density_operator.name = "%s\\left(%s\\right)"%(D.name, x.state.density_operator.name)
-        return x
+        rho_name = field.state.density_operator.name
+        field.state._density_operator = D @ field.state.density_operator @ D.Dagger()
+        field.state.density_operator.name = "%s\\left(%s\\right)"%(D.name, rho_name)
+        return field
     #----------------------------------------------------------
-    def Squeeze(self, zetas):
+    def Squeeze(self, mode, zeta):
         """
         Performs single-mode squeezing operations on the individual modes.
         
@@ -305,22 +330,55 @@ class NModeBosonicFieldNumeric:
                 If it is an array-like object, then the Squeezings will follow 
                 the same order as self.modes_list
         """
+        """
+        #OLD
         if type(zetas) == dict:
             assert set(list(zetas.keys())) == set(self.mode_names), \
                 "names associated to the input zetas do not match the mode names"
             #reorder the zetas and return a list of zetas
             zetas = [zetas[mode.name] for mode in self.modes_list]
         #Compute the multimode Squeezing operator
-        x = copy(self)
-        S = MatrixNumeric.TensorProduct([x.modes_list[j]._SqueezingOperator(zetas[j]) \
-                                           for j in range(x.N)])
+        field = copy(self)
+        S = MatrixNumeric.TensorProduct([field.modes_list[j]._SqueezingOperator(zetas[j]) \
+                                           for j in range(field.N)])
         #Apply the Squeezing operator
-        x.state._density_operator = S @ x.state.density_operator @ S.Dagger()
-        x.state.density_operator.name = "%s\\left(%s\\right)"%(S.name, self.state.density_operator.name)
-        return x
-    #----------------------------------------------------------
-    def Rotate(self, thetas):
+        field.state._density_operator = S @ field.state.density_operator @ S.Dagger()
+        field.state.density_operator.name = "%s\\left(%s\\right)"%(S.name, self.state.density_operator.name)
+        return field
         """
+        
+        """
+        Performs single-mode squeezing on the selected mode       
+        INPUTS
+        ------------------
+            mode : type in {str, int}
+                name or index of the mode to be displaced
+            zeta: type in {Iaji ParameterNumeric, complex}
+                Squeezing parameter to be applied on the selected mode
+        """
+        if "str" in str(type(mode)):
+            assert mode in self.mode_names, \
+                "No such mode with name %s in the field"%mode
+            #Transform names in indices
+            mode_index = numpy.where(numpy.array(self.mode_names) == mode)[0][0]
+        #Compute the multimode displacement operator#
+        field = copy(self)
+        mode = field.modes_list[mode_index]
+        modes_before = field.modes_list[0:mode_index]
+        modes_after = field.modes_list[mode_index+1:]
+        #Construct the displacement operator
+        S = MatrixNumeric.TensorProduct([*[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_before], \
+                                         mode._SqueezingOperator(zeta), \
+                                        *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_after]])
+        #Apply the displacement operator
+        rho_name = field.state.density_operator.name
+        field.state._density_operator = S @ field.state.density_operator @ S.Dagger()
+        field.state.density_operator.name = "%s\\left(%s\\right)"%(S.name, rho_name)
+        return field
+    #----------------------------------------------------------
+    def Rotate(self, mode, theta):
+        """
+        OLD
         Performs single-mode rotation operations on the individual modes.
         
         INPUTS
@@ -331,24 +389,61 @@ class NModeBosonicFieldNumeric:
                 If it is an array-like object, then the Rotations will follow 
                 the same order as self.modes_list
         """
+        """
         if type(thetas) == dict:
             assert set(list(thetas.keys())) == set(self.mode_names), \
                 "names associated to the input thetas do not match the mode names"
             #reorder the thetas and return a list of thetas
             thetas = [thetas[mode.name] for mode in self.modes_list]
         #Compute the multimode Rotation operator
-        x = copy(self)
-        R = MatrixNumeric.TensorProduct([x.modes_list[j]._RotationOperator(thetas[j]) \
-                                           for j in range(x.N)])
+        field = copy(self)
+        R = MatrixNumeric.TensorProduct([field.modes_list[j]._RotationOperator(thetas[j]) \
+                                           for j in range(field.N)])
         #Apply the Rotation operator        
-        x.state._density_operator = R @ x.state.density_operator @ R.Dagger()
-        x.state.density_operator.name = "%s\\left(%s\\right)"%(R.name, self.state.density_operator.name)
-        return x
+        field.state._density_operator = R @ field.state.density_operator @ R.Dagger()
+        field.state.density_operator.name = "%s\\left(%s\\right)"%(R.name, self.state.density_operator.name)
+        return field
+        """
+        
+        """
+        Performs single-mode rotation on the selected mode       
+        INPUTS
+        ------------------
+            mode : type in {str, int}
+                name or index of the mode to be displaced
+            theta: type in {Iaji ParameterNumeric, complex}
+                Rotation angle to be applied on the selected mode
+        """
+        if "str" in str(type(mode)):
+            assert mode in self.mode_names, \
+                "No such mode with name %s in the field"%mode
+            #Transform names in indices
+            mode_index = numpy.where(numpy.array(self.mode_names) == mode)[0][0]
+        #Compute the multimode displacement operator#
+        field = copy(self)
+        mode = field.modes_list[mode_index]
+        modes_before = field.modes_list[0:mode_index]
+        modes_after = field.modes_list[mode_index+1:]
+        #Construct the displacement operator
+        R = MatrixNumeric.TensorProduct([*[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_before], \
+                                         mode._RotationOperator(theta), \
+                                        *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_after]])
+        #Apply the displacement operator
+        rho_name = field.state.density_operator.name
+        field.state._density_operator = R @ field.state.density_operator @ R.Dagger()
+        field.state.density_operator.name = "%s\\left(%s\\right)"%(R.name, rho_name)
+        return field        
     #----------------------------------------------------------
     def TwoModeSqueeze(self, modes, zeta):
         """
         Performs two-mode squeezing on the input modes with two-mode squeezing
         parameter zeta
+        INPUTS
+        ----------------
+            mode : type in {str, int}
+                name or index of the selected mode
+            zeta : type in {Iaji ParameterNumeric, complex}
+                two-mode squeezing parameter
         """
         modes = numpy.atleast_1d(modes)
         assert modes.size == 2, \
@@ -358,41 +453,46 @@ class NModeBosonicFieldNumeric:
             mode_indices = [numpy.where(numpy.array(self.mode_names) == modes[j])[0][0] \
                             for j in range(modes.size)]
         mode_indices.sort()
-        x = copy(self)
-        modes = [x.modes_list[j] for j in mode_indices]
-        modes_before = x.modes_list[0:mode_indices[0]]
-        modes_between = x.modes_list[mode_indices[0]+1:mode_indices[1]]
-        modes_after = x.modes_list[mode_indices[1]+1:]
+        field = copy(self)
+        modes = [field.modes_list[j] for j in mode_indices]
+        modes_before = field.modes_list[0:mode_indices[0]]
+        modes_between = field.modes_list[mode_indices[0]+1:mode_indices[1]]
+        modes_after = field.modes_list[mode_indices[1]+1:]
         #Compute the two-mode squeezing operator
         #Exponent
-        exponent1 = MatrixNumeric.TensorProduct([*[MatrixNumeric.Zeros((m.hilbert_space.dimension, m.hilbert_space.dimension)) for m in modes_before], \
+        exponent1 = MatrixNumeric.TensorProduct([*[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_before], \
                                                 modes[0].a.Dagger()**2, \
-                                                *[MatrixNumeric.Zeros((m.hilbert_space.dimension, m.hilbert_space.dimension)) for m in modes_between], \
+                                                *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_between], \
                                                 modes[1].a.Dagger()**2, \
-                                                *[MatrixNumeric.Zeros((m.hilbert_space.dimension, m.hilbert_space.dimension)) for m in modes_after]])
-        exponent2 = MatrixNumeric.TensorProduct([*[MatrixNumeric.Zeros((m.hilbert_space.dimension, m.hilbert_space.dimension)) for m in modes_before], \
+                                                *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_after]])
+        exponent2 = MatrixNumeric.TensorProduct([*[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_before], \
                                                 modes[0].a**2, \
-                                                *[MatrixNumeric.Zeros((m.hilbert_space.dimension, m.hilbert_space.dimension)) for m in modes_between], \
+                                                *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_between], \
                                                 modes[1].a**2, \
-                                                *[MatrixNumeric.Zeros((m.hilbert_space.dimension, m.hilbert_space.dimension)) for m in modes_after]])
+                                                *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_after]])
         exponent1 *= zeta
         try:
             exponent2 *= zeta.Conjugate()
             name = "\\hat{\\mathcal{S}}_{%s%s}\\left(%s\\right)\\left(%s\\right)"\
-                %(modes[0].name, modes[1].name, zeta.valuename, x.state.density_operator.name)
+                %(modes[0].name, modes[1].name, zeta.valuename, field.state.density_operator.name)
         except:
             exponent2 *= numpy.conjugate(zeta)
             name = "\\hat{\\mathcal{S}}_{%s%s}\\left(%s\\right)\\left(%s\\right)"\
-                %(modes[0].name, modes[1].name, zeta, x.state.density_operator.name)
+                %(modes[0].name, modes[1].name, zeta, field.state.density_operator.name)
         S = (exponent1-exponent2).Exp()
-        x.state._density_operator = S @ x.state.density_operator @ S.Dagger()
-        x.state.density_operator.name = name
-        return x
+        field.state._density_operator = S @ field.state.density_operator @ S.Dagger()
+        #field.state._density_operator /= field.state._density_operator.Trace()
+        field.state.density_operator.name = name
+        return field
      #----------------------------------------------------------   
     def BeamSplitter(self, modes, R):
          """
          Applies a two-port beam splitter to the selected modes, with power
          reflectivity R
+         INPUTS
+         ---------------
+             mode : type in {str, int}
+                 name or index of the selected modes
          """
          modes = numpy.atleast_1d(modes)
          assert modes.size == 2, \
@@ -405,37 +505,83 @@ class NModeBosonicFieldNumeric:
              mode_indices = [numpy.where(numpy.array(self.mode_names) == modes[j])[0][0] \
                              for j in range(modes.size)]
          mode_indices.sort()
-         x = copy(self)
-         modes = [x.modes_list[j] for j in mode_indices]
-         modes_before = x.modes_list[0:mode_indices[0]]
-         modes_between = x.modes_list[mode_indices[0]+1:mode_indices[1]]
-         modes_after = x.modes_list[mode_indices[1]+1:]
+         field = copy(self)
+         modes = [field.modes_list[j] for j in mode_indices]
+         modes_before = field.modes_list[0:mode_indices[0]]
+         modes_between = field.modes_list[mode_indices[0]+1:mode_indices[1]]
+         modes_after = field.modes_list[mode_indices[1]+1:]
          #Compute the two-mode squeezing operator
          try:
              theta = (R.Sqrt()).Arccos()
          except:
             theta = numpy.arccos(numpy.sqrt(R))
          #Exponent
-         exponent1 = MatrixNumeric.TensorProduct([*[MatrixNumeric.Zeros((m.hilbert_space.dimension, m.hilbert_space.dimension)) for m in modes_before], \
+         exponent1 = MatrixNumeric.TensorProduct([*[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_before], \
                                                  modes[0].a.Dagger(), \
-                                                 *[MatrixNumeric.Zeros((m.hilbert_space.dimension, m.hilbert_space.dimension)) for m in modes_between], \
+                                                 *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_between], \
                                                  modes[1].a, \
-                                                 *[MatrixNumeric.Zeros((m.hilbert_space.dimension, m.hilbert_space.dimension)) for m in modes_after]])
-         exponent2 = MatrixNumeric.TensorProduct([*[MatrixNumeric.Zeros((m.hilbert_space.dimension, m.hilbert_space.dimension)) for m in modes_before], \
+                                                 *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_after]])
+         exponent2 = MatrixNumeric.TensorProduct([*[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_before], \
                                                  modes[0].a, \
-                                                 *[MatrixNumeric.Zeros((m.hilbert_space.dimension, m.hilbert_space.dimension)) for m in modes_between], \
+                                                 *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_between], \
                                                  modes[1].a.Dagger(), \
-                                                 *[MatrixNumeric.Zeros((m.hilbert_space.dimension, m.hilbert_space.dimension)) for m in modes_after]])
+                                                 *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_after]])
          try:
              name = "\\hat{\\mathcal{B}}_{%s%s}\\left(R=%s\\right)\\left(%s\\right)"\
-                 %(modes[0].name, modes[1].name, R.name, x.state.density_operator.name)
+                 %(modes[0].name, modes[1].name, R.name, field.state.density_operator.name)
          except:
              name = "\\hat{\\mathcal{B}}_{%s%s}\\left(R=%s\\right)\\left(%s\\right)"\
-                 %(modes[0].name, modes[1].name, R, x.state.density_operator.name)
-         B = ((exponent1+exponent2)*theta*1j).Exp()
-         x.state._density_operator = B @ x.state.density_operator @ B.Dagger()
-         x.state.density_operator.name = name
-         return x       
+                 %(modes[0].name, modes[1].name, R, field.state.density_operator.name)
+         B = ((exponent1-exponent2)*theta).Exp()
+         field.state._density_operator = B @ field.state.density_operator @ B.Dagger()
+         #field.state._density_operator /= field.state._density_operator.Trace()
+         field.state.density_operator.name = name
+         return field      
+    #----------------------------------------------------------
+    def Loss(self, modes, etas):
+        """
+        Applies bosonic loss to the selected field modes
+        
+        TODO NOTE: this is not working. For some reason, the following operations
+        have no effect on the original modes of the field. 
+        Instead, having a vacuum mode already in the original field and applying
+        the same operations seems to yield the correct result. 
+        It might have something to do with the composition of N-mode bosonic fields
+        (self.Otimes), but I cannot see how.
+        INPUTS
+        ----------------
+            mode : type in {str, int}
+                name or index of the selected modes
+            zeta : type in {Iaji ParameterNumeric, complex}
+                two-mode squeezing parameter
+        """
+        field = copy(self)
+        modes = numpy.atleast_1d(modes)
+        etas = numpy.atleast_1d(etas)
+        if "str" in str(type(modes[0])):
+            assert numpy.all([modes[j] in self.mode_names for j in range(len(modes))]), \
+                "Not all the specified modes %s are contained in the field"\
+                    %(modes)
+            #Transform names in indices
+            mode_indices = [numpy.where(numpy.array(self.mode_names) == modes[j])[0][0] \
+                            for j in range(modes.size)]
+        modes = [field.modes_list[j] for j in mode_indices]
+        vacuum_field = NModeBosonicFieldNumeric.Vacuum(N=len(modes), \
+                                                       truncated_dimensions=[m.hilbert_space.dimension for m in modes], \
+                                                           name="Vacuum")
+        field = field.Otimes(vacuum_field)
+        for j in range(len(mode_indices)):
+            field = field.BeamSplitter(modes=[modes[j].name, vacuum_field.mode_names[j]], R=etas[j])\
+                .PartialTrace(vacuum_field.mode_names[j])
+        return field
+    #----------------------------------------------------------
+    def _GeneralizedBornRule(self, measurement_operator):
+        field = copy(self)
+        p = (field.state.density_operator @ measurement_operator).Trace() #outcome probability density
+        field.state._density_operator = measurement_operator @ field.state.density_operator \
+                                  @ measurement_operator.Dagger()
+       # field.state._density_operator /= p
+        return field, p
     #----------------------------------------------------------
     def ProjectiveMeasurement(self, mode, measurable, ntimes=1, return_all_fields=False, **kwargs):
         """
@@ -481,10 +627,10 @@ class NModeBosonicFieldNumeric:
         #-------------------
         if measurable == "n":
             def Projector(n):
-                en = mode.hilbert_space.canonical_basis[n].numeric
-                projector = MatrixNumeric.TensorProduct([*[MatrixNumeric.Eye(m.hilbert_space.dimension)/m.hilbert_space.dimension for m in modes_before], \
+                en = mode.hilbert_space.CanonicalBasisVector(n).numeric
+                projector = MatrixNumeric.TensorProduct([*[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_before], \
                                                          en @ en.T(), \
-                                                          *[MatrixNumeric.Eye(m.hilbert_space.dimension)/m.hilbert_space.dimension for m in modes_after]])
+                                                          *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_after]])
                 return projector
             #Calculate the probabilities of outcomes
             values = numpy.arange(mode.hilbert_space.dimension)
@@ -560,36 +706,96 @@ class NModeBosonicFieldNumeric:
             values = x_values
         return outcomes, values, p, post_measurement_field
     #----------------------------------------------------------
-    def Loss(self, modes, etas):
+    def POVM(self, mode, measurement_operators=None, ntimes=1, return_all_fields=False, **kwargs):
         """
-        Applies bosonic loss to the selected field modes
-        
-        TODO NOTE: this is not working. For some reason, the following operations
-        have no effect on the original modes of the field. 
-        Instead, having a vacuum mode already in the original field and applying
-        the same operations seems to yield the correct result. 
-        It might have something to do with the composition of N-mode bosonic fields
-        (self.Otimes), but I cannot see how.
+        Peforms a positive operator-valued measurement on the selected mode,
+        following the generalized Born rule.
+        It repeats the measurement 'ntimes' times (assuming 'ntimes' identical
+                                                   copies of the system exist)
+        INPUTS
+        --------------
+            mode : type in {str, int}
+                name or index of the mode to be measured
+            measurement_operators : iterable of Iaji Matrix
+                operators forming the POVM. They must add up to the identity matrix.
+            povm_type : str
+                in-built type of the POVM to be performed.
+                If measurement_operators is also specified, the function will
+                use the latter to perform the POVM
+            ntimes : int
+                number of times the measurement is performed
+            return_all_states : bool
+                If True, all the post-measurement modes are returned in an array.
+                Otherwise, only the post-measurement field associated to the last
+                measurement outcomes is returned.
+                Strictly speaking, the quantum state is what is being transformed by
+                a measurement and not the field, although the field is uniquely associated
+                to one quantum state after a given transformation. For convenience, 
+                the whole field is returned for easy manipulation in later code.
+                
         """
-        field = copy(self)
-        modes = numpy.atleast_1d(modes)
-        if "str" in str(type(modes[0])):
-            assert numpy.all([modes[j] in self.mode_names for j in range(len(modes))]), \
-                "Not all the specified modes %s are contained in the field"\
-                    %(modes)
+        measurement_operators = list(numpy.atleast_1d(measurement_operators))
+        if "str" in str(type(mode)):
             #Transform names in indices
-            mode_indices = [numpy.where(numpy.array(self.mode_names) == modes[j])[0][0] \
-                            for j in range(modes.size)]
-        modes = [field.modes_list[j] for j in mode_indices]
-        vacuum_field = NModeBosonicFieldNumeric.Vacuum(N=len(modes), \
-                                                       truncated_dimensions=[m.hilbert_space.dimension for m in modes], \
-                                                           name="Vacuum")
-        field = field.Otimes(vacuum_field)
-        for j in range(len(mode_indices)):
-            mode_index = mode_indices[j]
-            field = field.BeamSplitter(modes=[modes[mode_index].name, vacuum_field.mode_names[j]], R=1-etas[j])\
-                .PartialTrace(vacuum_field.mode_names[j])
-        return field
+            mode_index = numpy.where(numpy.array(self.mode_names) == mode)[0][0]
+        field = copy(self)
+        mode_name = copy(mode)
+        mode = field.modes_list[mode_index]
+        modes_before = field.modes_list[0:mode_index]
+        modes_after = field.modes_list[mode_index+1:]
+        def _generalized_born_rule(measurement_operator):
+            field0 = copy(self)
+            p = (field.state.density_operator @ measurement_operator).Trace() #outcome probability density
+            field0.state._density_operator = measurement_operator @ field0.state.density_operator \
+                                      @ measurement_operator.Dagger()
+            field0.state._density_operator /= p
+            return field0, p
+        #-------------------
+        if len(measurement_operators) > 0 and measurement_operators[0] != None:
+            #Fetch the values of the POVM
+            if "values" not in list(kwargs.keys()):
+                values = numpy.arange(len(measurement_operators))
+            else:
+                values = kwargs["values"]
+            p = numpy.zeros((len(values), ))           
+            for j in numpy.arange(len(values)):
+                p[j] = _generalized_born_rule(measurement_operators[j])[1].value
+            p = numpy.abs(p)
+            p /= numpy.sum(p)
+            #Sample according to the calculated probabilities
+            outcomes = numpy.random.choice(values, size=(ntimes,), p=p)
+            if return_all_fields:
+                #Apply the generalized born rule to the all measurements
+                post_measurement_field = []
+                for j in range(ntimes):
+                    value = outcomes[j]
+                    index = numpy.where(numpy.isclose(values, value))[0][0]
+                    post_measurement_field.append(_generalized_born_rule(measurement_operators[index])[0])
+            else:
+                #Apply the generalized born rule to the last measurement
+                value = outcomes[-1]
+                index = numpy.where(numpy.isclose(values, value))[0][0]
+                post_measurement_field = _generalized_born_rule(measurement_operators[index])[0]
+            return outcomes, values, p, post_measurement_field
+        else:
+            assert "povm_type" in list(kwargs.keys()), \
+                "Measurement operators are not specified. You need to specify a standard povm type in %s" \
+                    %POVM_TYPES
+            povm_type = kwargs["povm_type"]
+            assert povm_type in POVM_TYPES, \
+                "Invalid POVM type. Accepted types are %s" \
+                    %POVM_TYPES
+            if povm_type == "on/off detection":
+                d = mode.hilbert_space.dimension
+                measurement_operators = [0, 0]
+                e0 = mode.hilbert_space.CanonicalBasisVector(0).numeric
+                measurement_operators[0] = MatrixNumeric.TensorProduct([*[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_before], \
+                                                         e0 @ e0.T(), \
+                                                          *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_after]])
+                measurement_operators[1] = MatrixNumeric.TensorProduct([*[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_before], \
+                                                         MatrixNumeric.Eye(d) - e0 @ e0.T(), \
+                                                          *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_after]])
+                return self.POVM(mode_name, measurement_operators, ntimes, return_all_fields, values=[0, 1])
     #----------------------------------------------------------
     def Otimes(self, other):
         """
