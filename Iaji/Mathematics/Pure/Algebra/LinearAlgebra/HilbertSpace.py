@@ -40,7 +40,7 @@ class HilbertSpace:
         self._scalars = scalars
         self._vectors = scalars**dimension
         #Define the canonical basis
-        self._canonical_basis = self.CanonicalBasis()
+        #self._canonical_basis = self.CanonicalBasis()
         self.SetInnerProduct()
     #---------------------------------------------------------------
     @property
@@ -129,12 +129,24 @@ class HilbertSpace:
                 self._canonical_basis[j] = Matrix(name="e_{"+(j+1).__str__()+"}")
                 self._canonical_basis[j].symbolic.expression = expression
                 self._canonical_basis[j].numeric.value = self._canonical_basis[j].symbolic.expression_lambda()
-                
+                    
         else:
             raise NotImplementedError("Infinite-dimensional Hilbert spaces are not yet handeled.")
             self._canonical_basis = None
             
         return self.canonical_basis
+    # ---------------------------------------------------------------
+    def CanonicalBasisVector(self, n):
+        """
+        Sets and returns the n-th canonical basis vector.
+        Vectors are numbered from 0.
+        """
+        vector = Matrix(name="e_{"+(n+1).__str__()+"}")
+        expression = sympy.zeros(*(self.dimension, 1))
+        expression[n] = 1
+        vector.symbolic.expression = expression
+        vector.numeric.value = vector.symbolic.expression_lambda()      
+        return vector
     # ---------------------------------------------------------------
     def __str__(self):
         """
@@ -168,7 +180,7 @@ class HilbertSpace:
         else:
             def InnerProduct(v1, v2):
                 """
-                Returns the inner product between two elements of the Hilber space
+                Returns the inner product between two vectors of the Hilber space
                 INPUTS
                 -------------
                     v1, v2 : in [Iaji Matrix, Iaji MatrixSymbolic, Iaji MatrixNumeric]
@@ -190,7 +202,7 @@ class HilbertSpace:
                         raise TypeError("The type of the first operand is %s but the second is %s"%(type(v1), type(v2)))
                         return None
                     else:
-                        result = v1.Conjugate().Transpose() @ v2
+                        result = v1.Dagger() @ v2
                         result.name = "\langle{"+v1.name.__str__()+"|"+v2.name.__str__()+"}\\rangle"
                         type_string_last = str(type(v1)).split("'")[1].split(".")[-1]
                         if  type_string_last == "Matrix":

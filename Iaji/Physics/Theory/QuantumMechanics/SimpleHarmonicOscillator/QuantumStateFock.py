@@ -31,7 +31,7 @@ from matplotlib import cm
 #General plot settings
 default_marker = ""
 default_figure_size = (14.5, 10)
-default_fontsize = 40
+default_fontsize = 30
 title_fontsize = default_fontsize
 title_font = font_manager.FontProperties(family='Times New Roman',
                                    weight='bold',
@@ -78,6 +78,7 @@ class QuantumStateFockSymbolic(QuantumStateSymbolic):
         super().__init__(name=name)
         self._hilbert_space = \
             HilbertSpace(dimension=truncated_dimension, name="H_{%s}"%self.name)
+        self._InitFigure()
         self.Vacuum()
     # ---------------------------------------------------------- 
     def Vacuum(self):
@@ -88,7 +89,7 @@ class QuantumStateFockSymbolic(QuantumStateSymbolic):
          self
     
          """
-         e0 = self.hilbert_space.canonical_basis[0].symbolic
+         e0 = self.hilbert_space.CanonicalBasisVector(0).symbolic
          rho = e0 @ e0.T()
          self._density_operator = DensityMatrixSymbolic() 
          self.density_operator.expression = rho.expression
@@ -106,7 +107,7 @@ class QuantumStateFockSymbolic(QuantumStateSymbolic):
      
           """
           assert n == int(n)
-          en= self.hilbert_space.canonical_basis[int(n)].symbolic
+          en= self.hilbert_space.CanonicalBasisVector(int(n)).symbolic
           rho = en @ en.T()
           self._density_operator = DensityMatrixSymbolic() 
           self.density_operator.expression = rho.expression
@@ -227,10 +228,8 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
          Sets the quantum state to the vacuum
          Returns
          -------
-         self
-    
          """
-         e0 = self.hilbert_space.canonical_basis[0].numeric
+         e0 = self.hilbert_space.CanonicalBasisVector(0).numeric
          self._density_operator = e0 @ e0.T()
          self.density_operator.name = "\\left|%d\\right\\rangle\\left\\langle%d\\right|_{%s}"\
              %(int(0), int(0), self.name)
@@ -246,7 +245,7 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
      
           """
           assert n == int(n)
-          en = self.hilbert_space.canonical_basis[int(n)].numeric
+          en = self.hilbert_space.CanonicalBasisVector(int(n)).numeric
           self._density_operator = en @ en.T()
           self.density_operator.name = "\\left|%d\\right\\rangle\\left\\langle%d\\right|_{%s}"\
               %(int(n), int(n), self.name)
@@ -287,7 +286,7 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
         self.wigner_function.value = W
         return Q, P, W
     #----------------------------------------------------------
-    def PlotWignerFunction(self, q, p, alpha=0.5, colormap=cmwig1, plot_name='untitled', plot_contour_on_3D=True):
+    def PlotWignerFunction(self, q, p, alpha=0.5, colormap=cmwig1, plot_name = None, plot_contour_on_3D=True):
          assert self.hilbert_space is not None, \
              "This quantum state is not associated with any Hilbert space"
          assert not self.isTensorProduct(),\
@@ -299,12 +298,13 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
          xy_2D = numpy.zeros((len(P), len(Q)))
          xy_2D[numpy.where(numpy.logical_or(P==0, Q==0))] = 1
          #3D plot
-         figure_3D = pyplot.figure(num="Wigner function - "+plot_name+" - 3D", figsize=(11, 8))
-         axis_3D = figure_3D.add_subplot(111,  projection='3d')
+         figure = self._InitFigure(plot_name)
          #3D Wigner function
          W = W.astype(float)
          Q = Q.astype(float)
          P = P.astype(float)
+         axis_3D = figure.axes[0]
+         axis_3D.clear()
          axis_3D.plot_surface(Q, P, W, alpha=alpha, cmap=colormap, norm=matplotlib.colors.Normalize(vmin=-W_max, vmax=W_max))
          pyplot.pause(0.5)
          #Plot the contour of the xy projection
@@ -322,8 +322,9 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
          #Set the color of the plot to white, when the Wigner function is close to 0
          #W[numpy.where(numpy.isclose(W, 0, rtol=1e-3))] = numpy.nan
          #colormap.set_bad('w')
-         figure_2D = pyplot.figure(num="Wigner function - "+plot_name+" - 2D", figsize=default_figure_size)
-         axis_2D = figure_2D.add_subplot(111)
+         #figure_2D = pyplot.figure(num="Wigner function - "+plot_name+" - 2D", figsize=default_figure_size)
+         axis_2D = figure.axes[1]
+         axis_2D.clear()
          axis_2D.set_aspect('equal')
          #2D plot
          _contourf = axis_2D.contourf(Q, P, W, alpha=alpha, cmap=colormap, norm=matplotlib.colors.Normalize(vmin=-W_max, vmax=W_max))
@@ -334,22 +335,19 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
          axis_2D.grid(False)
          axis_2D.set_xlabel('q (SNU)', font=axis_font)
          axis_2D.set_ylabel('p (SNU)', font=axis_font)
-         colorbar = figure_2D.colorbar(_contourf)
+         colorbar = figure.colorbar(_contourf)
          colorbar.set_label('$\pi$ W(q, p)', fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
          pyplot.pause(.05)
-         axis_2D.set_xticklabels(axis_2D.get_xticks(), fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
-         axis_2D.set_yticklabels(axis_2D.get_yticks(), fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
+         #axis_2D.set_xticklabels(axis_2D.get_xticks(), fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
+         #axis_2D.set_yticklabels(axis_2D.get_yticks(), fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
        #  colorbar.set_ticklabels(colorbar.get_ticks())
          #axis_PSD.legend(prop=legend_font)
          pyplot.pause(.05)
          axis_3D.set_xticklabels(axis_3D.get_xticks(), fontsize=axis_font.get_size()*0.4, fontfamily=axis_font.get_family())
          axis_3D.set_yticklabels(axis_3D.get_yticks(), fontsize=axis_font.get_size()*0.4, fontfamily=axis_font.get_family())
          axis_3D.set_zticklabels(numpy.round(axis_3D.get_zticks(), 1), fontsize=axis_font.get_size()*0.4, fontfamily=axis_font.get_family())
-         
-         figures = {'2D': figure_2D, '3D': figure_3D}
-         return figures
      # ----------------------------------------------------------
-    def PlotDensityOperator(self, alpha=0.5, colormap=cmwig1, plot_name='untitled'):
+    def PlotDensityOperator(self, alpha=0.5, colormap=cmwig1, plot_name=None):
         assert self.hilbert_space is not None, \
             "This quantum state is not associated with any Hilbert space"
         assert self.hilbert_space.isFiniteDimensional(),\
@@ -361,14 +359,16 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
         #Compute the density operator
         rho = self.density_operator.value
         #Define the figure
-        figure = pyplot.figure(num=plot_name, figsize=(11, 8))
-        axis = figure.add_subplot(111)
+        figure = self._InitFigure(plot_name)
+        axis = figure.axes[2]
         #Define the maximum modulus of the density operator
         rho_max = numpy.max(numpy.abs(rho))
         #Plot
-        axis.imshow(numpy.abs(rho), cmap=cmwig1, alpha=alpha, norm=matplotlib.colors.Normalize(vmin=-rho_max, vmax=rho_max))    
+        _imshow = axis.imshow(numpy.abs(rho), cmap=cmwig1, alpha=alpha, norm=matplotlib.colors.Normalize(vmin=-rho_max, vmax=rho_max))    
         axis.set_xlabel("n", font=axis_font)
         axis.set_ylabel("m", font=axis_font) 
+        colorbar = figure.colorbar(_imshow)
+        colorbar.set_label('$\\hat{\\rho}$', fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
         pyplot.pause(.05)
         axis.set_xticks(n)
         axis.set_yticks(n)
@@ -376,7 +376,7 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
         axis.set_yticklabels(n, fontsize=ticks_fontsize)
         axis.grid(True, color="grey", alpha=0.2)
     #----------------------------------------------------------
-    def PlotNumberDistribution(self, parameters=(), alpha=0.7, color="tab:blue", plot_name='untitled'):
+    def PlotNumberDistribution(self, parameters=(), alpha=0.7, color="tab:blue", plot_name=None):
        assert self.hilbert_space is not None, \
            "This quantum state is not associated with any Hilbert space"
        assert self.hilbert_space.isFiniteDimensional(),\
@@ -388,8 +388,8 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
        #Compute the density operator
        rho = self.density_operator.value
        #Define figure
-       figure = pyplot.figure(num=plot_name, figsize=(11, 8))
-       axis = figure.add_subplot(111)
+       figure = self._InitFigure(plot_name)
+       axis = figure.axes[3]
        axis.set_xlabel("quantum number", font=axis_font)
        axis.set_ylabel("probability", font=axis_font)
        photon_number_dsitribution = [numpy.abs(rho[j, j]) for j in range(rho.shape[0])]
@@ -398,3 +398,15 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
        pyplot.pause(.05)
        axis.set_xticklabels(axis.get_xticklabels(), fontsize=ticks_fontsize)
        axis.set_yticklabels(axis.get_yticklabels(), fontsize=ticks_fontsize)
+    #----------------------------------------------------------
+    def _InitFigure(self, figure_name):
+        if figure_name is None:
+            figure = pyplot.figure(num="Quantum State - $%s$ "%self.name, figsize=(13, 9))
+        else:
+            figure = pyplot.figure(num="Quantum State - $%s$ "%figure_name, figsize=(13, 9))
+        if len(figure.axes) == 0:
+            figure.add_subplot(2, 2, 1,  projection='3d') #Wigner function 3D
+            figure.add_subplot(2, 2, 2) #Wigner function 2D
+            figure.add_subplot(2, 2, 3) #Density operator
+            figure.add_subplot(2, 2, 4) #Boson number Distribution
+        return figure
