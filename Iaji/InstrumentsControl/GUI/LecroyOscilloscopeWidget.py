@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
     QDoubleSpinBox,
     QFileDialog,
     QFontComboBox,
+    QHBoxLayout,
     QLabel,
     QLCDNumber,
     QLineEdit,
@@ -51,17 +52,19 @@ class LecroyOscilloscopeWidget(QWidget):
         self.host_save_directory = "."
         self.setWindowTitle(name)
         #Define the layout
+        #-------------------------------
         self.layout = QVBoxLayout()
         #Widget title label
         self.name_label = QLabel()
         self.name_label.setText(self.scope.name)
         self.layout.addWidget(self.name_label, Qt.AlignCenter)
         #Save settings layout
-        self.save_layout = QGridLayout()
+        #--------------------------------
+        self.save_layout = QHBoxLayout()
         #Title label
         self.save_layout_title_label = QLabel()
         self.save_layout_title_label.setText("Save Settings")
-        self.save_layout.addWidget(self.save_layout_title_label)
+        self.save_layout.addWidget(self.save_layout_title_label, Qt.AlignCenter)
         #Push buttons
         button_names = ["save_trace", "scope_save_path", "host_save_path"]
         button_callbacks = dict(
@@ -75,7 +78,22 @@ class LecroyOscilloscopeWidget(QWidget):
             self.save_layout.addWidget(button, int(j / n_rows), int(np.mod(j, n_rows)))
             setattr(self, "button_" + name, button)
         self.layout.addLayout(self.save_layout)
-        #TODO: Scope setup layout
+        # --------------------------------
+        #Scope setup layout
+        self.scope_settings_layout = QVBoxLayout()
+        self.scope_setting_title_label = QLabel()
+        self.scope_setting_title_label.setText("Scope Settings")
+        self.layout.addLayout(self.scope_settings_layout)
+        ##Select scope channels
+        ## --------------------------------
+        self.select_scope_channels_layout = QHBoxLayout()
+        self.checkbox_select_channels = QCheckBox()
+        ## --------------------------------
+        ##File name for every channel
+        ## --------------------------------
+
+        ## --------------------------------
+        # --------------------------------
         #TODO: define a simple plot widget to display the acquired traces
         #Set overall layout
         self.setLayout(self.layout)

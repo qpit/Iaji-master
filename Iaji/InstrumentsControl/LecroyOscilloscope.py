@@ -255,6 +255,7 @@ class LecroyOscilloscope:
             #Load the traces if requested
             if load_traces:
                 self.traces[channel_name] = LecroyReader.read(save_directory+"\\"+filenames[j])
+        self.display_continuous()
 
 
     #-----------------------------------------------------------------------------------------------------------
