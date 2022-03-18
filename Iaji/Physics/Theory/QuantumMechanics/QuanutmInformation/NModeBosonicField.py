@@ -95,6 +95,20 @@ class NModeBosonicFieldNumeric:
     """
     #----------------------------------------------------------
     def __init__(self, modes_list, name="A", hbar=1):
+        """
+        Parameters
+        ----------
+        modes_list : iterable of Iaji OneModeBosonicFieldNumeric
+            The list of modes that make up the N-mode field.
+        name : str
+            Name given to the N-mode field
+        hbar : type in {float, Iaji ParameterNumeric}
+            the Planck's constant that defines the normalization of the theory.
+        Returns
+        -------
+        None.
+
+        """
         self._symbol = sympy.symbols(names=name)
         self._name = name
         self._hbar = ParameterNumeric(name="\\hbar")
@@ -162,10 +176,21 @@ class NModeBosonicFieldNumeric:
     @property
     def mode_names(self):
         return self._mode_names
+    @mode_names.setter
+    def mode_names(self, mode_names):
+        assert len(mode_names) == len(self.mode_names), \
+            "The field has %d modes, but %d new mode names were specified"\
+                %(self.N, len(mode_names))
+        self._mode_names = mode_names
+        #Set the new name to each mode
+        for j in range(self.N):
+            self.modes_list[j]._name = mode_names[j]
+        #Redefine the dictionary self.modes
+        self._modes = dict(zip(self.mode_names, self.modes_list))
     @mode_names.deleter
     def mode_names(self):
         del self._mode_names
-    #---------------------------------------------------------
+    #----------------------------------------------------------
     @property
     def modes_list(self):
         return self._modes_list
@@ -272,6 +297,7 @@ class NModeBosonicFieldNumeric:
     def SelectModes(self, modes):
         """
         Traces out all the modes that have not been selected
+        
         INPUTS
         ----------------
             mode : type in {str, int}
@@ -291,6 +317,7 @@ class NModeBosonicFieldNumeric:
     def Displace(self, mode, alpha):
         """
         Performs single-mode displacement operations on the selected mode       
+        
         INPUTS
         ------------------
             mode : type in {str, int}
@@ -320,6 +347,17 @@ class NModeBosonicFieldNumeric:
     #----------------------------------------------------------
     def Squeeze(self, mode, zeta):
         """
+        Performs single-mode squeezing on the selected mode       
+        INPUTS
+        ------------------
+            mode : type in {str, int}
+                name or index of the mode to be displaced
+            zeta : type in {Iaji ParameterNumeric, complex}
+                Squeezing parameter to be applied on the selected mode
+        """
+        #OLD
+        '''
+        """
         Performs single-mode squeezing operations on the individual modes.
         
         INPUTS
@@ -330,8 +368,6 @@ class NModeBosonicFieldNumeric:
                 If it is an array-like object, then the Squeezings will follow 
                 the same order as self.modes_list
         """
-        """
-        #OLD
         if type(zetas) == dict:
             assert set(list(zetas.keys())) == set(self.mode_names), \
                 "names associated to the input zetas do not match the mode names"
@@ -345,17 +381,8 @@ class NModeBosonicFieldNumeric:
         field.state._density_operator = S @ field.state.density_operator @ S.Dagger()
         field.state.density_operator.name = "%s\\left(%s\\right)"%(S.name, self.state.density_operator.name)
         return field
-        """
-        
-        """
-        Performs single-mode squeezing on the selected mode       
-        INPUTS
-        ------------------
-            mode : type in {str, int}
-                name or index of the mode to be displaced
-            zeta: type in {Iaji ParameterNumeric, complex}
-                Squeezing parameter to be applied on the selected mode
-        """
+        '''
+        #New
         if "str" in str(type(mode)):
             assert mode in self.mode_names, \
                 "No such mode with name %s in the field"%mode
@@ -438,6 +465,7 @@ class NModeBosonicFieldNumeric:
         """
         Performs two-mode squeezing on the input modes with two-mode squeezing
         parameter zeta
+        
         INPUTS
         ----------------
             mode : type in {str, int}
@@ -488,7 +516,8 @@ class NModeBosonicFieldNumeric:
     def BeamSplitter(self, modes, R):
          """
          Applies a two-port beam splitter to the selected modes, with power
-         reflectivity R
+         reflectivity R. In the output mode
+         
          INPUTS
          ---------------
              mode : type in {str, int}
@@ -512,9 +541,9 @@ class NModeBosonicFieldNumeric:
          modes_after = field.modes_list[mode_indices[1]+1:]
          #Compute the two-mode squeezing operator
          try:
-             theta = (R.Sqrt()).Arccos()
+             theta = (R.Sqrt()).Arcsin()
          except:
-            theta = numpy.arccos(numpy.sqrt(R))
+            theta = numpy.arcsin(numpy.sqrt(R))
          #Exponent
          exponent1 = MatrixNumeric.TensorProduct([*[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_before], \
                                                  modes[0].a.Dagger(), \
@@ -542,12 +571,6 @@ class NModeBosonicFieldNumeric:
         """
         Applies bosonic loss to the selected field modes
         
-        TODO NOTE: this is not working. For some reason, the following operations
-        have no effect on the original modes of the field. 
-        Instead, having a vacuum mode already in the original field and applying
-        the same operations seems to yield the correct result. 
-        It might have something to do with the composition of N-mode bosonic fields
-        (self.Otimes), but I cannot see how.
         INPUTS
         ----------------
             mode : type in {str, int}
@@ -571,8 +594,22 @@ class NModeBosonicFieldNumeric:
                                                            name="Vacuum")
         field = field.Otimes(vacuum_field)
         for j in range(len(mode_indices)):
-            field = field.BeamSplitter(modes=[modes[j].name, vacuum_field.mode_names[j]], R=etas[j])\
+            field = field.BeamSplitter(modes=[modes[j].name, vacuum_field.mode_names[j]], R=1-etas[j])\
                 .PartialTrace(vacuum_field.mode_names[j])
+        #Make the name of the new field
+        name = "Loss_{"
+        for mode in modes:
+            name += "%s"%mode.name
+        name += "}\\left("
+        def value(eta):
+            try:
+                return eta.value
+            except AttributeError:
+                return eta
+        for eta in etas:
+            name += "%.2f"%value(eta)
+        name += "\\right)\\left(%s\\right)"%self.state.density_operator.name
+        field.state.density_operator.name = name
         return field
     #----------------------------------------------------------
     def _GeneralizedBornRule(self, measurement_operator):
@@ -580,7 +617,7 @@ class NModeBosonicFieldNumeric:
         p = (field.state.density_operator @ measurement_operator).Trace() #outcome probability density
         field.state._density_operator = measurement_operator @ field.state.density_operator \
                                   @ measurement_operator.Dagger()
-       # field.state._density_operator /= p
+        field.state._density_operator /= p
         return field, p
     #----------------------------------------------------------
     def ProjectiveMeasurement(self, mode, measurable, ntimes=1, return_all_fields=False, **kwargs):
@@ -589,6 +626,7 @@ class NModeBosonicFieldNumeric:
         to a linear operator on the selected mode, following the generalized Born rule.
         It repeats the measurement 'ntimes' times (assuming 'ntimes' identical
                                                    copies of the system exist)
+        
         INPUTS
         --------------
             mode : type in {str, int}
@@ -712,6 +750,7 @@ class NModeBosonicFieldNumeric:
         following the generalized Born rule.
         It repeats the measurement 'ntimes' times (assuming 'ntimes' identical
                                                    copies of the system exist)
+        
         INPUTS
         --------------
             mode : type in {str, int}
