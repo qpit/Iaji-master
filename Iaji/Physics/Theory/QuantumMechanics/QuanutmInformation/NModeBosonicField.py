@@ -514,58 +514,58 @@ class NModeBosonicFieldNumeric:
         return field
      #----------------------------------------------------------   
     def BeamSplitter(self, modes, R):
-         """
-         Applies a two-port beam splitter to the selected modes, with power
-         reflectivity R. In the output mode
-         
-         INPUTS
-         ---------------
-             mode : type in {str, int}
-                 name or index of the selected modes
-         """
-         modes = numpy.atleast_1d(modes)
-         assert modes.size == 2, \
-             "Two modes must be specified"
-         if "str" in str(type(modes[0])):
-             assert numpy.all([modes[j] in self.mode_names for j in range(len(modes))]), \
-                 "Not all the specified modes %s are contained in the field"\
-                     %(modes)
-             #Transform names in indices
-             mode_indices = [numpy.where(numpy.array(self.mode_names) == modes[j])[0][0] \
-                             for j in range(modes.size)]
-         mode_indices.sort()
-         field = copy(self)
-         modes = [field.modes_list[j] for j in mode_indices]
-         modes_before = field.modes_list[0:mode_indices[0]]
-         modes_between = field.modes_list[mode_indices[0]+1:mode_indices[1]]
-         modes_after = field.modes_list[mode_indices[1]+1:]
-         #Compute the two-mode squeezing operator
-         try:
-             theta = (R.Sqrt()).Arcsin()
-         except:
-            theta = numpy.arcsin(numpy.sqrt(R))
-         #Exponent
-         exponent1 = MatrixNumeric.TensorProduct([*[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_before], \
-                                                 modes[0].a.Dagger(), \
-                                                 *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_between], \
-                                                 modes[1].a, \
-                                                 *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_after]])
-         exponent2 = MatrixNumeric.TensorProduct([*[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_before], \
-                                                 modes[0].a, \
-                                                 *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_between], \
-                                                 modes[1].a.Dagger(), \
-                                                 *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_after]])
-         try:
+        """
+        Applies a two-port beam splitter to the selected modes, with power
+        reflectivity R. In the output mode
+        
+        INPUTS
+        ---------------
+            mode : type in {str, int}
+                name or index of the selected modes
+        """
+        modes = numpy.atleast_1d(modes)
+        assert modes.size == 2, \
+            "Two modes must be specified"
+        if "str" in str(type(modes[0])):
+            assert numpy.all([modes[j] in self.mode_names for j in range(len(modes))]), \
+                "Not all the specified modes %s are contained in the field"\
+                    %(modes)
+            #Transform names in indices
+            mode_indices = [numpy.where(numpy.array(self.mode_names) == modes[j])[0][0] \
+                            for j in range(modes.size)]
+        mode_indices.sort()
+        field = copy(self)
+        modes = [field.modes_list[j] for j in mode_indices]
+        modes_before = field.modes_list[0:mode_indices[0]]
+        modes_between = field.modes_list[mode_indices[0]+1:mode_indices[1]]
+        modes_after = field.modes_list[mode_indices[1]+1:]
+        #Compute the two-mode squeezing operator
+        try:
+            theta = (R.Sqrt()).Arcsin()
+        except:
+           theta = numpy.arcsin(numpy.sqrt(R))
+        #Exponent
+        exponent1 = MatrixNumeric.TensorProduct([*[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_before], \
+                                                modes[0].a.Dagger(), \
+                                                *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_between], \
+                                                modes[1].a, \
+                                                *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_after]])
+        exponent2 = MatrixNumeric.TensorProduct([*[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_before], \
+                                                modes[0].a, \
+                                                *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_between], \
+                                                modes[1].a.Dagger(), \
+                                                *[MatrixNumeric.Eye(m.hilbert_space.dimension) for m in modes_after]])
+        try:
              name = "\\hat{\\mathcal{B}}_{%s%s}\\left(R=%s\\right)\\left(%s\\right)"\
                  %(modes[0].name, modes[1].name, R.name, field.state.density_operator.name)
-         except:
+        except:
              name = "\\hat{\\mathcal{B}}_{%s%s}\\left(R=%s\\right)\\left(%s\\right)"\
                  %(modes[0].name, modes[1].name, R, field.state.density_operator.name)
-         B = ((exponent1-exponent2)*theta).Exp()
-         field.state._density_operator = B @ field.state.density_operator @ B.Dagger()
-         #field.state._density_operator /= field.state._density_operator.Trace()
-         field.state.density_operator.name = name
-         return field      
+        B = ((exponent1-exponent2)*theta).Exp()
+        field.state._density_operator = B @ field.state.density_operator @ B.Dagger()
+        #field.state._density_operator /= field.state._density_operator.Trace()
+        field.state.density_operator.name = name
+        return field      
     #----------------------------------------------------------
     def Loss(self, modes, etas):
         """

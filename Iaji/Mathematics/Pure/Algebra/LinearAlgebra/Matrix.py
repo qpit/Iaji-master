@@ -1702,7 +1702,7 @@ class MatrixNumeric(ParameterNumeric):
             x = MatrixNumeric.Eye(self.shape[0])
             I = MatrixNumeric.Eye(self.shape[0])
             for k in numpy.arange(n)+1:
-                x -= (I-self)**k*numpy.abs(binom(0.5, k))
+                x += (self-I)**k*binom(0.5, k)
         return x
     # ----------------------------------------------------------
     def TraceDistance(self, other):

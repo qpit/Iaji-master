@@ -445,7 +445,7 @@ class QuantumStateNumeric:
     def Fidelity(self, other):
         """
         Fidelity between two quantum states
-        
+            
         """
         x = (((self.density_operator.Sqrt() @ other.density_operator @ self.density_operator.Sqrt()).Sqrt()).Trace())**2
         x.name = "\\mathcal{F}\\left(%s\\;%s\\right)"\
