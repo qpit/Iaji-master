@@ -4,7 +4,8 @@ This module defines the styles of different widgets belonging to this pckage
 
 class WidgetStyle:
     def __init__(self):
-        self.widget_types = ["main", "button", "label", "slider", "tabs", "radiobutton", "doublespinbox"]
+        self.widget_types = ["main", "button", "label", "slider", "tabs", "radiobutton", "doublespinbox", \
+                             "line edit", "checkbox"]
         self.theme_types = ["dark", "light"]
         self.style_sheets = {}
         for widget_type in self.widget_types:
@@ -13,7 +14,6 @@ class WidgetStyle:
 class LecroyOscilloscopeWidgetStyle(WidgetStyle):
     def __init__(self):
         super().__init__()
-        background_color = "#E91E63"
         self.style_sheets["main"]["dark"] = "background-color: #E91E63; color:white;"
         self.style_sheets["button"]["dark"] = """
                                               QPushButton
@@ -53,6 +53,24 @@ class LecroyOscilloscopeWidgetStyle(WidgetStyle):
                                             font-size: 12pt
                                             }
                                             """
+        self.style_sheets["line edit"]["dark"] = """
+                                                 QLineEdit
+                                                 {
+                                                 border-color:'white';
+                                                 font-family: Times New Roman;
+                                                 font-size: 12pt
+                                                 }
+                                                 """
+        self.style_sheets["checkbox"]["dark"] = """
+                                                 QCheckBox
+                                                 {
+                                                 border-color:'white';
+                                                 font-family: Times New Roman;
+                                                 font-size: 12pt
+                                                 }
+                                                 """                                                 
+                                        
+                            
 class SigilentSignalGeneratorWidgetStyle(WidgetStyle):
     def __init__(self):
         super().__init__()

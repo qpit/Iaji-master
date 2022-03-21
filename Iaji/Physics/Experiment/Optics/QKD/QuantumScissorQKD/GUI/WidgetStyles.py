@@ -4,7 +4,8 @@ This module defines the styles of different widgets belonging to this pckage
 
 class WidgetStyle:
     def __init__(self):
-        self.widget_types = ["main", "button", "label", "slider", "tabs", "radiobutton", "doublespinbox"]
+        self.widget_types = ["main", "button", "label", "slider", "tabs", "radiobutton", "doublespinbox", \
+                             "line edit", "checkbox"]
         self.theme_types = ["dark", "light"]
         self.style_sheets = {}
         for widget_type in self.widget_types:
@@ -70,8 +71,6 @@ class HomodyneDetectorControllerStyle(WidgetStyle):
 class CavityLockWidgetStyle(WidgetStyle):
     def __init__(self):
         super().__init__()
-    def __init__(self):
-        super().__init__()
         self.style_sheets["main"]["dark"] = "background-color: #512da8; color:white;"
         self.style_sheets["button"]["dark"] = """
                                               QPushButton
@@ -123,8 +122,6 @@ class CavityLockWidgetStyle(WidgetStyle):
                                               """
 
 class GainLockWidgetStyle(WidgetStyle):
-    def __init__(self):
-        super().__init__()
     def __init__(self):
         super().__init__()
         self.style_sheets["main"]["dark"] = "background-color: #5d4037; color:white;"
@@ -211,6 +208,56 @@ class PIDControlWidgetStyle(WidgetStyle):
                                             QTabWidget
                                             {
                                             background-color: #1A237E;
+                                            color: 'white';
+                                            border-color: 'white'
+                                            font-family: Times New Roman;
+                                            font-size: 12pt
+                                            }
+                                            """
+class AcquisitionSystemWidgetStyle(WidgetStyle):
+    def __init__(self):
+        super().__init__()
+        self.style_sheets["main"]["dark"] = "background-color: #6d597a; color:white;"
+        self.style_sheets["button"]["dark"] = """
+                                              QPushButton
+                                              {
+                                              background-color: #6d597a; 
+                                              color: 'white'; 
+                                              border-color: 'white';
+                                              font-family: Times New Roman;
+                                              font-size: 13pt;
+                                              }
+                                              """
+        self.style_sheets["label"]["dark"] =  """
+                                            QLabel
+                                            {
+                                            background-color : #6d597a; 
+                                            color: 'white';
+                                            border-color: 'white'; 
+                                            font-family: Times New Roman ;
+                                            font-size: 15pt;
+                                            }
+                                            """
+        self.style_sheets["slider"]["dark"] = """
+                                              QSlider
+                                              {
+                                              background-color: #6d597a;
+                                              color: 'white';
+                                              border-color: 'white'
+                                              }
+                                              """
+        self.style_sheets["doublespinbox"]["dark"] = """
+                                                      QDoubleSpinbox
+                                                      {
+                                                      background-color: #6d597a;
+                                                      color: 'white';
+                                                      border-color: 'white'
+                                                      }
+                                                      """
+        self.style_sheets["tabs"]["dark"] = """
+                                            QTabWidget
+                                            {
+                                            background-color: #6d597a;
                                             color: 'white';
                                             border-color: 'white'
                                             font-family: Times New Roman;

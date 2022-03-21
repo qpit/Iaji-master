@@ -30,7 +30,7 @@ class LecroyOscilloscope:
                 self.save_directory = self.get_save_directory()
                 self.channels = dict(zip(channel_names, [LecroyOscilloscpeChannel(instrument=self.instrument, channel_number=j+1, name=channel_names[j]) for j in range(len(channel_names))]))
                 self.traces = dict(zip(channel_names, [None for j in range(len(channel_names))]))
-            except ConnectionError: 
+            except: 
                 print('WARNING: it was not possible to connect to the oscilloscope '+self.name)
                 return
 
@@ -213,7 +213,7 @@ class LecroyOscilloscope:
         for channel_name in channel_names:
             if not self.channels[channel_name].is_enabled():
                 self.channels[channel_name].enable(True)
-                if adapt_display is not "":
+                if adapt_display != "":
                     self.setup_automatic(channel_name=channel_name, setup_type=adapt_display)
         #Start acquisition
         self.start_acquisition(store_all_traces=False)
@@ -228,7 +228,7 @@ class LecroyOscilloscope:
             try:
                 os.mkdir(save_directory)
             except:
-                raise FileNotFoundError
+                raise FileNotFoundError("Save directory on the host does not exist")
         #See what is there in the scope's save directory
         scope_save_directory = self.host_drive+"\\"+self.save_directory
         scope_filenames = os.listdir(scope_save_directory)
