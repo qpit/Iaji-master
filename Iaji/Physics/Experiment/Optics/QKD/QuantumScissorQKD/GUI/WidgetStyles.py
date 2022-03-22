@@ -5,7 +5,7 @@ This module defines the styles of different widgets belonging to this pckage
 class WidgetStyle:
     def __init__(self):
         self.widget_types = ["main", "button", "label", "slider", "tabs", "radiobutton", "doublespinbox", \
-                             "line edit", "checkbox"]
+                             "linedit", "checkbox"]
         self.theme_types = ["dark", "light"]
         self.style_sheets = {}
         for widget_type in self.widget_types:
@@ -53,8 +53,26 @@ class PhaseControllerWidgetStyle(WidgetStyle):
                                             font-size: 12pt
                                             }
                                             """
+        self.style_sheets["checkbox"]["dark"] = """
+                                              QCheckBox
+                                              {
+                                              background-color: #37474F; 
+                                              color: 'white'; 
+                                              border-color: 'white';
+                                              font-family: Times New Roman;
+                                              font-size: 13pt;
+                                              }
+                                              """
+        self.style_sheets["linedit"]["dark"] = """
+                                                 QLineEdit
+                                                 {
+                                                 border-color:'white';
+                                                 font-family: Times New Roman;
+                                                 font-size: 12pt
+                                                 }
+                                                 """
 
-class HomodyneDetectorControllerStyle(WidgetStyle):
+class HomodyneDetectionControllerStyle(WidgetStyle):
     def __init__(self):
         super().__init__()
         self.style_sheets["main"]["dark"] = "background-color: #1c1c1c; color:white;"
@@ -68,6 +86,63 @@ class HomodyneDetectorControllerStyle(WidgetStyle):
                                             font-size: 18pt;
                                             }
                                             """
+        self.style_sheets["button"]["dark"] = """
+                                              QPushButton
+                                              {
+                                              background-color: #1c1c1c; 
+                                              color: 'white'; 
+                                              border-color: 'white';
+                                              font-family: Times New Roman;
+                                              font-size: 13pt;
+                                              }
+                                              """
+        self.style_sheets["tabs"]["dark"] = """
+                                            QTabWidget::tab
+                                            {
+                                            background-color: #1c1c1c;
+                                            color: 'white';
+                                            border-color: 'white'
+                                            font-family: Times New Roman;
+                                            font-size: 12pt
+                                            }
+                                            """
+        self.style_sheets["slider"]["dark"] = """
+                                              QSlider
+                                              {
+                                              background-color: #1c1c1c;
+                                              color: 'white';
+                                              border-color: 'white'
+                                              }
+                                              """
+        self.style_sheets["checkbox"]["dark"] = """
+                                              QCheckBox
+                                              {
+                                              background-color: #1c1c1c; 
+                                              color: 'white'; 
+                                              border-color: 'white';
+                                              font-family: Times New Roman;
+                                              font-size: 13pt;
+                                              }
+                                              """
+        self.style_sheets["linedit"]["dark"] = """
+                                                 QLineEdit
+                                                 {
+                                                 border-color:'white';
+                                                 font-family: Times New Roman;
+                                                 font-size: 12pt
+                                                 }
+                                                 """
+
+        self.style_sheets["checkbox"]["dark"] = """
+                                               QCheckBox
+                                               {
+                                               background-color: #1c1c1c; 
+                                               color: 'white'; 
+                                               border-color: 'white';
+                                               font-family: Times New Roman;
+                                               font-size: 13pt;
+                                               }
+                                               """
 class CavityLockWidgetStyle(WidgetStyle):
     def __init__(self):
         super().__init__()
@@ -264,6 +339,24 @@ class AcquisitionSystemWidgetStyle(WidgetStyle):
                                             font-size: 12pt
                                             }
                                             """
+        self.style_sheets["linedit"]["dark"] = """
+                                                 QLineEdit
+                                                 {
+                                                 border-color:'white';
+                                                 font-family: Times New Roman;
+                                                 font-size: 12pt
+                                                 }
+                                                 """
+        self.style_sheets["checkbox"]["dark"] = """
+                                               QCheckBox
+                                               {
+                                               background-color: #6d597a; 
+                                               color: 'white'; 
+                                               border-color: 'white';
+                                               font-family: Times New Roman;
+                                               font-size: 13pt;
+                                               }
+                                               """
 
 
 

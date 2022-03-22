@@ -33,6 +33,7 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 from Iaji.InstrumentsControl.GUI.WidgetStyles import LecroyOscilloscopeWidgetStyle
+from Iaji.Utilities.strutils import any_in_string
 #%%
 class LecroyOscilloscopeWidget(QWidget):
     """
@@ -55,10 +56,6 @@ class LecroyOscilloscopeWidget(QWidget):
         #Save settings layout
         #--------------------------------
         self.save_layout = QHBoxLayout()
-        #Title label
-        self.save_layout_title_label = QLabel()
-        self.save_layout_title_label.setText("Save Settings")
-        self.save_layout.addWidget(self.save_layout_title_label, Qt.AlignCenter)
         #Push buttons
         button_names = ["save_trace", "scope_save_path", "host_save_path"]
         button_callbacks = dict(
@@ -83,16 +80,19 @@ class LecroyOscilloscopeWidget(QWidget):
         self.select_scope_channels_title = QLabel()
         self.select_scope_channels_title.setText("Active Channels:")
         self.select_scope_channels_layout.addWidget(self.select_scope_channels_title)
-        channel_names = list(scope.channels.keys())
+        channel_names = list(self.scope.channels.keys())
         #channel_names = ["C1", "C2", "aooo", "dio"]
         for j in range(len(channel_names)):
             name = channel_names[j]
             widget_name = "checkbox_channel_%s"%(j+1)
-            checkbox = QCheckBox("channel %s"%name)
+            checkbox = QCheckBox(name)
+            checkbox.setChecked(self.scope.channels[name].is_enabled())
             checkbox.toggled.connect(getattr(self, "%s_checked"%widget_name))
             self.select_scope_channels_layout.addWidget(checkbox)
             setattr(self, widget_name, checkbox)
         self.layout.addLayout(self.select_scope_channels_layout)
+        #When the channel names of self.scope are changed, the widget displays the updated channel names
+        self.scope.channel_names_changed.connect(self.refresh_channel_names)
         ## --------------------------------
         ##File name for every channel
         ## --------------------------------
@@ -102,12 +102,12 @@ class LecroyOscilloscopeWidget(QWidget):
         self.filenames_title = QLabel()
         self.filenames_title.setText("file names")
         self.filenames_layout.addWidget(self.filenames_title)
-        ###Line edit boxes
-        self.filenames = ["trace" for j in range(len(channel_names))]
+        ###linedit boxes
+        self.filenames = dict(zip(channel_names, ["%s_trace"%channel_name for channel_name in channel_names]))
         for j in range(len(channel_names)):
             name = channel_names[j]
             widget_name = "linedit_filename_channel_%s"%(j+1)
-            linedit = QLineEdit(self.filenames[j])
+            linedit = QLineEdit(self.filenames[name])
             linedit.textChanged.connect(getattr(self, "%s_changed"%widget_name))
             self.filenames_layout.addWidget(linedit)
             setattr(self, widget_name, linedit)        
@@ -122,8 +122,10 @@ class LecroyOscilloscopeWidget(QWidget):
     # --------------------------------
     def set_style(self, theme):
         self.setStyleSheet(self.style_sheets["main"][theme])
-        for widget_type in ["label", "button", "line edit", "checkbox"]:
-            widgets = [getattr(self, name) for name in list(self.__dict__.keys()) if widget_type in name and "layout" not in name and "callback" not in name]
+        excluded_strings = ["layout", "callback", "clicked", "toggled", "changed", "edited", "checked"]
+        for widget_type in ["label", "button", "linedit", "checkbox"]:
+            widgets = [getattr(self, name) for name in list(self.__dict__.keys()) if
+                       widget_type in name and not any_in_string(excluded_strings, name)]
             for widget in widgets:
                 widget.setStyleSheet(self.style_sheets[widget_type][theme])
     # --------------------------------
@@ -137,7 +139,6 @@ class LecroyOscilloscopeWidget(QWidget):
         #Remove host_drive from the save directory name
         directory = directory.replace(self.scope.host_drive+"/", "")
         self.scope.set_save_directory(directory)
-        #print(self.scope.get_save_directory())
     # --------------------------------
     def button_host_save_path_callback(self):
         """
@@ -156,9 +157,12 @@ class LecroyOscilloscopeWidget(QWidget):
             3. option of loading the acquired traces
             4. option of adjusting the horizontal and vertical axes
         """
-        self.scope.acquire(channel_names=list(self.scope.channels.keys()), filenames=self.filenames, save_directory=self.host_save_directory, \
-                      load_traces=True, \
-                      adapt_vertical_axis=False, adapt_horizontal_axis=False)
+        active_channels = [c for c in list(self.scope.channels.keys()) if self.scope.channels[c].is_enabled()]
+        filenames = [self.filenames[channel_name] for channel_name in active_channels]
+        self.scope.acquire(channel_names=active_channels, filenames=filenames,
+                           save_directory=self.host_save_directory, \
+                           load_traces=True, \
+                           adapt_vertical_axis=False, adapt_horizontal_axis=False)
     # --------------------------------
     def checkbox_channel_1_checked(self):
         channel_name = list(self.scope.channels.keys())[0]
@@ -174,17 +178,36 @@ class LecroyOscilloscopeWidget(QWidget):
         self.scope.channels[channel_name].enable(self.checkbox_channel_4.isChecked())
     # --------------------------------
     def linedit_filename_channel_1_changed(self):
-        self.filenames[0] = self.linedit_filename_channel_1.text()+".trc"
-       # print(self.filenames[0])
+        channel_name = list(self.scope.channels.keys())[0]
+        self.filenames[channel_name] = self.linedit_filename_channel_1.text()
     def linedit_filename_channel_2_changed(self):
-        self.filenames[1] = self.linedit_filename_channel_2.text()+".trc"
-       # print(self.filenames[1])
+        channel_name = list(self.scope.channels.keys())[1]
+        self.filenames[channel_name] = self.linedit_filename_channel_2.text()
     def linedit_filename_channel_3_changed(self):
-        self.filenames[2] = self.linedit_filename_channel_3.text()+".trc"
-       # print(self.filenames[2])
+        channel_name = list(self.scope.channels.keys())[2]
+        self.filenames[channel_name] = self.linedit_filename_channel_3.text()
     def linedit_filename_channel_4_changed(self):
-        self.filenames[3] = self.linedit_filename_channel_4.text()+".trc"
-      #  print(self.filenames[3])        
+        channel_name = list(self.scope.channels.keys())[3]
+        self.filenames[channel_name3] = self.linedit_filename_channel_4.text()
+    # --------------------------------
+    def refresh_channel_names(self, **kwargs):
+        """
+        When the channel names of self.scope are changed, the widget displays the updated channel names
+
+        :param **kwargs
+            it is not used, but required by signalslot.signal.Signal module
+        """
+        channel_names = list(self.scope.channels.keys())
+        self.filenames = dict(zip(channel_names, list(self.filenames.values())))
+        for j in range(len(channel_names)):
+            name = channel_names[j]
+            widget_name = "checkbox_channel_%s" % (j + 1)
+            getattr(self, widget_name).setText(name)
+            getattr(self, widget_name).repaint()
+            widget_name = "linedit_filename_channel_%s"%(j+1)
+            getattr(self, widget_name).setText("%s_trace"%name)
+            getattr(self, widget_name).repaint()
+
     
     
 

@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import (
     QDial,
     QDoubleSpinBox,
     QFontComboBox,
+    QHBoxLayout,
     QLabel,
     QLCDNumber,
     QLineEdit,
@@ -32,7 +33,7 @@ from PyQt5.QtWidgets import (
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.PhaseController import PhaseController
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.WidgetStyles import PhaseControllerWidgetStyle
 import numpy as np
-
+from Iaji.Utilities.strutils import any_in_string
 #%%
 class PhaseControllerWidget(QWidget):
     """
@@ -77,16 +78,24 @@ class PhaseControllerWidget(QWidget):
             self.control_buttons_layout.addWidget(button, int(j / n_rows), int(np.mod(j, n_rows)))
             setattr(self, "control_button_"+name, button)
         self.control_layout.addLayout(self.control_buttons_layout)
-        # Define a label to show the phase
+        #PID autotune lock checkbox
+        self.pid_autotune_checkbox = QCheckBox("PID autotune")
+        self.pid_autotune_checkbox.setChecked(self.phase_controller.pid_autotune)
+        self.pid_autotune_checkbox.toggled.connect(self.pid_autotune_checkbox_toggled)
+        self.control_layout.addWidget(self.pid_autotune_checkbox)
+        #Phase selection layout
+        self.set_phase_layout = QHBoxLayout()
+        self.control_layout.addLayout(self.set_phase_layout)
+        #Label to show the current phase
         self.label_phase = QLabel()
-        self.label_phase.setText("Phase: %0.2f deg"%(self.phase_controller.phase * 180 / np.pi))
-        self.control_layout.addWidget(self.label_phase)
-        # Define a slider to set the LO phase
+        self.label_phase.setText("Phase: %0.2f deg" % (self.phase_controller.phase * 180 / np.pi))
+        self.set_phase_layout.addWidget(self.label_phase)
+        #Slider to set the phase
         self.slider_set_phase = QSlider(Qt.Horizontal)
         self.slider_set_phase.setRange(0, 180)
         self.slider_set_phase.setSingleStep(0.01)
         self.slider_set_phase.valueChanged.connect(self.slider_set_phase_value_changed_callback)
-        self.control_layout.addWidget(self.slider_set_phase)
+        self.set_phase_layout.addWidget(self.slider_set_phase)
         self.layout.addLayout(self.control_layout)
         #Define a monitor scope layout and widget
         self.scope_layout = QVBoxLayout()
@@ -100,8 +109,10 @@ class PhaseControllerWidget(QWidget):
 
     def set_style(self, theme):
         self.setStyleSheet(self.style_sheets["main"][theme])
-        for widget_type in ["label", "slider", "button", "radiobutton"]:
-            widgets = [getattr(self, name) for name in list(self.__dict__.keys()) if widget_type in name and "layout" not in name and "callback" not in name]
+        excluded_strings = ["layout", "callback", "clicked", "toggled", "changed", "edited", "checked"]
+        for widget_type in ["label", "button", "tabs", "slider", "checkbox"]:
+            widgets = [getattr(self, name) for name in list(self.__dict__.keys()) if
+                       widget_type in name and not any_in_string(excluded_strings, name)]
             for widget in widgets:
                 widget.setStyleSheet(self.style_sheets[widget_type][theme])
 
@@ -133,6 +144,9 @@ class PhaseControllerWidget(QWidget):
     def slider_set_phase_value_changed_callback(self, value):
         self.phase_controller.set_phase(value)
         self.label_phase.setText("Phase: %0.2f deg"%(self.phase_controller.phase * 180 / np.pi))
+
+    def pid_autotune_checkbox_toggled(self):
+        self.phase_controller.pid_autotune = self.pid_autotune_checkbox.isChecked()
 
 
 

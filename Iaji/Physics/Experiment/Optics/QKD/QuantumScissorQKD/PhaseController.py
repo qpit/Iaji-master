@@ -2,6 +2,8 @@
 import time
 import numpy as np
 import threading
+import pyrpl
+from pyqtgraph.Qt import QtGui
 
 print_separator = "-------------------------------------------------------------------"
 #%%
@@ -23,10 +25,25 @@ class PhaseController:
     where theta is the interferometer phase and phi is the demodulation phase. By tuning the coefficients of the
     convex combination one can lock to an arbitrary theta, by locking e(t) at 0 value.
     """
-    def __init__(self, pyrpl_obj, name="Phase Controller", modulation_output_enabled=False):
-        self.redpitaya = pyrpl_obj.rp
+    def __init__(self, redpitaya_config_filename, name="Phase Controller", enable_modulation_output=False, pid_autotune=True, \
+                 show_pyrpl_GUI=True):
+        """
+        :param redpitaya_config_filename: str
+            object representing the pyrpl interface for the controlling RedPitaya
+        :param name: str
+            name of the phase controller
+        :param modulation_output_enabled: bool
+            If True, the controlling RedPitaya outputs a phase modulation signal
+        :param pid_autotune:
+            If True, the locking system uses an automatic software procedure to tune the PID parameters.
+        :param show_pyrpl_GUI: bool
+        """
+        self.redpitaya_config_filename = redpitaya_config_filename
+        self.connect_to_redpitaya(show_pyrpl_GUI=show_pyrpl_GUI)
+        self.redpitaya = self.pyrpl_obj.rp
         self.name = name
-        self.modulation_output_enabled = modulation_output_enabled
+        self.modulation_output_enabled = enable_modulation_output
+        self.pid_autotune = pid_autotune
         # Define some useful variables
         self.scanning_frequency = 5  # Hz
         self.modulation_frequency = 25e6  # [Hz]
@@ -56,23 +73,28 @@ class PhaseController:
         # Set locks off
         self.unlock()
 
+    def connect_to_redpitaya(self, show_pyrpl_GUI=True):
+        self.pyrpl_obj = pyrpl.Pyrpl(config=self.redpitaya_config_filename)
+        if show_pyrpl_GUI:
+            self.pyrpl_GUI = QtGui.QApplication.instance()
+
     def assign_modules(self, asg_control="asg0", iq="iq0", pid_DC="pid0", pid_AC="pid1"):
-        self.asg_control = getattr(self.redpitaya, asg_control)
-        self.iq = getattr(self.redpitaya, iq)
-        self.AC_error_signal = iq
-        self.pid_DC = getattr(self.redpitaya, pid_DC)
-        self.DC_error_signal = pid_DC
-        self.pid_AC = getattr(self.redpitaya, pid_AC)
-        self.error_signal = "iq2"
-        self.pid_control = self.redpitaya.pid2
+        self.asg_control = getattr(self.redpitaya, asg_control) #asg module used to scan the phase
+        self.iq = getattr(self.redpitaya, iq) #iq module used to generate the AC error signal
+        self.AC_error_signal = iq #name of the output signal from the iq module
+        self.pid_DC = getattr(self.redpitaya, pid_DC)  #PID module used to generate the DC error signal
+        self.DC_error_signal = pid_DC#name of the output signal from the PID DC module
+        self.pid_AC = getattr(self.redpitaya, pid_AC) #PID module used to generate the scaled AC error signal
+        self.error_signal = "iq2" #name of the signal that contains the phase error signal
+        self.pid_control = self.redpitaya.pid2 #PID module that control the phase error
 
     def assign_input_output(self, error_signal_input="in2", control_signal_output="out1"):
         #Input
-        self.error_signal_input = error_signal_input
-        self.auxiliary_input = "in" + str(1+1*(error_signal_input=="in1"))
+        self.error_signal_input = error_signal_input #signal used to generate the phase error signal
+        self.auxiliary_input = "in" + str(1+1*(error_signal_input=="in1")) #complementary signal, typically used for monitoring
         #Output
-        self.control_signal_output = control_signal_output
-        self.modulation_signal_output = "out" + str(1+1*(control_signal_output=="out1"))
+        self.control_signal_output = control_signal_output #name of the analog output that carries the control signal
+        self.modulation_signal_output = "out" + str(1+1*(control_signal_output=="out1")) #name of the other analog output, carrying the phase modulation signal
 
 
     def setup_pid_DC(self):
@@ -105,7 +127,7 @@ class PhaseController:
         self.pid_control.ival = 0
 
     def enable_pid_control(self):
-        self.pid_control.output_direct = "on"
+        self.pid_control.output_direct = self.control_signal_output
 
     def setup_asg_control(self):
         self.asg_control.waveform = 'ramp'
@@ -265,12 +287,15 @@ class PhaseController:
 
     def lock(self, keep_locked=True):
         self.unlock()
-        # Get the amplitude of the scanned error signal
-        self.error_signal_amplitude_scanned = self.get_scanned_signal_amplitude(signal_name=self.error_signal)
-        print("Amplitude of the error signal: %0.3f" % self.error_signal_amplitude_scanned)
-        self.is_locking = True
-        self.remove_offset_pid_DC()
-        self.PID_manual_autotune(keep_locked)
+        if self.pid_autotune:
+            # Get the amplitude of the scanned error signal
+            self.error_signal_amplitude_scanned = self.get_scanned_signal_amplitude(signal_name=self.error_signal)
+            print("Amplitude of the error signal: %0.3f" % self.error_signal_amplitude_scanned)
+            self.is_locking = True
+            self.remove_offset_pid_DC()
+            self.PID_manual_autotune(keep_locked)
+        else:
+            self.enable_pid_control()
 
     def PID_manual_autotune(self, keep_locked=True):
         """
@@ -356,8 +381,12 @@ class PhaseController:
     def set_phase(self, phase):
         phase_rad = phase * np.pi / 180
         self.phase = phase_rad
-        self.pid_AC.p = self.pid_DC_p_initial * np.cos(phase_rad)
-        self.pid_DC.p = self.pid_DC_p_initial * np.sin(phase_rad)
+        V_DC = self.get_signal_amplitude(signal_name=self.error_signal_input)
+        P_DC = -np.sin(phase_rad) / V_DC
+        V_AC = self.get_signal_amplitude(signal_name=self.AC_error_signal)
+        P_AC = np.cos(phase_rad) / V_AC
+        self.pid_AC.p = P_AC
+        self.pid_DC.p = P_DC
 
     def calibrate(self):
         self.remove_offset_pid_DC()

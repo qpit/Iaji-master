@@ -5,7 +5,7 @@ This module defines the styles of different widgets belonging to this pckage
 class WidgetStyle:
     def __init__(self):
         self.widget_types = ["main", "button", "label", "slider", "tabs", "radiobutton", "doublespinbox", \
-                             "line edit", "checkbox"]
+                             "linedit", "checkbox"]
         self.theme_types = ["dark", "light"]
         self.style_sheets = {}
         for widget_type in self.widget_types:
@@ -53,7 +53,7 @@ class LecroyOscilloscopeWidgetStyle(WidgetStyle):
                                             font-size: 12pt
                                             }
                                             """
-        self.style_sheets["line edit"]["dark"] = """
+        self.style_sheets["linedit"]["dark"] = """
                                                  QLineEdit
                                                  {
                                                  border-color:'white';

@@ -10,4 +10,7 @@ scope = Scope(IP_address="10.54.11.187")
 app = QApplication(sys.argv)
 widget = ScopeWidget(scope)
 widget.show()
-sys.exit(app.exec_())
+scope.set_channel_names([2, 3], ["test 2", "test 3"])
+app.exec()
+
+

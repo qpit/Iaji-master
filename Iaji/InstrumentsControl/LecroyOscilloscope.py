@@ -14,6 +14,7 @@ from .Exceptions import ConnectionError, InvalidParameterError
 import shutil
 import numpy as np
 from qopt import lecroy as LecroyReader
+from signalslot.signal import Signal
 #%%
 print_separator = '\n-------------------------------------------'
 #%%
@@ -23,6 +24,7 @@ class LecroyOscilloscope:
         self.IP_address = IP_address
         self.host_drive = "L:"
         self.channels = {}
+        self.channel_names_changed = Signal()
         if connect:
             try:
                 self.connect()
@@ -33,14 +35,33 @@ class LecroyOscilloscope:
             except: 
                 print('WARNING: it was not possible to connect to the oscilloscope '+self.name)
                 return
-
-        
+    # ----------------------------------------------
     def connect(self):
         try:
             self.instrument = vxi11.Instrument(self.IP_address)
         except:
             raise ConnectionError
-
+    # ----------------------------------------------
+    def set_channel_names(self, channel_indices, channel_names):
+        """
+        Sets new names to the channels.
+        :param channel_indices: iterable of int
+            indices ranging from 1 to the number of channels.
+        :param channel_names: iterable of str
+            names associated to the channel indices
+        """
+        channel_indices = np.atleast_1d(channel_indices)
+        channel_names = np.atleast_1d(channel_names)
+        new_channel_names = list(self.channels.keys())
+        for j in range(len(channel_indices)):
+            new_channel_names[channel_indices[j]-1] = channel_names[j]
+        #Redefine the channels and the traces
+        channels = list(self.channels.values())
+        traces = list(self.traces.values())
+        self.channels = dict(zip(new_channel_names, channels))
+        self.traces = dict(zip(new_channel_names, traces))
+        self.channel_names_changed.emit()
+    # ----------------------------------------------
     def setup_automatic(self, channel_name, setup_type, keep_trigger_settings=True):
         """
         Uses the automatic setup function of the oscilloscope to set up the horizontal
@@ -91,12 +112,12 @@ class LecroyOscilloscope:
                 source signal for triggering the acquisition
         """
         self.set_duration(duration)
-
+    # ----------------------------------------------
     def get_horizontal_setup(self):
         setup = {}
         setup["duration"] = float(self.instrument.ask("TDIV?").split("TDIV")[1].replace("S", ""))*10
         return setup
-
+    # ----------------------------------------------
     def set_duration(self, duration):
         """
         :param duration: float (>0)
@@ -106,7 +127,6 @@ class LecroyOscilloscope:
         secons_per_division = duration/10
         self.instrument.write('TDIV '+str(secons_per_division)) #set the time duration [s]
         self.instrument.ask('*OPC?')
-
     #-------------------------------------------------------------------------------------------
     #Trigger
 
@@ -125,14 +145,14 @@ class LecroyOscilloscope:
         if trigger_source != "LINE":
            self.instrument.write(trigger_source + ':TRIG_LEVEL '+str(trigger_level))  # set trigger level
         self.instrument.ask('*OPC?')
-
+    # ----------------------------------------------
     def get_trigger_setup(self):
         trigger_setup = {}
         trigger_setup["trigger type"], _, trigger_setup["trigger source"], _, trigger_setup["hold type"]\
         = self.instrument.ask("TRIG_SELECT?").split(" ")[1].split(",")
         trigger_setup["trigger level"] = float(self.instrument.ask("TRIG_LEVEL?").split("TRLV")[1].replace("V", ""))
         return trigger_setup
-
+    # ----------------------------------------------
 
 
     #----------------------------------------------------------------------------------------------
@@ -190,6 +210,7 @@ class LecroyOscilloscope:
         channel_number = self.channels[channel_name].number
         command_string = 'STO ' + "C"+str(channel_number) + ', FILE'
         self.instrument.write(command_string)
+        self.instrument.ask('*OPC?')
         return command_string
 
     def acquire(self, channel_names, filenames=None, save_directory=None, \
@@ -232,7 +253,6 @@ class LecroyOscilloscope:
         #See what is there in the scope's save directory
         scope_save_directory = self.host_drive+"\\"+self.save_directory
         scope_filenames = os.listdir(scope_save_directory)
-        print(scope_filenames)
         scope_filenames_latest = []
         #Select the most recent files for the selected traces
         #These will be the files to be sent
@@ -255,7 +275,6 @@ class LecroyOscilloscope:
             #Load the traces if requested
             if load_traces:
                 self.traces[channel_name] = LecroyReader.read(save_directory+"\\"+filenames[j])
-        self.display_continuous()
 
 
     #-----------------------------------------------------------------------------------------------------------
@@ -470,7 +489,7 @@ class LecroyOscilloscpeChannel:
 
         :param channel: str
         :param enable: bool
-            If true, the input "C"+str(self.number)s are displayed.
+            If true, the input "C"+str(self.number)s is displayed.
         :return:
         """
         mode = "ON" * (enabled is True) + "OFF" * (enabled is False)
@@ -480,7 +499,8 @@ class LecroyOscilloscpeChannel:
         return command_string
 
     def is_enabled(self):
-        reply = self.instrument.ask("C"+str(self.number) + ":TRACE?").split("TRA")[1].replace(" ", "")
+        reply = self.instrument.ask("C"+str(self.number) + ":TRACE?")
+        #reply = self.instrument.ask("C"+str(self.number) + ":TRACE?").split("TRA")[1].replace(" ", "")
         if reply == "ON":
             return True
         else:
