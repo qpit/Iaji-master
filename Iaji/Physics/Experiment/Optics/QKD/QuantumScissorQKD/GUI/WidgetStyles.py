@@ -11,13 +11,13 @@ class WidgetStyle:
         for widget_type in self.widget_types:
             self.style_sheets[widget_type] = dict(zip(self.theme_types, [{} for j in range(len(self.theme_types))]))
         #Set default dark theme
-        self.style_sheets["main"]["dark"] = "background-color: #1c1c1c; color:white;"
+        self.style_sheets["main"]["dark"] = "background-color: #082032; color: #EEEEEE;"
         self.style_sheets["label"]["dark"] = """
                                             QLabel
                                             {
-                                            background-color : #1c1c1c; 
-                                            color: 'white';
-                                            border-color: 'white'; 
+                                            background-color : #082032; 
+                                            color: #EEEEEE;
+                                            border-color: #EEEEEE; 
                                             border: 2px;
                                             font-family: Times New Roman ;
                                             font-size: 18pt;
@@ -28,10 +28,10 @@ class WidgetStyle:
         self.style_sheets["button"]["dark"] = """
                                               QPushButton
                                               {
-                                              background-color: #1c1c1c; 
-                                              color: 'white'; 
+                                              background-color: #2C394B; 
+                                              color: #EEEEEE; 
                                               border: 1.5px solid #C4C4C3;
-                                              border-color: 'white';
+                                              border-color: #EEEEEE;
                                               border-top-left-radius: 4px;
                                               border-top-right-radius: 4px;
                                               border-bottom-left-radius: 4px;
@@ -43,13 +43,13 @@ class WidgetStyle:
                                               }
                                               QPushButton:pressed
                                               {
-                                              background-color: 'white'; 
-                                              color: #1c1c1c;
+                                              background-color: #EEEEEE; 
+                                              color: #2C394B;
                                               }
                                               QPushButton:hover
                                               {
-                                              background-color: 'white'; 
-                                              color: #1c1c1c;
+                                              background-color: #EEEEEE; 
+                                              color: #2C394B;
                                               }
                                               """
         self.style_sheets["tabs"]["dark"] ="""
@@ -74,35 +74,35 @@ class WidgetStyle:
         self.style_sheets["slider"]["dark"] = """
                                               QSlider
                                               {
-                                              background-color: #1c1c1c;
-                                              color: 'white';
+                                              background-color: #2C394B;
+                                              color: #EEEEEE;
                                               border: 1px solid #C4C4C3;
-                                              border-color: 'white';
+                                              border-color: #EEEEEE;
                                               max-width : 200px;
                                               max-height :  20px;
                                               }
                                               QSlider::handle
                                               {
-                                              color : 'white';
-                                              background-color : 'white';
+                                              color : #EEEEEE;
+                                              background-color : #EEEEEE;
                                               width : 18px;
                                               height: 35px;
                                               border-radius : 4px;
                                               border: 1px solid #C4C4C3;
-                                              border-color: #1c1c1c; 
+                                              border-color: #2C394B; 
                                               }
                                               QSlider::groove
                                               {
-                                              background-color: #1c1c1c;
-                                              color: 'white';
+                                              background-color: #2C394B;
+                                              color: #EEEEEE;
                                               }
                                               """
         self.style_sheets["checkbox"]["dark"] = """
                                               QCheckBox
                                               {
-                                              background-color: #1c1c1c; 
-                                              color: 'white'; 
-                                              border-color: 'white';
+                                              background-color: #2C394B; 
+                                              color: #EEEEEE; 
+                                              border-color: #EEEEEE;
                                               border: 1.5px solid #C4C4C3;
                                               font-family: Times New Roman;
                                               font-size: 13pt;
@@ -113,7 +113,8 @@ class WidgetStyle:
         self.style_sheets["linedit"]["dark"] = """
                                                  QLineEdit
                                                  {
-                                                 border-color:'white';
+                                                 background-color : #2C394B;
+                                                 border-color:#EEEEEE;
                                                  font-family: Times New Roman;
                                                  font-size: 12pt
                                                  }
@@ -128,8 +129,8 @@ class PhaseControllerWidgetStyle(WidgetStyle):
                                               QPushButton
                                               {
                                               background-color: #37474F; 
-                                              color: 'white'; 
-                                              border-color: 'white';
+                                              color: #EEEEEE; 
+                                              border-color: #EEEEEE;
                                               font-family: Times New Roman;
                                               font-size: 13pt;
                                               }
@@ -138,8 +139,8 @@ class PhaseControllerWidgetStyle(WidgetStyle):
                                             QLabel
                                             {
                                             background-color : #37474F; 
-                                            color: 'white';
-                                            border-color: 'white'; 
+                                            color: #EEEEEE;
+                                            border-color: #EEEEEE; 
                                             font-family: Times New Roman ;
                                             font-size: 15pt;
                                             }
@@ -148,16 +149,16 @@ class PhaseControllerWidgetStyle(WidgetStyle):
                                               QSlider
                                               {
                                               background-color: #37474F;
-                                              color: 'white';
-                                              border-color: 'white'
+                                              color: #EEEEEE;
+                                              border-color: #EEEEEE
                                               }
                                               """
         self.style_sheets["tabs"]["dark"] = """
                                             QTabWidget
                                             {
                                             background-color: #37474F;
-                                            color: 'white';
-                                            border-color: 'white'
+                                            color: #EEEEEE;
+                                            border-color: #EEEEEE
                                             font-family: Times New Roman;
                                             font-size: 12pt
                                             }
@@ -166,8 +167,8 @@ class PhaseControllerWidgetStyle(WidgetStyle):
                                               QCheckBox
                                               {
                                               background-color: #37474F; 
-                                              color: 'white'; 
-                                              border-color: 'white';
+                                              color: #EEEEEE; 
+                                              border-color: #EEEEEE;
                                               font-family: Times New Roman;
                                               font-size: 13pt;
                                               }
@@ -175,7 +176,7 @@ class PhaseControllerWidgetStyle(WidgetStyle):
         self.style_sheets["linedit"]["dark"] = """
                                                  QLineEdit
                                                  {
-                                                 border-color:'white';
+                                                 border-color:#EEEEEE;
                                                  font-family: Times New Roman;
                                                  font-size: 12pt
                                                  }
@@ -195,8 +196,8 @@ class CavityLockWidgetStyle(WidgetStyle):
                                               QPushButton
                                               {
                                               background-color: #512da8; 
-                                              color: 'white'; 
-                                              border-color: 'white';
+                                              color: #EEEEEE; 
+                                              border-color: #EEEEEE;
                                               font-family: Times New Roman;
                                               font-size: 13pt;
                                               }
@@ -205,8 +206,8 @@ class CavityLockWidgetStyle(WidgetStyle):
                                             QLabel
                                             {
                                             background-color : #512da8; 
-                                            color: 'white';
-                                            border-color: 'white'; 
+                                            color: #EEEEEE;
+                                            border-color: #EEEEEE; 
                                             font-family: Times New Roman ;
                                             font-size: 15pt;
                                             }
@@ -215,16 +216,16 @@ class CavityLockWidgetStyle(WidgetStyle):
                                               QSlider
                                               {
                                               background-color: #512da8;
-                                              color: 'white';
-                                              border-color: 'white'
+                                              color: #EEEEEE;
+                                              border-color: #EEEEEE
                                               }
                                               """
         self.style_sheets["tabs"]["dark"] = """
                                             QTabWidget
                                             {
                                             background-color: #512da8;
-                                            color: 'white';
-                                            border-color: 'white'
+                                            color: #EEEEEE;
+                                            border-color: #EEEEEE
                                             font-family: Times New Roman;
                                             font-size: 12pt
                                             }
@@ -233,8 +234,8 @@ class CavityLockWidgetStyle(WidgetStyle):
                                               QRadioButton
                                               {
                                               background-color: #512da8; 
-                                              color: 'white'; 
-                                              border-color: 'white';
+                                              color: #EEEEEE; 
+                                              border-color: #EEEEEE;
                                               font-family: Times New Roman;
                                               font-size: 15pt;
                                               }
@@ -250,8 +251,8 @@ class GainLockWidgetStyle(WidgetStyle):
                                                       QPushButton
                                                       {
                                                       background-color: #5d4037; 
-                                                      color: 'white'; 
-                                                      border-color: 'white';
+                                                      color: #EEEEEE; 
+                                                      border-color: #EEEEEE;
                                                       font-family: Times New Roman;
                                                       font-size: 13pt;
                                                       }
@@ -260,8 +261,8 @@ class GainLockWidgetStyle(WidgetStyle):
                                                     QLabel
                                                     {
                                                     background-color : #5d4037; 
-                                                    color: 'white';
-                                                    border-color: 'white'; 
+                                                    color: #EEEEEE;
+                                                    border-color: #EEEEEE; 
                                                     font-family: Times New Roman ;
                                                     font-size: 15pt;
                                                     }
@@ -270,16 +271,16 @@ class GainLockWidgetStyle(WidgetStyle):
                                                       QSlider
                                                       {
                                                       background-color: #5d4037;
-                                                      color: 'white';
-                                                      border-color: 'white'
+                                                      color: #EEEEEE;
+                                                      border-color: #EEEEEE
                                                       }
                                                       """
         self.style_sheets["tabs"]["dark"] = """
                                                     QTabWidget
                                                     {
                                                     background-color: #5d4037;
-                                                    color: 'white';
-                                                    border-color: 'white'
+                                                    color: #EEEEEE;
+                                                    border-color: #EEEEEE
                                                     font-family: Times New Roman;
                                                     font-size: 12pt
                                                     }
@@ -288,8 +289,8 @@ class GainLockWidgetStyle(WidgetStyle):
                                                       QCheckBox
                                                       {
                                                       background-color: #5d4037; 
-                                                      color: 'white'; 
-                                                      border-color: 'white';
+                                                      color: #EEEEEE; 
+                                                      border-color: #EEEEEE;
                                                       font-family: Times New Roman;
                                                       font-size: 13pt;
                                                       }
@@ -297,7 +298,7 @@ class GainLockWidgetStyle(WidgetStyle):
         self.style_sheets["linedit"]["dark"] = """
                                                          QLineEdit
                                                          {
-                                                         border-color:'white';
+                                                         border-color:#EEEEEE;
                                                          font-family: Times New Roman;
                                                          font-size: 12pt
                                                          }
@@ -313,8 +314,8 @@ class PIDControlWidgetStyle(WidgetStyle):
                                               QPushButton
                                               {
                                               background-color: #1A237E; 
-                                              color: 'white'; 
-                                              border-color: 'white';
+                                              color: #EEEEEE; 
+                                              border-color: #EEEEEE;
                                               font-family: Times New Roman;
                                               font-size: 13pt;
                                               }
@@ -323,8 +324,8 @@ class PIDControlWidgetStyle(WidgetStyle):
                                             QLabel
                                             {
                                             background-color : #1A237E; 
-                                            color: 'white';
-                                            border-color: 'white'; 
+                                            color: #EEEEEE;
+                                            border-color: #EEEEEE; 
                                             font-family: Times New Roman ;
                                             font-size: 15pt;
                                             }
@@ -333,24 +334,24 @@ class PIDControlWidgetStyle(WidgetStyle):
                                               QSlider
                                               {
                                               background-color: #1A237E;
-                                              color: 'white';
-                                              border-color: 'white'
+                                              color: #EEEEEE;
+                                              border-color: #EEEEEE
                                               }
                                               """
         self.style_sheets["doublespinbox"]["dark"] = """
                                                       QDoubleSpinbox
                                                       {
                                                       background-color: #1A237E;
-                                                      color: 'white';
-                                                      border-color: 'white'
+                                                      color: #EEEEEE;
+                                                      border-color: #EEEEEE
                                                       }
                                                       """
         self.style_sheets["tabs"]["dark"] = """
                                             QTabWidget
                                             {
                                             background-color: #1A237E;
-                                            color: 'white';
-                                            border-color: 'white'
+                                            color: #EEEEEE;
+                                            border-color: #EEEEEE
                                             font-family: Times New Roman;
                                             font-size: 12pt
                                             }
@@ -365,8 +366,8 @@ class AcquisitionSystemWidgetStyle(WidgetStyle):
                                               QPushButton
                                               {
                                               background-color: #6d597a; 
-                                              color: 'white'; 
-                                              border-color: 'white';
+                                              color: #EEEEEE; 
+                                              border-color: #EEEEEE;
                                               font-family: Times New Roman;
                                               font-size: 13pt;
                                               max-width : 400px;
@@ -377,8 +378,8 @@ class AcquisitionSystemWidgetStyle(WidgetStyle):
                                             QLabel
                                             {
                                             background-color : #6d597a; 
-                                            color: 'white';
-                                            border-color: 'white'; 
+                                            color: #EEEEEE;
+                                            border-color: #EEEEEE; 
                                             font-family: Times New Roman ;
                                             font-size: 15pt;
                                             }
@@ -387,24 +388,24 @@ class AcquisitionSystemWidgetStyle(WidgetStyle):
                                               QSlider
                                               {
                                               background-color: #6d597a;
-                                              color: 'white';
-                                              border-color: 'white'
+                                              color: #EEEEEE;
+                                              border-color: #EEEEEE
                                               }
                                               """
         self.style_sheets["doublespinbox"]["dark"] = """
                                                       QDoubleSpinbox
                                                       {
                                                       background-color: #6d597a;
-                                                      color: 'white';
-                                                      border-color: 'white'
+                                                      color: #EEEEEE;
+                                                      border-color: #EEEEEE
                                                       }
                                                       """
         self.style_sheets["tabs"]["dark"] = """
                                             QTabWidget
                                             {
                                             background-color: #6d597a;
-                                            color: 'white';
-                                            border-color: 'white'
+                                            color: #EEEEEE;
+                                            border-color: #EEEEEE
                                             font-family: Times New Roman;
                                             font-size: 12pt
                                             }
@@ -412,7 +413,7 @@ class AcquisitionSystemWidgetStyle(WidgetStyle):
         self.style_sheets["linedit"]["dark"] = """
                                                  QLineEdit
                                                  {
-                                                 border-color:'white';
+                                                 border-color:#EEEEEE;
                                                  font-family: Times New Roman;
                                                  font-size: 12pt
                                                  }
@@ -421,8 +422,8 @@ class AcquisitionSystemWidgetStyle(WidgetStyle):
                                                QCheckBox
                                                {
                                                background-color: #6d597a; 
-                                               color: 'white'; 
-                                               border-color: 'white';
+                                               color: #EEEEEE; 
+                                               border-color: #EEEEEE;
                                                font-family: Times New Roman;
                                                font-size: 13pt;
                                                }
