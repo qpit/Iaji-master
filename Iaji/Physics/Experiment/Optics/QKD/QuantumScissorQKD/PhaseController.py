@@ -127,7 +127,10 @@ class PhaseController:
         self.pid_control.ival = 0
 
     def enable_pid_control(self):
+        if self.is_scanning:
+            self.turn_off_scan()
         self.pid_control.output_direct = self.control_signal_output
+        self.is_locking = True
 
     def setup_asg_control(self):
         self.asg_control.waveform = 'ramp'
@@ -199,6 +202,7 @@ class PhaseController:
         self.unlock()
         self.asg_control.output_direct = self.control_signal_output
         self.is_scanning = True
+        self.is_locking = False
 
     def set_demodulation_phase(self):
         was_not_scanning = not self.is_scanning
@@ -248,7 +252,7 @@ class PhaseController:
         if not was_scanning:
             self.turn_off_scan()
         if was_locking:
-            self.is_locking = True
+            self.lock()
 
     def flip_iq_phase(self):
         self.iq.phase = np.mod(self.iq.phase + 180, 360)
@@ -278,11 +282,15 @@ class PhaseController:
             - return the amplitude of the error signal
         """
         was_not_scanning = not self.is_scanning
-        self.scan()
+        was_locking = self.is_locking
 
+        self.scan()
         signal_amplitude_scanned = self.get_signal_amplitude(signal_name=signal_name)
+
         if was_not_scanning:
             self.turn_off_scan()
+        if was_locking:
+            self.lock()
         return signal_amplitude_scanned
 
     def lock(self, keep_locked=True):
@@ -381,6 +389,7 @@ class PhaseController:
     def set_phase(self, phase):
         phase_rad = phase * np.pi / 180
         self.phase = phase_rad
+        #See Iyad's PhD thesis (Methods) for reference
         V_DC = self.get_signal_amplitude(signal_name=self.error_signal_input)
         P_DC = -np.sin(phase_rad) / V_DC
         V_AC = self.get_signal_amplitude(signal_name=self.AC_error_signal)
@@ -396,7 +405,5 @@ class PhaseController:
         self.setup_pid_AC()
         time.sleep(0.2)
         self.set_demodulation_phase()
-        time.sleep(0.2)
-        self.set_iq_qfactor()
         time.sleep(0.2)
         self.setup_pid_control()

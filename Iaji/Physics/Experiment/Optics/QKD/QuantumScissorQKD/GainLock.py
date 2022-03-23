@@ -10,24 +10,9 @@ from .Exceptions import ConnectionError
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.PhaseController import PhaseController
 # %%
 class GainLock:
-    def __init__(self, redpitaya_config_filename, name="Parametric Gain Lock", redpitaya_name="Gain Lock Redpitaya", connect=True, show_pyrpl_GUI=True, enable_modulation_output=False):
+    def __init__(self, phase_controller, name="Parametric Gain Lock"):
         self.name = name
-        self.redpitaya_name = redpitaya_name
-        self.redpitaya_config_filename = redpitaya_config_filename
-        self.name = name
-        self.redpitaya_name = redpitaya_name
-        self.redpitaya_config_filename = redpitaya_config_filename
-        self.pyrpl_obj = None
-        self.pyrpl_GUI = None
-        if connect:
-            self.connect_to_redpitaya(show_pyrpl_GUI=show_pyrpl_GUI)
-            self.phase_controller = PhaseController(self.pyrpl_obj, modulation_output_enabled=enable_modulation_output)
-
-    def connect_to_redpitaya(self, show_pyrpl_GUI=True):
-        self.pyrpl_obj = pyrpl.Pyrpl(config=self.redpitaya_config_filename)
-        if show_pyrpl_GUI:
-            self.pyrpl_GUI = QtGui.QApplication.instance()
-
+        self.phase_controller = phase_controller
 
     def scan(self):
         self.phase_controller.scan()

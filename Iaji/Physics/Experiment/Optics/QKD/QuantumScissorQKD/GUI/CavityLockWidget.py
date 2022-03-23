@@ -34,6 +34,7 @@ from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.CavityLock import Cavi
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.WidgetStyles import CavityLockWidgetStyle
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.PIDControlWidget import PIDControlWidget
 import numpy as np
+from Iaji.Utilities.strutils import any_in_string
 
 class CavityLockWidget(QWidget):
     """
@@ -192,9 +193,11 @@ class HighFinessePIDWidget(QWidget):
         self.set_style(theme="dark")
 
     def set_style(self, theme):
-        for widget_type in ["label", "doublespinbox", "button", "radiobutton"]:
+        self.setStyleSheet(self.style_sheets["main"][theme])
+        excluded_strings = ["layout", "callback", "clicked", "toggled", "changed", "edited", "checked"]
+        for widget_type in ["label", "button", "doublespinbox", "radiobutton", "tabs", "slider", "checkbox"]:
             widgets = [getattr(self, name) for name in list(self.__dict__.keys()) if
-                       widget_type in name and "layout" not in name and "callback" not in name]
+                       widget_type in name and not any_in_string(excluded_strings, name)]
             for widget in widgets:
                 widget.setStyleSheet(self.style_sheets[widget_type][theme])
 

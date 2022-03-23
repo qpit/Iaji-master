@@ -83,6 +83,9 @@ class HomodyneDetectionController:
         for channel_number in channel_numbers:
             filenames.append(self.acquisition_system.filenames[channel_names[channel_number - 1]])
             filenames[-1] += "_%d"%phase
+        #Lock the phase
+        self.phase_controller.lock()
+        #Acquire
         return self.acquisition_system.acquire(filenames)
     # -----------------------------------
     def measure_vacuum(self):

@@ -10,17 +10,10 @@ from .CavityLock import CavityLock
 from .GainLock import GainLock
 #%%
 class OPOController:
-    def __init__(self, cavity_redpitaya_config_filename, gain_redpitaya_config_filename, name="OPO Controller",\
-                 cavity_redpitaya_name="OPO Cavity Lock Redpitaya", gain_redpitaya_name="OPO Gain Lock Redpitaya",show_pyrpl_GUI=True):
-        self.cavity_redpitaya_config_filename, self.cavity_redpitaya_name = (cavity_redpitaya_config_filename, cavity_redpitaya_name)
-        self.gain_redpitaya_config_filename, self.gain_redpitaya_name = (gain_redpitaya_config_filename, gain_redpitaya_name)
+    def __init__(self, cavity_lock, gain_lock, name="OPO Controller"):
+        self.cavity_lock = cavity_lock
+        self.gain_lock = gain_lock
         self.name = name
-        self.cavity_lock = CavityLock(redpitaya_config_filename=self.cavity_redpitaya_config_filename,
-                                      name="OPO Cavity Lock", redpitaya_name=self.cavity_redpitaya_name,
-                                      show_pyrpl_GUI=show_pyrpl_GUI)
-        self.gain_lock = GainLock(redpitaya_config_filename=self.gain_redpitaya_config_filename,
-                                      name="OPO Gain Lock", redpitaya_name=self.gain_redpitaya_name,
-                                      show_pyrpl_GUI=show_pyrpl_GUI)
 
     def scan_cavity(self):
         self.cavity_lock.scan()

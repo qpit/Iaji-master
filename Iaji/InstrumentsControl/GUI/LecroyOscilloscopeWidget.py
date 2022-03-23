@@ -52,7 +52,7 @@ class LecroyOscilloscopeWidget(QWidget):
         #Widget title label
         self.name_label = QLabel()
         self.name_label.setText(self.scope.name)
-        self.layout.addWidget(self.name_label, Qt.AlignCenter)
+        self.layout.addWidget(self.name_label)
         #Save settings layout
         #--------------------------------
         self.save_layout = QHBoxLayout()
@@ -68,14 +68,7 @@ class LecroyOscilloscopeWidget(QWidget):
             setattr(self, "button_" + name, button)
         self.layout.addLayout(self.save_layout)
         # --------------------------------
-        #Scope setup layout
-        self.scope_settings_layout = QVBoxLayout()
-        self.scope_setting_title = QLabel()
-        self.scope_setting_title.setText("Scope Settings")
-        self.scope_settings_layout.addWidget(self.scope_setting_title)
-        self.layout.addLayout(self.scope_settings_layout)
-        ##Select scope channels
-        ## --------------------------------
+        #Select scope channels
         self.select_scope_channels_layout = QHBoxLayout()
         self.select_scope_channels_title = QLabel()
         self.select_scope_channels_title.setText("Active Channels:")

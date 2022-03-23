@@ -67,7 +67,7 @@ class PhaseControllerWidget(QWidget):
         self.control_layout.addWidget(self.name_label, Qt.AlignCenter)
         #Define push buttons
         self.control_buttons_layout = QGridLayout()
-        control_button_names = ["scan", "lock", "unlock", "calibrate", "remove_offset_pid_DC", "set_demodulation_phase", "set_iq_qfactor"]
+        control_button_names = ["scan", "lock", "unlock", "calibrate", "remove_offset_pid_DC", "set_demodulation_phase"]
         control_button_callbacks = dict(
             zip(control_button_names, [getattr(self, "control_button_"+name+"_callback") for name in control_button_names]))
         n_rows = 2
@@ -95,8 +95,8 @@ class PhaseControllerWidget(QWidget):
         self.slider_set_phase.setRange(0, 180)
         self.slider_set_phase.setSingleStep(0.01)
         self.slider_set_phase.valueChanged.connect(self.slider_set_phase_value_changed_callback)
-        self.set_phase_layout.addWidget(self.slider_set_phase)
-        self.layout.addLayout(self.control_layout)
+        self.set_phase_layout.addWidget(self.slider_set_phase, Qt.AlignLeft)
+        self.layout.addLayout(self.control_layout, Qt.AlignLeft)
         #Define a monitor scope layout and widget
         self.scope_layout = QVBoxLayout()
         self.scope_widget = self.phase_controller.redpitaya.scope._module_widget

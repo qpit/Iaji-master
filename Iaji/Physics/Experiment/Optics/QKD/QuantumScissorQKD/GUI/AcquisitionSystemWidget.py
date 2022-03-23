@@ -58,9 +58,9 @@ class AcquisitionSystemWidget(QWidget):
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
         ##Main title
-        self.title = QLabel()
-        self.title.setText(self.name)
-        self.layout.addWidget(self.title)
+        self.title_label = QLabel()
+        self.title_label.setText(self.name)
+        self.layout.addWidget(self.title_label)
         #Scope widget
         self.scope_widget = ScopeWidget(self.acquisition_system.scope, \
                                         name=self.acquisition_system.scope.name+" Widget")
@@ -76,13 +76,9 @@ class AcquisitionSystemWidget(QWidget):
             widget_name = "linedit_filename_channel_%s"%(j+1)
             linedit = getattr(self.scope_widget, widget_name)
             linedit.textChanged.connect(getattr(self, "%s_changed_new"%widget_name))
-        
         #Set style
         self.style_sheets = AcquisitionSystemWidgetStyle().style_sheets
         self.set_style(theme="dark")
-
-        self.scope_widget.style_sheets = self.style_sheets
-        self.scope_widget.set_style(theme="dark")
     # --------------------------------
     def set_style(self, theme):
         self.setStyleSheet(self.style_sheets["main"][theme])
@@ -92,6 +88,9 @@ class AcquisitionSystemWidget(QWidget):
                        widget_type in name and not any_in_string(excluded_strings, name)]
             for widget in widgets:
                 widget.setStyleSheet(self.style_sheets[widget_type][theme])
+        #Set the style of the custom sub-widgets
+        self.scope_widget.style_sheets = self.style_sheets
+        self.scope_widget.set_style(theme="dark")
     # --------------------------------
     def button_host_save_path_callback_new(self):
         self.scope_widget.button_host_save_path_callback()

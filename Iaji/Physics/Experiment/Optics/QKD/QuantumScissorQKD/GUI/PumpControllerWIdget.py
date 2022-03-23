@@ -32,6 +32,7 @@ from PyQt5.QtWidgets import (
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.PumpController import PumpController
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.CavityLockWidget import CavityLockWidget
 import numpy as np
+from Iaji.Utilities.strutils import any_in_string
 
 class PumpControllerWidget(QWidget):
     """
@@ -53,8 +54,8 @@ class PumpControllerWidget(QWidget):
         self.name_label.setFont(self.label_font)
         self.layout.addWidget(self.name_label, Qt.AlignCenter)
         #Insert the SHG cavity lock widget
-        self.SHG_cavity_lock_widget = CavityLockWidget(pump_controller.SHG_cavity_lock, name=pump_controller.SHG_cavity_lock.name)
-        self.layout.addWidget(self.SHG_cavity_lock_widget)
+        self.shg_cavity_lock_widget = CavityLockWidget(pump_controller.shg_cavity_lock, name=pump_controller.shg_cavity_lock.name)
+        self.layout.addWidget(self.shg_cavity_lock_widget)
 
 
 

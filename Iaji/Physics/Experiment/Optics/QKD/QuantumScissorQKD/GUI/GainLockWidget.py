@@ -33,6 +33,7 @@ from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GainLock import GainLo
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.PhaseControllerWidget import PhaseControllerWidget
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.WidgetStyles import GainLockWidgetStyle
 import numpy as np
+from Iaji.Utilities.strutils import any_in_string
 
 class GainLockWidget(QWidget):
     """
@@ -60,10 +61,18 @@ class GainLockWidget(QWidget):
         self.style_sheets = GainLockWidgetStyle().style_sheets
         self.set_style(theme="dark")
 
+        self.phase_controller_widget.style_sheets = self.style_sheets
+        self.phase_controller_widget.set_style(theme="dark")
+
 
     def set_style(self, theme):
         self.setStyleSheet(self.style_sheets["main"][theme])
-        self.name_label.setStyleSheet(self.style_sheets["label"][theme])
+        excluded_strings = ["layout", "callback", "clicked", "toggled", "changed", "edited", "checked"]
+        for widget_type in ["label", "button", "tabs", "slider", "checkbox"]:
+            widgets = [getattr(self, name) for name in list(self.__dict__.keys()) if
+                       widget_type in name and not any_in_string(excluded_strings, name)]
+            for widget in widgets:
+                widget.setStyleSheet(self.style_sheets[widget_type][theme])
 
 
 
