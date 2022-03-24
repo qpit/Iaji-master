@@ -70,8 +70,9 @@ class CavityLockWidget(QWidget):
         self.layout.addLayout(self.control_buttons_layout)
         # Create the PID widget
         self.PID_layout = QHBoxLayout()
-        self.PID_widget = PIDControlWidget()
-        self.high_finesse_PID_widget = HighFinessePIDWidget()
+        self.PID_widget = PIDControlWidget(self.cavity_lock.pid_coarse)
+        self.high_finesse_PID_widget = HighFinessePIDWidget(self.cavity_lock.pid_fine)
+        '''
         for stage in ["coarse", "fine"]:
             getattr(self.high_finesse_PID_widget, "PID_"+stage+"_widget").P_doublespinbox.setRange(-2e3, 2e3)
             getattr(self.high_finesse_PID_widget, "PID_" + stage + "_widget").I_doublespinbox.setRange(-1e4, 1e4)
@@ -91,6 +92,7 @@ class CavityLockWidget(QWidget):
                 getattr(widget, parameter+"_doublespinbox").setValue(getattr(getattr(self.cavity_lock.high_finesse_lock, "pid_"+stage), parameter_lower_case))
                 getattr(widget, parameter + "_doublespinbox").setSingleStep(2e-4)
                 getattr(widget, parameter + "_doublespinbox").setDecimals(4)
+        '''
         self.PID_layout.addWidget(self.PID_widget)
         self.PID_layout.addWidget(self.high_finesse_PID_widget)
         if self.cavity_lock.lock_type == "high finesse":

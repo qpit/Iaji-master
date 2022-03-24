@@ -13,8 +13,6 @@ phase_controller = PhaseController(redpitaya_config_filename="O:\\LIST-QPIT\\Cat
                                 enable_modulation_output=True, pid_autotune=False)
 acquisition_system = AcquisitionSystem(Scope(IP_address="10.54.11.187"))
 hd = HomodyneDetectionController(phase_controller, acquisition_system)
-hd.set_DC_channel(1)
-hd.set_AC_channel(3)
 app = QApplication(sys.argv)
 widget = HomodyneDetectionControllerWidget(hd)
 widget.show()

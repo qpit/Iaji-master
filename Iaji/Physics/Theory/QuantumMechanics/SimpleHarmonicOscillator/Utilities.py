@@ -397,9 +397,9 @@ def plotWignerFunction(Q, P, W, alpha, colormap=cmwig1, plot_name='untitled', pl
     #Plot the Q axis
     axis_3D.plot([numpy.min(Q), numpy.max(Q)], [0, 0], zs=numpy.min(W)-0.1*W_max, color='grey', alpha=alpha)
     #Plot the P axis
-    axis_3D.plot([0, 0], [numpy.min(P), numpy.max(P)],zs=numpy.min(W)-0.1*W_max, color='grey', alpha=alpha)
+    #axis_3D.plot([0, 0], [numpy.min(P), numpy.max(P)],zs=numpy.min(W)-0.1*W_max, color='grey', alpha=alpha)
     axis_3D.grid(False)
-    axis_3D.set_zlim([numpy.min(W)-0.1*W_max, W_max])
+#    axis_3D.set_zlim([numpy.min(W)-0.1*W_max, W_max])
     axis_3D.set_xlabel('q', font=axis_font)
     axis_3D.set_ylabel('p', font=axis_font)
     #axis_3D.set_zlabel('W(q, p)', font=axis_font)

@@ -103,4 +103,4 @@ class SigilentSignalGeneratorChannel:
         self.output = "on"
         
     
-        
+

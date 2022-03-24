@@ -31,6 +31,7 @@ from PyQt5.QtWidgets import (
 )
 
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.PhaseController import PhaseController
+from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.PIDControlWidget import PIDControlWidget
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.WidgetStyles import PhaseControllerWidgetStyle
 import numpy as np
 from Iaji.Utilities.strutils import any_in_string
@@ -97,6 +98,9 @@ class PhaseControllerWidget(QWidget):
         self.slider_set_phase.valueChanged.connect(self.slider_set_phase_value_changed_callback)
         self.set_phase_layout.addWidget(self.slider_set_phase, Qt.AlignLeft)
         self.layout.addLayout(self.control_layout, Qt.AlignLeft)
+        #PID widget
+        self.pid_widget = PIDControlWidget(self.phase_controller.pid_control)
+        self.layout.addWidget(self.pid_widget)
         #Define a monitor scope layout and widget
         self.scope_layout = QVBoxLayout()
         self.scope_widget = self.phase_controller.redpitaya.scope._module_widget
@@ -115,7 +119,9 @@ class PhaseControllerWidget(QWidget):
                        widget_type in name and not any_in_string(excluded_strings, name)]
             for widget in widgets:
                 widget.setStyleSheet(self.style_sheets[widget_type][theme])
-
+        #Set style to custom widgets
+        self.pid_widget.style_sheets = self.style_sheets
+        self.pid_widget.set_style(theme="dark")
 
 
 
@@ -136,7 +142,7 @@ class PhaseControllerWidget(QWidget):
         self.phase_controller.remove_offset_pid_DC()
 
     def control_button_set_demodulation_phase_callback(self):
-        self.phase_controller.set_iq_phase()
+        self.phase_controller.set_demodulation_phase()
 
     def control_button_set_iq_qfactor_callback(self):
         self.phase_controller.set_iq_qfactor()

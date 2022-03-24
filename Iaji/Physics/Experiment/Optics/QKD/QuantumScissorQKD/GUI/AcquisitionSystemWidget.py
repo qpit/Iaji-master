@@ -93,7 +93,6 @@ class AcquisitionSystemWidget(QWidget):
         self.scope_widget.set_style(theme="dark")
     # --------------------------------
     def button_host_save_path_callback_new(self):
-        self.scope_widget.button_host_save_path_callback()
         self.acquisition_system.host_save_directory = self.scope_widget.host_save_directory
     # --------------------------------
     def linedit_filename_channel_1_changed_new(self):

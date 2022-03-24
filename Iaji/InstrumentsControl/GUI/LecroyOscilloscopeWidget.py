@@ -181,7 +181,7 @@ class LecroyOscilloscopeWidget(QWidget):
         self.filenames[channel_name] = self.linedit_filename_channel_3.text()
     def linedit_filename_channel_4_changed(self):
         channel_name = list(self.scope.channels.keys())[3]
-        self.filenames[channel_name3] = self.linedit_filename_channel_4.text()
+        self.filenames[channel_name] = self.linedit_filename_channel_4.text()
     # --------------------------------
     def refresh_channel_names(self, **kwargs):
         """

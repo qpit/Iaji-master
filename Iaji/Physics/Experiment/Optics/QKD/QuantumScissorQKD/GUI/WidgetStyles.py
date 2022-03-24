@@ -116,9 +116,18 @@ class WidgetStyle:
                                                  background-color : #2C394B;
                                                  border-color:#EEEEEE;
                                                  font-family: Times New Roman;
-                                                 font-size: 12pt
+                                                 font-size: 12pt;
                                                  }
                                                  """
+        self.style_sheets["doublespinbox"]["dark"] = """
+                                                    QDoubleSpinBox
+                                                    {
+                                                    background-color : #2C394B;
+                                                     border-color:#EEEEEE;
+                                                     font-family: Times New Roman;
+                                                     font-size: 12pt;
+                                                    }
+                                                    """
 
 class PhaseControllerWidgetStyle(WidgetStyle):
     def __init__(self):

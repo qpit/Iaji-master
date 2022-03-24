@@ -390,9 +390,9 @@ class PhaseController:
         phase_rad = phase * np.pi / 180
         self.phase = phase_rad
         #See Iyad's PhD thesis (Methods) for reference
-        V_DC = self.get_signal_amplitude(signal_name=self.error_signal_input)
+        V_DC = self.get_scanned_signal_amplitude(signal_name=self.error_signal_input)
         P_DC = -np.sin(phase_rad) / V_DC
-        V_AC = self.get_signal_amplitude(signal_name=self.AC_error_signal)
+        V_AC = self.get_scanned_signal_amplitude(signal_name=self.AC_error_signal)
         P_AC = np.cos(phase_rad) / V_AC
         self.pid_AC.p = P_AC
         self.pid_DC.p = P_DC
