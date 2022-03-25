@@ -398,12 +398,12 @@ class PhaseController:
         self.pid_DC.p = P_DC
 
     def calibrate(self):
-        self.remove_offset_pid_DC()
-        time.sleep(0.2)
-        self.setup_pid_DC()
-        time.sleep(0.2)
-        self.setup_pid_AC()
-        time.sleep(0.2)
+        #self.remove_offset_pid_DC()
+        #time.sleep(0.2)
+        #self.setup_pid_DC()
+        #time.sleep(0.2)
+        #self.setup_pid_AC()
+        #time.sleep(0.2)
         self.set_demodulation_phase()
-        time.sleep(0.2)
-        self.setup_pid_control()
+        #time.sleep(0.2)
+        #self.setup_pid_control()

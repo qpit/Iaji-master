@@ -74,19 +74,23 @@ class HomodyneDetectionController:
             The channels are specified by custom names and ordered from first to last.
         """
         phase = numpy.round(phase, 1)
-        if not(numpy.isclose(numpy.round(self.phase_controller.phase*numpy.pi/180, 1), phase)):
+        if not(numpy.isclose(numpy.round(self.phase_controller.phase*180/numpy.pi, 1), phase)):
             self.phase_controller.set_phase(phase)
         channel_names = list(self.acquisition_system.scope.channels.keys())
-        channel_numbers = [self.DC_channel_number, self.AC_channel_number]
+        channel_numbers = [self.AC_channel_number]
         channel_numbers.sort()
         filenames = []
         for channel_number in channel_numbers:
             filenames.append(self.acquisition_system.filenames[channel_names[channel_number - 1]])
             filenames[-1] += "_%d"%phase
+        #Deactivate DC channel
+        self.acquisition_system.scope.channels[channel_names[self.DC_channel_number - 1]].enable(False)
         #Lock the phase
         self.phase_controller.lock()
         #Acquire
-        return self.acquisition_system.acquire(filenames)
+        traces = self.acquisition_system.acquire(filenames)
+        self.acquisition_system.scope.channels[channel_names[self.DC_channel_number - 1]].enable(True)
+        return traces
     # -----------------------------------
     def measure_vacuum(self):
         """
@@ -97,13 +101,18 @@ class HomodyneDetectionController:
         """
         channel_names = list(self.acquisition_system.scope.channels.keys())
         channel_names = list(self.acquisition_system.scope.channels.keys())
-        channel_numbers = [self.DC_channel_number, self.AC_channel_number]
+        channel_numbers = [self.AC_channel_number]
         channel_numbers.sort()
         filenames = []
         for channel_number in channel_numbers:
             filenames.append(self.acquisition_system.filenames[channel_names[channel_number - 1]])
             filenames[-1] += "_vacuum"
-        return self.acquisition_system.acquire(filenames)
+            # Deactivate DC channel
+            self.acquisition_system.scope.channels[channel_names[self.DC_channel_number - 1]].enable(False)
+            # Acquire
+            traces = self.acquisition_system.acquire(filenames)
+            self.acquisition_system.scope.channels[channel_names[self.DC_channel_number - 1]].enable(True)
+            return traces
     # -----------------------------------
     def measure_electronic_noise(self):
         """
@@ -114,13 +123,18 @@ class HomodyneDetectionController:
         """
         channel_names = list(self.acquisition_system.scope.channels.keys())
         channel_names = list(self.acquisition_system.scope.channels.keys())
-        channel_numbers = [self.DC_channel_number, self.AC_channel_number]
+        channel_numbers = [self.AC_channel_number]
         channel_numbers.sort()
         filenames = []
         for channel_number in channel_numbers:
             filenames.append(self.acquisition_system.filenames[channel_names[channel_number - 1]])
             filenames[-1] += "_electronic-noise"
-        return self.acquisition_system.acquire(filenames)
+            # Deactivate DC channel
+            self.acquisition_system.scope.channels[channel_names[self.DC_channel_number - 1]].enable(False)
+            # Acquire
+            traces = self.acquisition_system.acquire(filenames)
+            self.acquisition_system.scope.channels[channel_names[self.DC_channel_number - 1]].enable(True)
+            return traces
 
 
 
