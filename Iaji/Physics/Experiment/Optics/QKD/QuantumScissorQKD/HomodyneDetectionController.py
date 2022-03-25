@@ -10,6 +10,7 @@ from pyqtgraph.Qt import QtGui
 from .Exceptions import ConnectionError, ResonanceNotFoundError
 from .PhaseController import PhaseController
 import numpy
+import time
 #%%
 print_separator = "---------------------------------------------"
 #%%

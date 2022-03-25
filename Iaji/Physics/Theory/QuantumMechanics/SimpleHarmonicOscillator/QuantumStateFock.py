@@ -292,6 +292,12 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
          assert not self.isTensorProduct(),\
             "Cannot plot the Wigner function of a composite system is not supported"
          Q, P, W = self.WignerFunction(q, p)
+         shape = W.shape
+         W = W.flatten()
+         for j in range(len(W)):
+             if numpy.isnan(W[j]):
+                 W[j] = 0
+         W = W.reshape(shape)
          W *= numpy.pi
          W_max = numpy.max(numpy.abs(W))
          #Define the x and y axes lines as a 2D function

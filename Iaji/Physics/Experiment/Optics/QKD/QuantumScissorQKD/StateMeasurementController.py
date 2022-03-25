@@ -51,7 +51,6 @@ class StateMeasurementController:
             traces = self.hd_controller.measure_quadrature(phase)
             #Only store the AC output of the homodyne detector
             self.quadratures[phase] = traces[channel_ac]
-            time.sleep(0.1)
         return self.quadratures
 
 

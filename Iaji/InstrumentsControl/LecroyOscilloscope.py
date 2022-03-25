@@ -263,6 +263,7 @@ class LecroyOscilloscope:
             scope_filenames_temp = [f for f in scope_filenames if "C"+str(channel_number) in f]
             #Find the most recent filename
             scope_filename_latest = scope_filenames_temp[np.argmax(scope_filenames_temp)]
+            print(scope_filename_latest)
             scope_filenames_latest.append(scope_filename_latest)
         #Transfer the corresponding trace to the host save directory
         if filenames is None:
