@@ -30,8 +30,8 @@ class HomodyneDetectionController:
         self.name = name
         #Set DC and AC channels
         self.DC_channel_number, self.AC_channel_number = (None, None)
-        self.set_DC_channel(DC_channel)
-        self.set_AC_channel(AC_channel)
+        #self.set_DC_channel(DC_channel)
+        #self.set_AC_channel(AC_channel)
     # -----------------------------------
     def set_DC_channel(self, channel_number):
         channel_names = list(self.acquisition_system.scope.channels.keys())

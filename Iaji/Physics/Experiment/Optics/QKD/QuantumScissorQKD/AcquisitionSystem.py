@@ -4,9 +4,12 @@ It consists of:
 
     - An oscilloscope module
 """
+
+from Iaji.InstrumentsControl.LecroyOscilloscope import LecroyOscilloscope
+
 # In[acquisition system]
 class AcquisitionSystem:
-    def __init__(self, scope, name="Acquisition System"):
+    def __init__(self, scope:LecroyOscilloscope, name="Acquisition System"):
         self.name = name
         self.scope = scope
         self.host_save_directory = "."

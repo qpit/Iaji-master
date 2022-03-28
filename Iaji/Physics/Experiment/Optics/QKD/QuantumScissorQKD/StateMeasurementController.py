@@ -7,6 +7,7 @@ import numpy
 import time
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD import HomodyneDetectionController
 from Iaji.Physics.Theory.QuantumMechanics.SimpleHarmonicOscillator import QuantumStateFock
+from Iaji.Physics.Theory.QuantumMechanics.SimpleHarmonicOscillator.QuantumStateTomography import QuadratureTomographer
 
 # In[]
 class StateMeasurementController:
@@ -22,7 +23,7 @@ class StateMeasurementController:
         - Displacement measurement #TODO
     """
     #------------------------------------------------------------------
-    def __init__(self, hd_controller, name="State Measurement Controller"):
+    def __init__(self, hd_controller: HomodyneDetectionController, name="State Measurement Controller"):
         '''
         :param hd_controller: Iaji HomodyneDetectionController
         :param name: str
@@ -52,7 +53,20 @@ class StateMeasurementController:
             #Only store the AC output of the homodyne detector
             self.quadratures[phase] = traces[channel_ac]
         return self.quadratures
-
-
-
+    # ------------------------------------------------------------------
+    def scanned_measurement(self):
+        '''
+        :return:
+        '''
+        #Scan the phase
+        self.hd_controller.phase_controller.scan()
+        #Acquire
+        traces = self.hd_controller.acquisition_system.acquire()
+        #Save the AC homodyne detector channel
+        channel_names = list(self.hd_controller.acquisition_system.scope.channels.keys())
+        channel_ac = [c for c in channel_names if "AC" in c][0]
+        self.quadrature_scan = traces[channel_ac]
+        self.hd_controller.phase_controller.turn_off_scan()
+        return self.quadrature_scan
+    #------------------------------------------------------------------
 

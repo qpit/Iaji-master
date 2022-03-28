@@ -200,6 +200,10 @@ class StateMeasurementControllerStyle(WidgetStyle):
     def __init__(self):
         super().__init__()
 
+class StateGeneratorWidgetStyle(WidgetStyle):
+    def __init__(self):
+        super().__init__()
+
 class CavityLockWidgetStyle(WidgetStyle):
     def __init__(self):
         super().__init__()
