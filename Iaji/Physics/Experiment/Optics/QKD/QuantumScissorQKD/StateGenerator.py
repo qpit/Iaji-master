@@ -6,6 +6,7 @@ import numpy
 import time
 import pyrpl
 from Iaji.InstrumentsControl.SigilentSignalGenerator import SigilentSignalGenerator
+from  Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.StateMeasurementController import  StateMeasurementController
 from pyqtgraph.Qt import QtGui
 
 class StateGenerator:
@@ -13,7 +14,7 @@ class StateGenerator:
     This class controls the AOMs and define amplitude and phase modulations for the EOMs.
     """
     # -------------------------------------------
-    def __init__(self, redpitaya_config_filename, signal_generator:SigilentSignalGenerator, state_measurement, name = "State Generator"):
+    def __init__(self, redpitaya_config_filename, signal_enabler:SigilentSignalGenerator, state_measurement: StateMeasurementController, name = "State Generator"):
         '''
         :param red_pitaya_config_filename: str
             pitaya config file full path
@@ -25,9 +26,11 @@ class StateGenerator:
         '''
         self.redpitaya_config_filename = redpitaya_config_filename
         self.connect_to_redpitaya()
-        self.signal_generator = signal_generator #signal generator controlling the state generator AOM driver
+        self.signal_enabler = signal_enabler #signal generator controlling the state generator AOM driver
         self.state_measurement = state_measurement
         self.name = name
+        #Add the signal generator to the state measurement controller for fast vacuum quadrature measurements
+        self.state_measurement.signal_enabler = self.signal_enabler
     # -------------------------------------------
     def connect_to_redpitaya(self, show_pyrpl_GUI=True):
         self.pyrpl_obj = pyrpl.Pyrpl(config=self.redpitaya_config_filename)
@@ -69,6 +72,7 @@ class StateGenerator:
              range of voltages output from the signal generator that feeds into the EOM driver [V]
          :return:
          '''
+    # -------------------------------------------
     def create_coherent_state(self, q, p): #TODO
         '''
         :param q: float
@@ -77,3 +81,4 @@ class StateGenerator:
             phase quadrature in snu
         :return:
         '''
+    # -------------------------------------------

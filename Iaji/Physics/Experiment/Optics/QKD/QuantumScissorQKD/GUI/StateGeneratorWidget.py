@@ -46,6 +46,7 @@ class StateGeneratorWidget(QWidget):
         :param name: str
         '''
         super().__init__()
+        self.setWindowTitle(name)
         self.state_generator = state_generator
         self.name = name
         #Main Layout

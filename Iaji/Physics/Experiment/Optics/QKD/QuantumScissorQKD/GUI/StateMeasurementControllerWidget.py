@@ -59,7 +59,7 @@ class StateMeasurementControllerWidget(QWidget):
         self.state_measurement_buttons_layout = QHBoxLayout()
         self.state_measurement_layout.addLayout(self.state_measurement_buttons_layout)
         self.layout.addLayout(self.state_measurement_layout)
-        button_names = ["tomography", "scanned_measurement"]
+        button_names = ["tomography_measurement", "scanned_measurement"]
         for name in button_names:
             setattr(self, name+"_button",  QPushButton(name.replace("_", " ")))
             button = getattr(self, name+"_button")
@@ -94,7 +94,7 @@ class StateMeasurementControllerWidget(QWidget):
         self.hd_controller_widget.style_sheets = self.style_sheets
         self.hd_controller_widget.set_style(theme="dark")
     #-------------------------------------------
-    def tomography_button_clicked(self):
+    def tomography_measurement_button_clicked(self):
         self.state_measurement.tomography_measurement(phases=[0, 30, 60, 90, 120, 150])
     # -------------------------------------------
     def scanned_measurement_button_clicked(self): #TODO

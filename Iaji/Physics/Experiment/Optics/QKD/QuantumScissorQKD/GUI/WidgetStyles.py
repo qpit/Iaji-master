@@ -11,7 +11,10 @@ class WidgetStyle:
         for widget_type in self.widget_types:
             self.style_sheets[widget_type] = dict(zip(self.theme_types, [{} for j in range(len(self.theme_types))]))
         #Set default dark theme
-        self.style_sheets["main"]["dark"] = "background-color: #082032; color: #EEEEEE;"
+        self.style_sheets["main"]["dark"] = """
+                                            background-color: #082032; 
+                                            color: #EEEEEE;
+                                            """
         self.style_sheets["label"]["dark"] = """
                                             QLabel
                                             {

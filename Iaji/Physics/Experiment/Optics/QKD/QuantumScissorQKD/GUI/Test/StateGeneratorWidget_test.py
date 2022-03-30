@@ -16,14 +16,14 @@ import sys
 #State measurement controller
 phase_controller = PhaseController(redpitaya_config_filename="O:\\LIST-QPIT\\Catlab\\Quantum-Scissors-QKD\\Software\\RedPitaya\\Pyrpl\\Config-files\\HD_Tx_lock",\
                                 enable_modulation_output=True, pid_autotune=False)
-acquisition_system = AcquisitionSystem(Scope(IP_address="10.54.11.189"))
+acquisition_system = AcquisitionSystem(Scope(IP_address="10.54.11.187"))
 hd = HomodyneDetectionController(phase_controller, acquisition_system)
 state_measurement = StateMeasurementController(hd)
 #Signal generator
-signal_generator = SigilentSignalGenerator(IP_address="10.54.11.240")
+signal_generator = SigilentSignalGenerator(address="USB0::0xF4ED::0xEE3A::NDG2XCA4160177::INSTR", protocol="visa")
 #State generator
 state_generator = StateGenerator(redpitaya_config_filename="O:\\LIST-QPIT\\Catlab\\Quantum-Scissors-QKD\\Software\\RedPitaya\\Pyrpl\\Config-files\\input_state_modulation", \
-                                 signal_generator=signal_generator, state_measurement=state_measurement)
+                                 signal_enabler=signal_generator, state_measurement=state_measurement)
 #State generator widget
 app = QApplication(sys.argv)
 widget = StateGeneratorWidget(state_generator=state_generator)
