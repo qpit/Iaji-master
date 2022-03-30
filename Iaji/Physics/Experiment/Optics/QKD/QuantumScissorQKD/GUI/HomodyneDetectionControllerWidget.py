@@ -43,7 +43,7 @@ class HomodyneDetectionControllerWidget(QWidget):
     This class describes the widget of a homodyne Detection controller.
     Documentation to be completed.
     """
-    def __init__(self, homodyne_detection_controller, name="Homodyne Detection Controller Widget"):
+    def __init__(self, homodyne_detection_controller: HomodyneDetectionController, name="Homodyne Detection Controller Widget"):
         super().__init__()
         self.hd_controller = homodyne_detection_controller
         self.setWindowTitle(name)

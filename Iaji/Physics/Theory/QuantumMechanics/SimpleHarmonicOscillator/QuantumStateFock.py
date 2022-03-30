@@ -294,7 +294,13 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
          Q, P, W = self.WignerFunction(q, p)
          shape = W.shape
          W = W.flatten()
+
          W[numpy.where(numpy.isnan(W))] = 0
+
+         for j in range(len(W)):
+             if numpy.isnan(W[j]):
+                 W[j] = 0
+
          W = W.reshape(shape)
          W *= numpy.pi
          W_max = numpy.max(numpy.abs(W))

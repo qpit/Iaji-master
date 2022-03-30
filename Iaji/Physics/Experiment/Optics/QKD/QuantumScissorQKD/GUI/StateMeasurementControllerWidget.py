@@ -39,7 +39,7 @@ from Iaji.Utilities.strutils import any_in_string
 
 class StateMeasurementControllerWidget(QWidget):
     #-------------------------------------------
-    def __init__(self, state_measurement, name = "State Measurement Controller Widget"):
+    def __init__(self, state_measurement:StateMeasurementController, name = "State Measurement Controller Widget"):
         super().__init__()
         self.setWindowTitle(name)
         self.name = name
@@ -52,17 +52,32 @@ class StateMeasurementControllerWidget(QWidget):
         self.layout.addWidget(self.title_label)
         self.title_label.setText(self.state_measurement.name)
         #State Measurement Layout
-        self.state_measurement_layout = QHBoxLayout()
+        self.state_measurement_widget = QWidget()
+        ##State measurement buttons
+        self.state_measurement_layout = QVBoxLayout()
+        self.state_measurement_widget.setLayout(self.state_measurement_layout)
+        self.state_measurement_buttons_layout = QHBoxLayout()
+        self.state_measurement_layout.addLayout(self.state_measurement_buttons_layout)
         self.layout.addLayout(self.state_measurement_layout)
-        button_names = ["tomography", "displacement_measurement"]
+        button_names = ["tomography_measurement", "scanned_measurement"]
         for name in button_names:
             setattr(self, name+"_button",  QPushButton(name.replace("_", " ")))
             button = getattr(self, name+"_button")
-            self.state_measurement_layout.addWidget(button)
+            self.state_measurement_buttons_layout.addWidget(button)
             button.clicked.connect(getattr(self, name+"_button_clicked"))
-        #Homodyne detection controller
+        # Homodyne detection controller
         self.hd_controller_widget = HDWidget(self.state_measurement.hd_controller)
-        self.layout.addWidget(self.hd_controller_widget)
+        self.state_measurement_layout.addWidget(self.hd_controller_widget)
+        #State analysis layout
+        self.state_analysis_widget = QWidget()
+        self.state_analysis_layout = QVBoxLayout()
+        self.state_analysis_widget.setLayout(self.state_analysis_layout)
+        self.layout.addLayout(self.state_analysis_layout)
+        #State measurement and analysis tabs
+        self.state_tabs = QTabWidget()
+        self.layout.addWidget(self.state_tabs)
+        self.state_tabs.addTab(self.state_measurement_widget, "State Measurement")
+        self.state_tabs.addTab(self.state_analysis_widget, "State Analysis")
         # Set style
         self.style_sheets = StateMeasurementControllerStyle().style_sheets
         self.set_style(theme="dark")
@@ -79,10 +94,10 @@ class StateMeasurementControllerWidget(QWidget):
         self.hd_controller_widget.style_sheets = self.style_sheets
         self.hd_controller_widget.set_style(theme="dark")
     #-------------------------------------------
-    def tomography_button_clicked(self):
+    def tomography_measurement_button_clicked(self):
         self.state_measurement.tomography_measurement(phases=[0, 30, 60, 90, 120, 150])
     # -------------------------------------------
-    def displacement_measurement_button_clicked(self): #TODO
-        pass
+    def scanned_measurement_button_clicked(self): #TODO
+        self.state_measurement.scanned_measurement()
 
 
