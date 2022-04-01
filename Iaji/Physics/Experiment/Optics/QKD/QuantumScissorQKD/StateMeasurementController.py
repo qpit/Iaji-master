@@ -54,14 +54,19 @@ class StateMeasurementController:
         #Extract AC channel name
         channel_names = list(self.hd_controller.acquisition_system.scope.channels.keys())
         channel_ac = [c for c in channel_names if "AC" in c][0]
+        channel_dc = [c for c in channel_names if "DC" in c][0]
         for phase in phases:
             self.hd_controller.phase_controller.remove_offset_pid_DC()
             traces = self.hd_controller.measure_quadrature(phase)
             #Only store the AC output of the homodyne detector
             self.quadratures[phase] = traces[channel_ac]
             if self.signal_enabler is not None:
+                # Block signal and disable AC channel
                 self.signal_enabler.enable(False)
-                traces =  self.hd_controller.acquisition_system.acquire(filenames=[str(phase)+"_vacuum_DC", str(phase)+"_vacuum_AC"])
+                self.hd_controller.acquisition_system.scope.channels[channel_dc].enable(False)
+                traces =  self.hd_controller.acquisition_system.acquire(filenames=["_vacuum_AC_"+str(phase)])
+                # Unblock signal and enable AC channel
+                self.hd_controller.acquisition_system.scope.channels[channel_dc].enable(True)
                 self.signal_enabler.enable(True)
                 self.vacuum_quadratures[phase] = traces[channel_ac]
         return self.quadratures, self.vacuum_quadratures

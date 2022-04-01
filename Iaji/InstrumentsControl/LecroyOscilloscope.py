@@ -167,26 +167,6 @@ class LecroyOscilloscope:
         self.instrument.write(command_string)
         self.instrument.ask('*OPC?')
         return command_string
-    '''
-    def save_trace(self, directory=None, channels='C1 to C4', filename=None, keep_displaying=True): #Selecting the directory or the channels is not working
-        """
-        Save current displayed traces to the specified filename.      
-        INPUTS
-        ------------
-            channels : str
-                The channel numbers in a readable format for the oscilloscope. e,g, 'C1' or 'C1 to C4'.
-        """
-        self.stop()
-        if directory is not None:
-            self.set_save_directory(directory)
-        self.instrument.write('ARM')
-        self.instrument.write('WAIT')
-        self.instrument.write('STO '+channels+', FILE')
-        self.instrument.write('WAIT')
-        self.instrument.ask('*OPC?')
-        if keep_displaying:
-            self.display_continuous()
-    '''
 
     def start_acquisition(self, store_all_traces=True, keep_displaying=True):
         self.stop()
@@ -252,6 +232,7 @@ class LecroyOscilloscope:
                 raise FileNotFoundError("Save directory on the host does not exist")
         #See what is there in the scope's save directory
         scope_save_directory = self.host_drive+"\\"+self.save_directory
+        scope_filenames = os.listdir() #important! For some reason, looking always into the same scope's directory does not update the file list
         scope_filenames = os.listdir(scope_save_directory)
         scope_filenames_latest = []
         #Select the most recent files for the selected traces
@@ -261,9 +242,9 @@ class LecroyOscilloscope:
             channel_number = self.channels[channel_name].number
             #Load all the file names that relate to the current channel
             scope_filenames_temp = [f for f in scope_filenames if "C"+str(channel_number) in f]
+            scope_file_numbers = [int(f.split(".trc")[0].split("_")[1]) for f in scope_filenames_temp]
             #Find the most recent filename
-            scope_filename_latest = scope_filenames_temp[np.argmax(scope_filenames_temp)]
-            print(scope_filename_latest)
+            scope_filename_latest = scope_filenames_temp[np.argmax(scope_file_numbers)]
             scope_filenames_latest.append(scope_filename_latest)
         #Transfer the corresponding trace to the host save directory
         if filenames is None:
