@@ -279,6 +279,11 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
         for n in numpy.arange(N+1):
             for m in numpy.arange(N+1):
                 W += W_nm[:, :, n, m] * self.density_operator.value[n, m]
+        #Get rid of nan values
+        shape = W.shape
+        W = W.flatten()
+        W[numpy.where(numpy.isnan(W))] = 0
+        W = W.reshape(shape)
         #Normalize in L1
         dq = q[1] - q[0]
         dp = p[1] - p[0]
@@ -292,16 +297,6 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
          assert not self.isTensorProduct(),\
             "Cannot plot the Wigner function of a composite system is not supported"
          Q, P, W = self.WignerFunction(q, p)
-         shape = W.shape
-         W = W.flatten()
-
-         W[numpy.where(numpy.isnan(W))] = 0
-
-         for j in range(len(W)):
-             if numpy.isnan(W[j]):
-                 W[j] = 0
-
-         W = W.reshape(shape)
          W *= numpy.pi
          W_max = numpy.max(numpy.abs(W))
          #Define the x and y axes lines as a 2D function
