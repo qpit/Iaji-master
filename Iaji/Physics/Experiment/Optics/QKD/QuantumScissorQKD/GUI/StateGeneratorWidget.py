@@ -3,6 +3,8 @@ This module defines the GUI of the StateGenerator module.
 """
 #%%
 import pyqtgraph
+from matplotlib.backends.backend_qt5agg import FigureCanvas
+from matplotlib.figure import Figure
 from PyQt5.QtCore import Qt, QRect
 from PyQt5.Qt import QFont
 from PyQt5.QtWidgets import (
@@ -99,7 +101,9 @@ class StateGeneratorWidget(QWidget):
             getattr(self, "%s_voltage_range_layout" % device).addWidget(getattr(self, "%s_max_voltage_linedit" % device))
             self.calibration_layout.addLayout(getattr(self, "%s_voltage_range_layout"%device), 3, col + 1)
             #Plot widget
-            setattr(self, "%s_plot"%device, pyqtgraph.PlotWidget())
+            #setattr(self, "%s_plot"%device, pyqtgraph.PlotWidget())
+            plot_name =
+
             self.calibration_layout.addWidget(getattr(self, "%s_plot"%device), 4, col + 1)
 
 
