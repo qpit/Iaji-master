@@ -9,7 +9,6 @@ from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD import HomodyneDetecti
 from Iaji.Physics.Theory.QuantumMechanics.SimpleHarmonicOscillator import QuantumStateFock
 from Iaji.Physics.Theory.QuantumMechanics.SimpleHarmonicOscillator.QuantumStateTomography import QuadratureTomographer
 from Iaji.InstrumentsControl.SigilentSignalGenerator import SigilentSignalGenerator
-
 # In[]
 class StateMeasurementController:
     """
@@ -32,9 +31,10 @@ class StateMeasurementController:
         self.hd_controller = hd_controller
         self.name = name
         self.tomographer = None
-        self.quantum_state = None
+        self.quantum_state = QuantumStateFock.QuantumStateFockNumeric(truncated_dimension=10)
         self.displacement = None
         self.signal_enabler = None
+        self.q, self.p = [numpy.linspace(-10, 10, 200) for j in range(2)] #canonica variables vectors for Wigner function calculation
     #------------------------------------------------------------------
     def tomography_measurement(self, phases):
         '''

@@ -7,6 +7,7 @@ from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg,
     NavigationToolbar2QT as NavigationToolbar)
 
+from matplotlib import pyplot
 from matplotlib.figure import Figure
 from PyQt5.QtCore import Qt, QRect
 from PyQt5.Qt import QFont
@@ -39,13 +40,12 @@ from PyQt5.QtWidgets import (
 
 import numpy
 # In[Pyplot widget]
-'''
 class PyplotWidget(QWidget):
     """
     This class describes a Qt widget that contains a matplotlib.pyplot figure
     """
     #-------------------------------------
-    def __init__(self, figure: Figure, name="Plot"):
+    def __init__(self, figure: Figure = None, name="Plot"):
         """
         :param figure: matplotlib.figure.Figure
             figure
@@ -54,6 +54,8 @@ class PyplotWidget(QWidget):
         """
         super().__init__()
         self.figure = figure
+        if self.figure is None:
+            figure = pyplot.figure()
         self.canvas = FigureCanvas(self.figure)
         self.name = name
         #Window title
@@ -61,6 +63,9 @@ class PyplotWidget(QWidget):
         #Layout
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
+        # Matplotlib navigation toolbar
+        self.navigation_toolbar = NavigationToolbar(self.canvas, self)
+        self.layout.addWidget(self.navigation_toolbar)
         #Figure widget
         self.layout.addWidget(self.canvas)
     # -------------------------------------
@@ -76,7 +81,6 @@ class PyplotWidget(QWidget):
     def update(self):
         self.canvas.draw_idle()
 '''
-
 class PyplotWidget(FigureCanvasQTAgg):
     """
     This class describes a Qt widget that contains a matplotlib.pyplot figure
@@ -108,6 +112,7 @@ class PyplotWidget(FigureCanvasQTAgg):
     # -------------------------------------
     #def update(self):
    #     self.canvas.draw_idle()
+'''
 
 
 

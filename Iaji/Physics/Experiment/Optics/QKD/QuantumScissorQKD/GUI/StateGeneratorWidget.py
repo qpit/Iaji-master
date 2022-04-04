@@ -2,9 +2,6 @@
 This module defines the GUI of the StateGenerator module.
 """
 #%%
-import pyqtgraph
-from matplotlib.backends.backend_qt5agg import FigureCanvas
-from matplotlib.figure import Figure
 from PyQt5.QtCore import Qt, QRect
 from PyQt5.Qt import QFont
 from PyQt5.QtWidgets import (
@@ -36,7 +33,10 @@ from PyQt5.QtWidgets import (
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.StateGenerator import StateGenerator
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.StateMeasurementControllerWidget import StateMeasurementControllerWidget
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.WidgetStyles import StateGeneratorWidgetStyle
+from Iaji.Utilities.GUI import PyplotWidget
 from Iaji.Utilities.strutils import any_in_string
+from matplotlib import pyplot
+import numpy
 #In []
 class StateGeneratorWidget(QWidget):
     """
@@ -102,13 +102,16 @@ class StateGeneratorWidget(QWidget):
             self.calibration_layout.addLayout(getattr(self, "%s_voltage_range_layout"%device), 3, col + 1)
             #Plot widget
             #setattr(self, "%s_plot"%device, pyqtgraph.PlotWidget())
-            plot_name =
-
-            self.calibration_layout.addWidget(getattr(self, "%s_plot"%device), 4, col + 1)
-
-
-
-
+            figure = pyplot.figure()
+            axis = figure.add_subplot(111)
+            metric = "$|\\alpha|$" * (device != "phase_aom") + "$Arg(\\alpha)$" * (device == "phase_eom")
+            axis.set_xlabel("input voltage (V)", fontdict={"size":12, "family":"Times New Roman"})
+            axis.set_ylabel(metric, fontdict={"size": 12, "family": "Times New Roman"})
+            axis.grid(True)
+            axis.plot(0, 0, color="green")
+            plot_name = "%s_plot"%device
+            setattr(self, plot_name, PyplotWidget(figure=figure, name=plot_name))
+            self.calibration_layout.addWidget(getattr(self, plot_name), 4, col+1)
     # -------------------------------------------
     def make_generation_widget(self):
         '''
@@ -122,6 +125,11 @@ class StateGeneratorWidget(QWidget):
 
         :return:
         '''
+        #Dummy test behavior
+        axis = self.aoms_plot.figure.axes[0]
+        axis.lines[0].set_ydata(numpy.arange(20))
+        axis.lines[0].set_xdata(numpy.arange(20))
+        self.aoms_plot.update()
     # -------------------------------------------
     def phase_eom_button_clicked(self):
         '''
@@ -134,9 +142,6 @@ class StateGeneratorWidget(QWidget):
 
         :return:
         '''
-        # Set style
-        self.style_sheets = StateMeasurementControllerStyle().style_sheets
-        self.set_style(theme="dark")
     # -------------------------------------------
     def set_style(self, theme):
         self.setStyleSheet(self.style_sheets["main"][theme])

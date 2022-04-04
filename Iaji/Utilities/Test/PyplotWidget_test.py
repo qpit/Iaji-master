@@ -10,7 +10,7 @@ import numpy
 # In[]
 app = QApplication(sys.argv)
 figure = pyplot.figure(figsize=(9, 8))
-widget = PyplotWidget()
+widget = PyplotWidget(figure)
 axis = figure.add_subplot(1, 1, 1)
 widget.show()
 axis.set_xlabel("ciao", fontdict={"size": 20, "family":"Times New Roman"})
