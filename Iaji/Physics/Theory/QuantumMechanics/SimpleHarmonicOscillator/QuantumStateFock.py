@@ -407,7 +407,7 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
          #3D plot
          figure = self._InitFigure(plot_name)
          #3D Wigner function
-         W = numpy.abs(W).astype(float)
+         W = numpy.real(W).astype(float)
          Q = Q.astype(float)
          P = P.astype(float)
          axis_3D = figure.axes[0]
