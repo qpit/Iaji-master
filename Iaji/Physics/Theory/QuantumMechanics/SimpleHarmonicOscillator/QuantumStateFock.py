@@ -10,6 +10,7 @@ number states (Fock) basis.
 """
 # In[]
 from Iaji.Mathematics.Parameter import ParameterSymbolic, ParameterNumeric
+from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.Matrix import MatrixNumeric
 from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.DensityMatrix import DensityMatrixSymbolic, \
                                                                       DensityMatrixNumeric
 from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.CovarianceMatrix import CovarianceMatrixSymbolic, \
@@ -26,7 +27,6 @@ from copy import deepcopy as copy
 import matplotlib
 from matplotlib import pyplot
 from matplotlib import font_manager
-from matplotlib import cm
 #%%
 #General plot settings
 default_marker = ""
@@ -78,7 +78,6 @@ class QuantumStateFockSymbolic(QuantumStateSymbolic):
         super().__init__(name=name)
         self._hilbert_space = \
             HilbertSpace(dimension=truncated_dimension, name="H_{%s}"%self.name)
-        self._InitFigure()
         self.Vacuum()
     # ---------------------------------------------------------- 
     def Vacuum(self):
@@ -208,6 +207,18 @@ class QuantumStateFockSymbolic(QuantumStateSymbolic):
        pyplot.pause(.05)
        axis.set_xticklabels(axis.get_xticklabels(), fontsize=ticks_fontsize)
        axis.set_yticklabels(axis.get_yticklabels(), fontsize=ticks_fontsize)
+    #----------------------------------------------------------
+    def _InitFigure(self, figure_name):
+        if figure_name is None:
+            figure = pyplot.figure(num="Quantum State - $%s$ "%self.name, figsize=(13, 9))
+        else:
+            figure = pyplot.figure(num="Quantum State - $%s$ "%figure_name, figsize=(13, 9))
+        if len(figure.axes) == 0:
+            figure.add_subplot(2, 2, 1,  projection='3d') #Wigner function 3D
+            figure.add_subplot(2, 2, 2) #Wigner function 2D
+            figure.add_subplot(2, 2, 3) #Density operator
+            figure.add_subplot(2, 2, 4) #Boson number Distribution
+        return figure
 # In[]
 class QuantumStateFockNumeric(QuantumStateNumeric):
     """
@@ -222,6 +233,8 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
         self._hilbert_space = \
             HilbertSpace(dimension=truncated_dimension, name="H_{%s}"%self.name)
         self.Vacuum()
+        self.figure_name = None
+        self.resized.connect(self._InitFigure)
     # ---------------------------------------------------------- 
     def Vacuum(self):
          """
@@ -252,6 +265,95 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
           self._wigner_function = ParameterNumeric(name="W_{%s}"%self.name)
           return copy(self)
     #----------------------------------------------------------
+    def Resize(self, dimension):
+        """
+        Returns a replica of the quantum state, belonging to a Hilbert space
+        with input dimension. If 'dimension' < self.hilbert_space.dimension, then
+        the truncation operator of order 'dimension' is applied to the density operator.
+        If 'dimension' > self.hilbert_space.dimension, then the density operator
+        is extended via direct sum with a null operator of dimension
+            dimension - self.hilbert_space.dimension
+        All other parameters of the quantum state are simply reset.
+        
+        INPUTS
+        ---------------
+        dimension : int
+            dimension of the new quantum state's Hilbert space
+        """
+        if dimension == self.hilbert_space.dimension:
+            return copy(self)
+        elif dimension < self.hilbert_space.dimension:
+            return self.Truncate(dimension-1)
+        else:
+            return self.Expand(dimension-self.hilbert_space.dimension)
+    #----------------------------------------------------------
+    def Truncate(self, order):
+        """
+        Returns a replica of the quantum state, where the truncation operator 
+        of order 'n' is applied to the density operator.
+        
+        INPUTS
+        ------------
+        order : int
+            The truncation order. It must be 'order' < self.hilbert_space.dimension
+        
+        OUTPUTS
+        ------------
+        The new quantum state
+        """
+        if order >= self.hilbert_space.dimension-1:
+            return copy(self)
+        #Construct truncation operator
+        N = self.hilbert_space.dimension
+        T = MatrixNumeric.Zeros((N, N))
+        for n in range(order+1):
+            proj = self.hilbert_space.CanonicalBasisVector(n).numeric
+            proj = proj @ proj.Dagger()
+            T += proj*numpy.math.factorial(order)/(numpy.math.factorial(order-n)*order**n)
+        #Apply the truncation operator to the current quantum state
+        rho = copy(self).density_operator
+        rho = T @ rho @ T.Dagger()
+        rho.value = rho.value[0:order+1, 0:order+1]
+        #Define new quantum state
+        state = QuantumStateFockNumeric(truncated_dimension=order+1, \
+                                        name=self.name)
+        state._density_operator = rho
+        state._density_operator /= state.density_operator.Trace()
+        #Copy the old name for the density operator
+        state.density_operator.name = self.density_operator.name
+        state.resized.emit()
+        return state
+    #----------------------------------------------------------
+    def Expand(self, n):
+        """
+        Returns a replica of the quantum state, where the density operator
+        is extended via direct sum with a null operator of dimension
+            dimension - self.hilbert_space.dimension
+        All other parameters of the quantum state are simply reset.
+        
+        INPUTS
+        ----------
+        n : int
+            increase in the Hilbert space's dimension. 
+            
+        OUTPUTS
+        -------
+        The new quantum state
+        """
+        if n <= 0:
+            return copy(self)
+        #Define new quantum state
+        state = QuantumStateFockNumeric(truncated_dimension=self.hilbert_space.dimension+n, \
+                                        name=self.name)
+        #Extend the density operator
+        state._density_operator = MatrixNumeric\
+            .DirectSum([copy(self).density_operator, \
+                        MatrixNumeric.Zeros((n, n))])
+        #Copy the old name for the density operator
+        state.density_operator.name = self.density_operator.name
+        state.resized.emit()
+        return state
+    # ----------------------------------------------------------
     def WignerFunction(self, q, p):
         """
         Calculates the Wigner function in the number states basis from the
@@ -404,11 +506,14 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
        axis.set_xticklabels(axis.get_xticklabels(), fontsize=ticks_fontsize)
        axis.set_yticklabels(axis.get_yticklabels(), fontsize=ticks_fontsize)
     #----------------------------------------------------------
-    def _InitFigure(self, figure_name):
+    def _InitFigure(self, figure_name=None, **kwargs):
         if figure_name is None:
-            figure = pyplot.figure(num="Quantum State - $%s$ "%self.name, figsize=(13, 9))
+            if self.figure_name is None:
+                self.figure_name = "Quantum State - $%s$ "%self.name
         else:
-            figure = pyplot.figure(num="Quantum State - $%s$ "%figure_name, figsize=(13, 9))
+            self.figure_name = "Quantum State - $%s$ "%figure_name
+        figure = pyplot.figure(num=self.figure_name, figsize=(13, 9))
+        figure.clear()
         if len(figure.axes) == 0:
             figure.add_subplot(2, 2, 1,  projection='3d') #Wigner function 3D
             figure.add_subplot(2, 2, 2) #Wigner function 2D

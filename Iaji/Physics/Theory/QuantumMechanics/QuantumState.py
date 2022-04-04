@@ -7,16 +7,14 @@ from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.DensityMatrix import DensityMat
      DensityMatrixNumeric
 from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.CovarianceMatrix import CovarianceMatrixSymbolic, \
      CovarianceMatrixNumeric
-from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.HilbertSpace import HilbertSpace
 from Iaji.Utilities import strutils
 
 import sympy, numpy
-from sympy import assoc_laguerre
+from signalslot import Signal
 # In[GUI imports]
 import matplotlib
 from matplotlib import pyplot
 from matplotlib import font_manager
-from matplotlib import cm
 # In[]
 print_separator = "-----------------------------------------------"
 #%%
@@ -375,6 +373,8 @@ class QuantumStateNumeric:
         self._density_operator = DensityMatrixNumeric(name="\\rho_{%s}"%self.name)
         self._wigner_function = ParameterNumeric(name="W_{%s}"%self.name)
         self._covariance_matrix = CovarianceMatrixNumeric(name="V_{%s}"%self.name)
+        #Define useful signals
+        self.resized = Signal()
     #------------------------------------------------------------
     @property
     def hilbert_space(self):
@@ -440,8 +440,7 @@ class QuantumStateNumeric:
         x._density_operator = self.density_operator.Otimes(other.density_operator)
         x._wigner_function = self.wigner_function * other.wigner_function
         #x._covariance_matrix = self.covariance_matrix.oplus(other.covariance_matrix)
-        return x
-    # ----------------------------------------------------------
+        return x     
     def Fidelity(self, other):
         """
         Fidelity between two quantum states

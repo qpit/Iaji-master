@@ -829,4 +829,77 @@ class SimpleHarmonicOscillatorNumeric:
                 post_measurement_system = _generalized_born_rule(projector)[0]
             values = x_values
         return outcomes, values, p, post_measurement_system
-            
+    #--------------------------------------------------------- 
+    def Expand(self, n):
+        """
+        Returns a replica of the system with Hilbert space dimension increased
+        by the integer n
+
+        Parameters
+        ----------
+        n : int
+            increase in the Hilbert space dimension
+        Returns
+        -------
+        the new system
+        """
+        if n <= 0:
+            return copy(self)
+        #Initialize new system
+        system = SimpleHarmonicOscillatorNumeric(\
+                                                 truncated_dimension=self.hilbert_space.dimension+n,\
+                                                     name=self.name,\
+                                                         hbar=self.hbar.value)
+        #Expand the quantum state
+        system._state = self.state.Expand(n)
+        return system
+    #--------------------------------------------------------- 
+    def Truncate(self, order):
+        """
+        Returns a replica of the quantum state, belonging to a Hilbert space
+        with input dimension. If 'dimension' < self.hilbert_space.dimension, then
+        the truncation operator of order 'dimension' is applied to the density operator.
+        If 'dimension' > self.hilbert_space.dimension, then the density operator
+        is extended via direct sum with a null operator of dimension
+            dimension - self.hilbert_space.dimension
+        All other parameters of the quantum state are simply reset.
+        
+        INPUTS
+        ---------------
+        dimension : int
+            dimension of the new quantum state's Hilbert space
+        """
+        if order >= self.hilbert_space.dimension-1:
+            return copy(self)
+        #Initialize new system
+        system = SimpleHarmonicOscillatorNumeric(\
+                                                 truncated_dimension=order+1,\
+                                                     name=self.name,\
+                                                         hbar=self.hbar.value)
+        #Expand the quantum state
+        system._state = self.state.Truncate(order)
+        return system
+    #--------------------------------------------------------- 
+    def Resize(self, dimension):
+        """
+        Returns a replica of the quantum state, belonging to a Hilbert space
+        with input dimension. If 'dimension' < self.hilbert_space.dimension, then
+        the truncation operator of order 'dimension' is applied to the density operator.
+        If 'dimension' > self.hilbert_space.dimension, then the density operator
+        is extended via direct sum with a null operator of dimension
+            dimension - self.hilbert_space.dimension
+        All other parameters of the quantum state are simply reset.
+        
+        INPUTS
+        ---------------
+        dimension : int
+            dimension of the new quantum state's Hilbert space
+        """
+        #Initialize new system
+        system = SimpleHarmonicOscillatorNumeric(\
+                                                 truncated_dimension=dimension,\
+                                                     name=self.name,\
+                                                         hbar=self.hbar.value)
+        #Expand the quantum state
+        system._state = self.state.Resize(dimension)
+        return system

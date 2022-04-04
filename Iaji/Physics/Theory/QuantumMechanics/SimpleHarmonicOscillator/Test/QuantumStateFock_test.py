@@ -14,7 +14,7 @@ sympy.init_printing()
 from matplotlib import pyplot
 from Iaji.Physics.Theory.QuantumMechanics.SimpleHarmonicOscillator.Utilities import *
 # In[symbolic state]
-state_sym = QuantumStateFock(truncated_dimension=5).symbolic.NumberState(3)
+state_sym = QuantumStateFock(truncated_dimension=5).numeric.NumberState(3)
 print(state_sym)
 #Plot the Wigner function of the quantum state
 p, q = [numpy.linspace(-5, 5, 200) for j in range(2)]

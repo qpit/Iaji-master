@@ -399,6 +399,20 @@ class Matrix:
         x.name = x.symbolic.name
         return x
     # ----------------------------------------------------------
+    @classmethod
+    def DirectSum(cls, matrices):
+        """
+        Calculates the direct sum of a list of matrices
+        INPUTS
+        ---------------
+            matrices: 1D array-like of Iaji Matrix
+        """
+        x = Matrix()
+        x._symbolic = MatrixSymbolic.DirectSum([m.symbolic for m in matrices])
+        x._numeric = MatrixNumeric.DirectSum([m.numeric for m in matrices])
+        x.name = x.symbolic.name
+        return x
+    # ----------------------------------------------------------
 # In[]
 
 class MatrixSymbolic(ParameterSymbolic):
@@ -1121,6 +1135,22 @@ um
             x = x.Otimes(matrix)
         return x
     #-------------------------------------------------------------
+    @classmethod
+    def DirectSum(cls, matrices):
+        """
+        Calculates the direct sum of a list of matrices
+        
+        INPUTS
+        ---------------
+            matrices: 1D array-like of Iaji MatrixNumeric 
+        """
+        assert len(matrices) > 0, \
+            "At least one input matrix is expected"
+        x = copy(matrices[0])
+        for matrix in matrices[1:]:
+            x = x.Oplus(matrix)
+        return x
+    #-------------------------------------------------------------
 # In[]
 class MatrixNumeric(ParameterNumeric):
     """
@@ -1795,5 +1825,21 @@ class MatrixNumeric(ParameterNumeric):
         x = copy(matrices[0])
         for matrix in matrices[1:]:
             x = x.Otimes(matrix)
+        return x
+    #-------------------------------------------------------------
+    @classmethod
+    def DirectSum(cls, matrices):
+        """
+        Calculates the direct sum of a list of matrices
+        
+        INPUTS
+        ---------------
+            matrices: 1D array-like of Iaji MatrixNumeric 
+        """
+        assert len(matrices) > 0, \
+            "At least one input matrix is expected"
+        x = copy(matrices[0])
+        for matrix in matrices[1:]:
+            x = x.Oplus(matrix)
         return x
     #-------------------------------------------------------------
