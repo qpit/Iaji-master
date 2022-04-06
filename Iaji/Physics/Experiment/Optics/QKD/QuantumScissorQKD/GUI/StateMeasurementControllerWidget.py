@@ -148,6 +148,7 @@ class StateAnalysisWidget(QWidget):
     def dimension_slider_changed(self): #TODO
         label = "dimension: %d"%self.dimension_slider.value()
         self.dimension_label.setText(label)
+        self.state_measurement.quantum_state.Resize(self.dimension_slider.value())
     # -------------------------------------------
     def set_style(self, theme):
         self.setStyleSheet(self.style_sheets["main"][theme])
