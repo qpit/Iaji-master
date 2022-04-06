@@ -162,7 +162,8 @@ class PhaseController:
 
     def set_modulation_frequency(self, modulation_frequency):
         self.modulation_frequency = modulation_frequency
-        self.setup_iq()
+        self.iq.acbandwidth = 0.8 * self.modulation_frequency
+        self.iq.frequency = self.modulation_frequency
 
     def set_scanning_frequency(self, scanning_frequency):
         self.scanning_frequency = scanning_frequency

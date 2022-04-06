@@ -419,7 +419,7 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
          #Plot the Q axis
          axis_3D.plot([numpy.min(Q), numpy.max(Q)], [0, 0], zs=numpy.min(W)-0.1*W_max, color='grey', alpha=alpha)
          #Plot the P axis
-         axis_3D.plot([0, 0], [numpy.min(P), numpy.max(P)],zs=numpy.min(W)-0.1*W_max, color='grey', alpha=alpha)
+         axis_3D.plot([0, 0], [numpy.min(P), numpy.max(P)], zs=numpy.min(W)-0.1*W_max, color='grey', alpha=alpha)
          axis_3D.grid(False)
          axis_3D.set_zlim([numpy.min(W)-0.1*W_max, W_max])
          axis_3D.set_xlabel('q (SNU)', fontsize=axis_font.get_size()*0.6, fontfamily=axis_font.get_family())
@@ -435,6 +435,7 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
          axis_2D.set_aspect('equal')
          #2D plot
          _contourf = axis_2D.contourf(Q, P, W, alpha=alpha, cmap=colormap, norm=matplotlib.colors.Normalize(vmin=-W_max, vmax=W_max))
+         colorbar = figure.colorbar(_contourf, ax=axis_2D)
          #Plot the Q axis
          axis_2D.plot([numpy.min(Q), numpy.max(Q)], [0, 0], color='grey', alpha=alpha)
          #Plot the P axis
@@ -442,7 +443,7 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
          axis_2D.grid(False)
          axis_2D.set_xlabel('q (SNU)', font=axis_font)
          axis_2D.set_ylabel('p (SNU)', font=axis_font)
-         colorbar = figure.colorbar(_contourf)
+         
          colorbar.set_label('$\pi$ W(q, p)', fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
          pyplot.pause(.05)
          #axis_2D.set_xticklabels(axis_2D.get_xticks(), fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
@@ -468,19 +469,20 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
         #Define the figure
         figure = self._InitFigure(plot_name)
         axis = figure.axes[2]
+        axis.clear()
         #Define the maximum modulus of the density operator
         rho_max = numpy.max(numpy.abs(rho))
         #Plot
-        _imshow = axis.imshow(numpy.abs(rho), cmap=cmwig1, alpha=alpha, norm=matplotlib.colors.Normalize(vmin=-rho_max, vmax=rho_max))    
+        _imshow = axis.imshow(numpy.abs(rho), cmap=colormap, alpha=alpha, norm=matplotlib.colors.Normalize(vmin=-rho_max, vmax=rho_max))    
         axis.set_xlabel("n", font=axis_font)
         axis.set_ylabel("m", font=axis_font) 
-        colorbar = figure.colorbar(_imshow)
+        colorbar = figure.colorbar(_imshow, ax=axis)
         colorbar.set_label('$\\hat{\\rho}$', fontsize=axis_font.get_size(), fontfamily=axis_font.get_family())
         pyplot.pause(.05)
         axis.set_xticks(n)
         axis.set_yticks(n)
-        axis.set_xticklabels(n, fontsize=ticks_fontsize)
-        axis.set_yticklabels(n, fontsize=ticks_fontsize)
+        #axis.set_xticklabels(n, fontsize=ticks_fontsize)
+        #axis.set_yticklabels(n, fontsize=ticks_fontsize)
         axis.grid(True, color="grey", alpha=0.2)
     #----------------------------------------------------------
     def PlotNumberDistribution(self, parameters=(), alpha=0.7, color="tab:blue", plot_name=None):
@@ -497,14 +499,16 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
        #Define figure
        figure = self._InitFigure(plot_name)
        axis = figure.axes[3]
+       axis.clear()
        axis.set_xlabel("quantum number", font=axis_font)
        axis.set_ylabel("probability", font=axis_font)
        photon_number_dsitribution = [numpy.abs(rho[j, j]) for j in range(rho.shape[0])]
        #Plot
        axis.bar(n, photon_number_dsitribution, color=color, alpha=alpha)
        pyplot.pause(.05)
-       axis.set_xticklabels(axis.get_xticklabels(), fontsize=ticks_fontsize)
-       axis.set_yticklabels(axis.get_yticklabels(), fontsize=ticks_fontsize)
+       axis.set_xticks(n)
+       #axis.set_xticklabels(axis.get_xticklabels(), fontsize=ticks_fontsize)
+       #axis.set_yticklabels(axis.get_yticklabels(), fontsize=ticks_fontsize)
     #----------------------------------------------------------
     def _InitFigure(self, figure_name=None, **kwargs):
         if figure_name is None:
@@ -513,7 +517,6 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
         else:
             self.figure_name = "Quantum State - $%s$ "%figure_name
         figure = pyplot.figure(num=self.figure_name, figsize=(13, 9))
-        figure.clear()
         if len(figure.axes) == 0:
             figure.add_subplot(2, 2, 1,  projection='3d') #Wigner function 3D
             figure.add_subplot(2, 2, 2) #Wigner function 2D

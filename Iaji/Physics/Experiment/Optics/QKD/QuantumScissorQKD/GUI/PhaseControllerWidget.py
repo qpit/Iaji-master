@@ -52,7 +52,7 @@ class PhaseControllerWidget(QWidget):
     Documentation to be completed.
     """
 
-    def __init__(self, phase_controller, name="Phase Controller Widget"):
+    def __init__(self, phase_controller:PhaseController, name="Phase Controller Widget"):
         super().__init__()
         self.phase_controller = phase_controller
         self.name = name

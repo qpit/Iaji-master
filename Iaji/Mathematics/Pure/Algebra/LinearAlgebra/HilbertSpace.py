@@ -25,22 +25,20 @@ class HilbertSpace:
             name : str
         """
         self._dimension = dimension
-        if "int" in str(type(dimension)):
-            if dimension < 0 :
+        if self.isFiniteDimensional():
+            if "int" in str(type(dimension)):
+                if dimension < 0 :
+                    raise ValueError("The value "+dimension.__str__()+" for the dimension of Hilber space "+self.name.__str__()+" is not valid.")
+            else:
                 raise ValueError("The value "+dimension.__str__()+" for the dimension of Hilber space "+self.name.__str__()+" is not valid.")
-        elif not self.isFiniteDimensional():
-            raise NotImplementedError("Infinite-dimensional Hilbert spaces are not yet handeled.")
-        else:
-            raise ValueError("The value "+dimension.__str__()+" for the dimension of Hilber space "+self.name.__str__()+" is not valid.")
+            self._vectors = scalars**dimension
         self.name = name
         self.symbol = sympy.symbols(names=self.name)
         if type(scalars) not in ACCEPTED_TYPES:
             raise TypeError("The type of scalars "+type(scalars)+" for Hilber space "+self.name.__str__()+" is not valid. \n"\
                             +"Accepted types are: "+ACCEPTED_TYPES.__str__())
         self._scalars = scalars
-        self._vectors = scalars**dimension
-        #Define the canonical basis
-        #self._canonical_basis = self.CanonicalBasis()
+        #Define the inner product
         self.SetInnerProduct()
     #---------------------------------------------------------------
     @property
@@ -131,7 +129,7 @@ class HilbertSpace:
                 self._canonical_basis[j].numeric.value = self._canonical_basis[j].symbolic.expression_lambda()
                     
         else:
-            raise NotImplementedError("Infinite-dimensional Hilbert spaces are not yet handeled.")
+           # raise NotImplementedError("Infinite-dimensional Hilbert spaces are not yet handeled.")
             self._canonical_basis = None
             
         return self.canonical_basis
@@ -175,7 +173,7 @@ class HilbertSpace:
     # ---------------------------------------------------------------
     def SetInnerProduct(self):     
         if not self.isFiniteDimensional():
-           raise NotImplementedError("Infinite-dimensional Hilbert spaces are not yet handeled.")
+           #print("WARNING in HilbertSpace.SetInnerProduct(): Infinite-dimensional Hilbert spaces are not yet handeled.")
            self._inner_product = None 
         else:
             def InnerProduct(v1, v2):
@@ -228,3 +226,21 @@ class HilbertSpace:
         for H in H_list[1:]:
             name += "\\otimes\\;%s"%(H.name)
         return HilbertSpace(dimension=dimension, scalars=scalars, name=name)
+
+# In[Fock space]
+class FockSpace(HilbertSpace):
+    """
+    This class describes a special Fock space, i.e., that of dimension equal to
+    the cardinality of the natural numbers, on the field of complex numbers.
+    It can describe the Hilbert space of a quantum harmonic oscillator and a
+    single mode of a quantum field in second quantization theory.
+    """
+    #---------------------------
+    def __init__(self, name="A"):
+        try:
+            super().__init__(dimension=sympy.oo, scalars=sympy.Complexes, name="\\mathcal{F}_{%s}"%name)
+        except ValueError: #HilbertSpace.SetInnerProduct() will complain about the space being infinite-dimensional
+            pass
+        self._vectors = self.symbol
+    #---------------------------
+        
