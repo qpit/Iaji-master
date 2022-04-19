@@ -9,6 +9,7 @@ from .Exceptions import ConnectionError, InvalidParameterError
 print_separator = '\n-------------------------------------------'
 # In[Global variables]
 PROTOCOLS = ["visa", "vxi"]
+WAVEFORM_TYPES = ["SINE", "SQUARE", "RAMP", "PULSE", "NOISE", "ARB", "DC", "PRBS"]
 # In[Signal generator]
 class SigilentSignalGenerator:
     # -------------------------------------------
@@ -44,6 +45,12 @@ class SigilentSignalGenerator:
         for channel_name in list(self.channels.keys()):
             self.channels[channel_name].enable(enabled)
     # -------------------------------------------
+    def link_phase(self, linked=True):
+        state = "ON"*linked + "OFF"*(not linked)
+        command_string = "PCOUP,%s"%state
+        self.instrument.write(command_string)
+        return command_string
+    # -------------------------------------------
 # In[Signal generator channel]
 class SigilentSignalGeneratorChannel:
     # -------------------------------------------
@@ -71,7 +78,7 @@ class SigilentSignalGeneratorChannel:
     def set_waveform(self, waveform):
         command_string = "C"+str(self.number) \
                        + ":BSWV "\
-                       + "WVTP," + waveform 
+                       + "WVTP," + waveform
         self.instrument.write(command_string)
         self.waveform = waveform
         return command_string
@@ -82,6 +89,19 @@ class SigilentSignalGeneratorChannel:
                       + "FRQ," + str(frequency)
         self.instrument.write(command_string)
         self.frequency = frequency
+        return command_string
+    # -------------------------------------------
+    def set_phase(self, phase):
+        """
+        :param phase: float
+            phase [degrees]
+        :return:
+        """
+        command_string = "C"+str(self.number) \
+                       + ":BSWV "\
+                      + "PHSE," + str(phase)
+        self.instrument.write(command_string)
+        self.phase = phase
         return command_string
     # -------------------------------------------
     def set_amplitude(self, amplitude):
@@ -106,10 +126,64 @@ class SigilentSignalGeneratorChannel:
             return            
         command_string = "C"+str(self.number) \
                        + ":BSWV "\
-                       + "OFST," + str(duty_cycle) 
+                       + "DUTY," + str(duty_cycle)
         self.instrument.write(command_string)
         self.duty_cycle = duty_cycle
         return command_string
+    # -------------------------------------------
+    def set_low_level(self, level):
+        if self.waveform != "SQUARE":
+            print("WARNING: did not set low level to signal generator '"+self.name+"' because its waveform is not 'SQUARE'. It is "+self.waveform)
+            return
+        command_string = "C" + str(self.number) \
+                         + ":BSWV " \
+                         + "LLEV," + str(level)
+        self.instrument.write(command_string)
+        self.low_level = level
+        return command_string
+    # -------------------------------------------
+    def set_high_level(self, level):
+        if self.waveform != "SQUARE":
+            print("WARNING: did not set high level to signal generator '"+self.name+"' because its waveform is not 'SQUARE'. It is "+self.waveform)
+            return
+        command_string = "C" + str(self.number) \
+                         + ":BSWV " \
+                         + "HLEV," + str(level)
+        self.instrument.write(command_string)
+        self.high_level = level
+        return command_string
+    # -------------------------------------------
+    def get_parameter(self, parameter_type):
+        parameter_types = ["waveform", "frequency", "phase", "amplitude", "offset", "low level", "high level", "duty cycle"]
+        assert parameter_type in parameter_types,\
+        "invalid parameter type. Accepted arguments are %s"%parameter_types
+        #answer = self.instrument.write("C%s:BSWV?"%self.number)
+        answer = self.instrument.query("C%s:BSWV?" % self.number)
+        if parameter_type == "waveform":
+            value = answer.split("WVTP")[1].split(",")[1]
+        elif parameter_type == "frequency":
+            value = answer.split("FRQ")[1].split(",")[1].split("HZ")[0]
+        elif parameter_type == "phase":
+            value = answer.split("PHSE")[1].split(",")[1]
+        elif  parameter_type == "amplitude":
+            value = answer.split("AMP")[1].split(",")[1].split("V")[0]
+        elif  parameter_type == "offset":
+            value = answer.split("OFST")[1].split(",")[1].split("V")[0]
+        elif parameter_type == "low level":
+            value = answer.split("LLEV")[1].split(",")[1].split("V")[0]
+        elif parameter_type == "high level":
+            value = answer.split("HLEV")[1].split(",")[1].split("V")[0]
+        elif parameter_type == "duty cycle":
+            value = answer.split("DUTY")[1].split(",")[1]
+        else:
+            return
+        if parameter_type != "waveform":
+            if value != "":
+                value = float(value)
+            else:
+                return
+        setattr(self, parameter_type, value)
+        return value
     # -------------------------------------------
     '''
     def turn_off(self):

@@ -80,6 +80,7 @@ class StateMeasurementControllerWidget(QWidget):
         # Set style
         self.style_sheets = StateMeasurementControllerStyle().style_sheets
         self.set_style(theme="dark")
+    # -------------------------------------------
     def set_style(self, theme):
         self.setStyleSheet(self.style_sheets["main"][theme])
         excluded_strings = ["layout", "callback", "clicked", "toggled", "changed", "edited", "checked"]
