@@ -5,6 +5,7 @@ For a list of commands, refer to https://siglentna.com/USA_website_2014/Document
 #%%
 import vxi11, pyvisa
 from .Exceptions import ConnectionError, InvalidParameterError
+import signalslot
 #%%
 print_separator = '\n-------------------------------------------'
 # In[Global variables]
@@ -45,10 +46,20 @@ class SigilentSignalGenerator:
         for channel_name in list(self.channels.keys()):
             self.channels[channel_name].enable(enabled)
     # -------------------------------------------
-    def link_phase(self, linked=True):
-        state = "ON"*linked + "OFF"*(not linked)
+    def lock_phase(self, locked=True):
+        state = "ON"*locked + "OFF"*(not locked)
         command_string = "PCOUP,%s"%state
         self.instrument.write(command_string)
+        channel_names = list(self.channels.keys())
+        if locked:
+            self.channels[channel_names[0]].phase_changed.connect(
+                self.channels[channel_names[1]].set_phase)
+            self.channels[channel_names[1]].phase_changed.connect(
+                self.channels[channel_names[0]].set_phase)
+        else:
+            self.channels[channel_names[0]].phase_changed.disconnect()
+            self.channels[channel_names[1]].phase_changed.disconnect()
+        self.phase_locked = locked
         return command_string
     # -------------------------------------------
 # In[Signal generator channel]
@@ -58,6 +69,7 @@ class SigilentSignalGeneratorChannel:
         self.instrument = instrument
         self.name = name
         self.number = int(channel_number)
+        self.phase_changed = signalslot.Signal()
     # -------------------------------------------
     def set_parameter(self, parameter_name, parameter_value):
         if parameter_name == "waveform":
@@ -91,7 +103,7 @@ class SigilentSignalGeneratorChannel:
         self.frequency = frequency
         return command_string
     # -------------------------------------------
-    def set_phase(self, phase):
+    def set_phase(self, phase, **kwargs):
         """
         :param phase: float
             phase [degrees]
@@ -102,6 +114,7 @@ class SigilentSignalGeneratorChannel:
                       + "PHSE," + str(phase)
         self.instrument.write(command_string)
         self.phase = phase
+        self.phase_changed.emit(phase)
         return command_string
     # -------------------------------------------
     def set_amplitude(self, amplitude):

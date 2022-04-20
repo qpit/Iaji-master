@@ -34,6 +34,7 @@ from PyQt5.QtWidgets import (
 from Iaji.InstrumentsControl.SigilentSignalGenerator import SigilentSignalGenerator, SigilentSignalGeneratorChannel
 from Iaji.InstrumentsControl.GUI.WidgetStyles import SigilentSignalGeneratorWidgetStyle
 from Iaji.Utilities.strutils import any_in_string
+import signalslot
 # In[signal generator widget]
 class SigilentSignalGeneratorWidget(QWidget):
     """
@@ -60,15 +61,21 @@ class SigilentSignalGeneratorWidget(QWidget):
             setattr(self, "channel_%d_widget"%channel.number, SigilentSignalGeneratorChannelWidget(channel=channel))
             self.layout.addWidget(getattr(self, "channel_%d_widget"%channel.number))
         #Phase linking
-        self.phase_link_radiobutton = QRadioButton("Link phases")
-        self.phase_link_radiobutton.toggled.connect(self.phase_link_radiobutton_toggled)
-        self.layout.addWidget(self.phase_link_radiobutton)
+        self.phase_lock_radiobutton = QRadioButton("lock phases")
+        self.phase_lock_radiobutton.toggled.connect(self.phase_lock_radiobutton_toggled)
+        self.layout.addWidget(self.phase_lock_radiobutton)
         #Set style
         self.style_sheets = SigilentSignalGeneratorWidgetStyle().style_sheets
         self.set_style(theme="dark")
     # -------------------------------------------
-    def phase_link_radiobutton_toggled(self, state):
-        self.signal_generator.link_phase(state)
+    def phase_lock_radiobutton_toggled(self, state):
+        self.signal_generator.lock_phase(state)
+        channel_names = list(self.signal_generator.channels.keys())
+        if self.signal_generator.channels[channel_names[0]].waveform in ["SQUARE", "SINE"] \
+            and self.signal_generator.channels[channel_names[1]].waveform in ["SQUARE", "SINE"]:
+            self.channel_1_widget.waveform_widget.phase_changed.connect(self.channel_1_widget.waveform_widget.phase_doublespinbox_changed)
+            self.channel_2_widget.waveform_widget.phase_changed.connect(
+                self.channel_2_widget.waveform_widget.phase_doublespinbox_changed)
     # -------------------------------------------
     def set_style(self, theme):
         self.setStyleSheet(self.style_sheets["main"][theme])
@@ -105,8 +112,12 @@ class SigilentSignalGeneratorChannelWidget(QWidget):
         #Waveform type
         self.waveform_combobox = QComboBox()
         self.layout.addWidget(self.waveform_combobox)
-        self.waveform_combobox.addItems(["dc", "square"])
+        waveforms = (["dc", "square"])
+        self.waveform_combobox.addItems(waveforms)
         self.waveform_combobox.currentIndexChanged.connect(self.waveform_combobox_changed)
+        waveform = self.channel.get_parameter("waveform")
+        index = waveforms.index(waveform.lower())
+        self.waveform_combobox.setCurrentIndex(index)
         #Waveform panel
         self.waveform_layout = QHBoxLayout()
         self.layout.addLayout(self.waveform_layout)
@@ -196,6 +207,7 @@ class SquareWaveformPanel(QWidget):
         self.frequency_doublespinbox.setRange(0, 25e6)
         self.frequency_doublespinbox.setSingleStep(1)
         self.frequency_doublespinbox.valueChanged.connect(self.frequency_doublespinbox_changed)
+        print(".")
         self.frequency_doublespinbox.setValue(self.channel.get_parameter("frequency"))
         # ---------------
         # low_level
@@ -245,6 +257,8 @@ class SquareWaveformPanel(QWidget):
         self.phase_doublespinbox.setSingleStep(0.1)
         self.phase_doublespinbox.valueChanged.connect(self.phase_doublespinbox_changed)
         self.phase_doublespinbox.setValue(self.channel.get_parameter("phase"))
+        #Phase changed signal
+        self.phase_changed = signalslot.Signal()
         # ---------------
         # duty cycle
         # ---------------
@@ -275,8 +289,9 @@ class SquareWaveformPanel(QWidget):
         self.channel.set_high_level(value)
         #self.high_level_label.setText("high level: %s V" % value)
     # -------------------------------------------
-    def phase_doublespinbox_changed(self, value):
+    def phase_doublespinbox_changed(self, value, **kwargs):
         self.channel.set_phase(value)
+        self.phase_changed.emit(value)
         #self.phase_label.setText("phase: %s degrees" % value)
     # -------------------------------------------
     def duty_cycle_doublespinbox_changed(self, value):
