@@ -114,7 +114,7 @@ class SigilentSignalGeneratorChannel:
                       + "PHSE," + str(phase)
         self.instrument.write(command_string)
         self.phase = phase
-        self.phase_changed.emit(phase)
+        self.phase_changed.emit(phase=phase)
         return command_string
     # -------------------------------------------
     def set_amplitude(self, amplitude):
