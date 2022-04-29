@@ -115,12 +115,12 @@ class SigilentSignalGeneratorChannelWidget(QWidget):
         waveforms = (["dc", "square"])
         self.waveform_combobox.addItems(waveforms)
         self.waveform_combobox.currentIndexChanged.connect(self.waveform_combobox_changed)
-        waveform = self.channel.get_parameter("waveform")
-        index = waveforms.index(waveform.lower())
-        self.waveform_combobox.setCurrentIndex(index)
         #Waveform panel
         self.waveform_layout = QHBoxLayout()
         self.layout.addLayout(self.waveform_layout)
+        waveform = self.channel.get_parameter("waveform")
+        index = waveforms.index(waveform.lower())
+        self.waveform_combobox.setCurrentIndex(index)
     # -------------------------------------------
     def set_style(self, theme):
         self.setStyleSheet(self.style_sheets["main"][theme])
