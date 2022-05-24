@@ -10,14 +10,14 @@ This module contains utilities for Gaussian CVQKD
 import numpy
 from quik.qip.nmodes import covariancematrix, vacuum
 #%%
-def secret_key_fraction_lossy_channel_bound(channel_total_efficiency, L):
+def secret_key_fraction_lossy_channel_bound(channel_total_efficiency, n_repeaters):
     """
     Computes Pirandola's bound on the secret key fraction of CVQKD, for a 
     quantum channel partitioned in segments with equal efficiencies.
         channel_total_efficiency : iterable of float (elements in [0, 1])
             the transmission efficiencies of the channel segments.
     """
-    return -numpy.log2(1-(channel_total_efficiency)**(1/L)) 
+    return -numpy.log2(1-(channel_total_efficiency)**(1/(n_repeaters+1))) 
 #%%
 def mutual_information(variances, conditional_variances):
     """

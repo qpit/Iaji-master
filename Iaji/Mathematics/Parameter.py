@@ -289,7 +289,8 @@ class ParameterSymbolic:
         else:
             try:
                 self.expression = self.symbol
-            except:
+            except Exception as e:
+                print(e)
                 self._expression = '0'
                 self._expression_symbols = []
                 self._expression_lambda = sympy.lambdify((), self.expression, modules="numpy")
@@ -455,6 +456,7 @@ class ParameterSymbolic:
                 return other * self
         except:
             other_temp = self.prepare_other(other)
+            print(type(self.expression))
             name = "%s*%s"%(self.name, other_temp.name)
             x = ParameterSymbolic(name=name)
             self_expression = self.expression

@@ -312,6 +312,15 @@ class Matrix:
         x._numeric = self.numeric.TraceDistance(other_temp.numeric)
         return x
     # ----------------------------------------------------------
+    def Hermitian(self):
+        """
+        Returns the Hermitian part of the matrix
+        """
+        x = Matrix(name=self.name)
+        x._numeric = self.numeric.Hermitian()
+        x._symbolic = self.symbolic.Hermitian()
+        return x
+    # ----------------------------------------------------------
     def prepare_other(self, other):
         """
         Checks if the other operand is of the same type as self and, in case not
@@ -617,8 +626,9 @@ um
             self.Eigenvalues()
         if not self.isHermitian():
             raise TypeError("Cannot test definiteness because the symbolic expression of matrix "+self.name+" is not Hermitian.\n"+self.__str__())
-        elif not self.isSymmetric():
-            raise TypeError("Cannot test definiteness because the symbolic expression of matrix "+self.name+" is not symmetric.\n"+self.__str__())
+        if not self.isSquare():
+            raise TypeError(
+                "Cannot test Hermitianity because the value of matrix " + self.name + " is not square.\n" + self.__str__())
         else:
             #Check that all the eigenvalues are nonnegative
             condition = True
@@ -721,8 +731,9 @@ um
         """
         if self.eigenvalues is None:
             self.Eigenvalues()
-        if not self.isSymmetric():
-            raise TypeError("Cannot test Hermitianity because the symbolic expression of matrix "+self.name+" is not symmetric.\n"+self.__str__())
+        if not self.isSquare():
+            raise TypeError(
+                "Cannot test Hermitianity because the value of matrix " + self.name + " is not square.\n" + self.__str__())
         else:
             #Check that all the eigenvalues are real
             condition = True
@@ -1041,6 +1052,14 @@ um
             x0 = ((X.Dagger() @ X).Sqrt()).Trace()
             x.expression = sympy.simplify(sympy.re(x0.expression))
             return x
+    # ----------------------------------------------------------
+    def Hermitian(self):
+        """
+        Returns the Hermitian part of the matrix
+        """
+        x = (self+self.Dagger())/2
+        x.name = self.name
+        return x
     # ----------------------------------------------------------
     def prepare_other(self, other):
         """
@@ -1449,9 +1468,9 @@ class MatrixNumeric(ParameterNumeric):
         if not self.isHermitian(tolerance):
             raise TypeError(
                 "Cannot test definiteness because the value of matrix " + self.name + " is not Hermitian.\n" + self.__str__())
-        elif not self.isSymmetric(tolerance):
+        if not self.isSquare():
             raise TypeError(
-                "Cannot test definiteness because the value of matrix " + self.name + " is not symmetric.\n" + self.__str__())
+                "Cannot test Hermitianity because the value of matrix " + self.name + " is not square.\n" + self.__str__())
         else:
             return numpy.all(numpy.real(self.value) >= 0)
     # ----------------------------------------------------------
@@ -1463,11 +1482,12 @@ class MatrixNumeric(ParameterNumeric):
         """
         if self.eigenvalues is None:
             self.Eigenvalues()
-        if not self.isSymmetric(tolerance=tolerance):
+        if not self.isSquare():
             raise TypeError(
-                "Cannot test Hermitianity because the value of matrix " + self.name + " is not symmetric.\n" + self.__str__())
+                "Cannot test Hermitianity because the value of matrix " + self.name + " is not square.\n" + self.__str__())
         else:
-            min_eigenvalue = numpy.min(numpy.abs(self.eigenvalues))  # modulus of the minimum eigenvalue of the input matrix
+            min_eigenvalue = numpy.min([e for e in numpy.abs(self.eigenvalues) if e!=0])  # modulus of the minimum eigenvalue of the input matrix
+            #min_eigenvalue = numpy.min(numpy.abs(self.eigenvalues))
             tolerance = tolerance * min_eigenvalue
             return numpy.all(numpy.isclose(numpy.imag(self.eigenvalues), 0, atol=tolerance))  # check that all eigenvalues are approximately real
     # ----------------------------------------------------------
@@ -1749,6 +1769,14 @@ class MatrixNumeric(ParameterNumeric):
             x0 = ((X.Conjugate() @ X.T()).Sqrt()).Trace()
             x.value = x0.value.astype(float)
             return x
+    # ----------------------------------------------------------
+    def Hermitian(self):
+        """
+        Returns the Hermitian part of the matrix
+        """
+        x = (self+self.Dagger())/2
+        x.name = self.name
+        return x
     # ----------------------------------------------------------
     def prepare_other(self, other):
         """

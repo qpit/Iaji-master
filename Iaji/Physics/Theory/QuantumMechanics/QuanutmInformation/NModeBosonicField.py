@@ -292,6 +292,7 @@ class NModeBosonicFieldNumeric:
         x.state._density_operator = rho_new
         x.state.name = "Tr_{%s}\\left(%s\\right)"%(traced_mode.name, field._state.name)
         x.state.density_operator.name = "Tr_{%s}\\left(%s\\right)"%(traced_mode.name, field._state.density_operator.name)
+        x.state._density_operator = x.state.density_operator.Hermitian()
         return x
     #----------------------------------------------------------
     def SelectModes(self, modes):
@@ -343,6 +344,7 @@ class NModeBosonicFieldNumeric:
         rho_name = field.state.density_operator.name
         field.state._density_operator = D @ field.state.density_operator @ D.Dagger()
         field.state.density_operator.name = "%s\\left(%s\\right)"%(D.name, rho_name)
+        field.state._density_operator = field.state.density_operator.Hermitian()
         return field
     #----------------------------------------------------------
     def Squeeze(self, mode, zeta):
@@ -401,6 +403,7 @@ class NModeBosonicFieldNumeric:
         rho_name = field.state.density_operator.name
         field.state._density_operator = S @ field.state.density_operator @ S.Dagger()
         field.state.density_operator.name = "%s\\left(%s\\right)"%(S.name, rho_name)
+        field.state._density_operator = field.state.density_operator.Hermitian()
         return field
     #----------------------------------------------------------
     def Rotate(self, mode, theta):
@@ -459,6 +462,7 @@ class NModeBosonicFieldNumeric:
         rho_name = field.state.density_operator.name
         field.state._density_operator = R @ field.state.density_operator @ R.Dagger()
         field.state.density_operator.name = "%s\\left(%s\\right)"%(R.name, rho_name)
+        field.state._density_operator = field.state.density_operator.Hermitian()
         return field        
     #----------------------------------------------------------
     def TwoModeSqueeze(self, modes, zeta):
@@ -511,6 +515,7 @@ class NModeBosonicFieldNumeric:
         field.state._density_operator = S @ field.state.density_operator @ S.Dagger()
         #field.state._density_operator /= field.state._density_operator.Trace()
         field.state.density_operator.name = name
+        field.state._density_operator = field.state.density_operator.Hermitian()
         return field
      #----------------------------------------------------------   
     def BeamSplitter(self, modes, R):
@@ -565,6 +570,7 @@ class NModeBosonicFieldNumeric:
         field.state._density_operator = B @ field.state.density_operator @ B.Dagger()
         #field.state._density_operator /= field.state._density_operator.Trace()
         field.state.density_operator.name = name
+        field.state._density_operator = field.state.density_operator.Hermitian()
         return field      
     #----------------------------------------------------------
     def Loss(self, modes, etas):

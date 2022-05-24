@@ -630,6 +630,7 @@ class SimpleHarmonicOscillatorNumeric:
         x = copy(self)
         D = x._DisplacementOperator(alpha)
         x.state._density_operator = D @ x.state.density_operator @ D.Dagger()
+        x.state._density_operator = x.state.density_operator.Hermitian()
         x.state.density_operator.name = "%s\\left(%s\\right)"%(D.name, self.state.density_operator.name)
         return x
     #----------------------------------------------------------
@@ -640,6 +641,7 @@ class SimpleHarmonicOscillatorNumeric:
         x = copy(self)
         S = x._SqueezingOperator(zeta)
         x.state._density_operator = S @ x.state.density_operator @ S.Dagger()
+        x.state._density_operator = x.state.density_operator.Hermitian()
         x.state.density_operator.name = "%s\\left(%s\\right)"%(S.name, self.state.density_operator.name)
         return x
     #----------------------------------------------------------
@@ -650,6 +652,7 @@ class SimpleHarmonicOscillatorNumeric:
         x = copy(self)
         R = x._RotationOperator(theta)
         x.state._density_operator = R @ x.state.density_operator @ R.Dagger()
+        x.state._density_operator = x.state.density_operator.Hermitian()
         x.state.density_operator.name = "%s\\left(%s\\right)"%(R.name, self.state.density_operator.name)
         return x
     #----------------------------------------------------------
@@ -667,6 +670,7 @@ class SimpleHarmonicOscillatorNumeric:
         x = copy(self)
         U = (H*x.hbar*(-1j)).Exp()
         x.state._density_operator = U @ self.state._density_operator @ U.Dagger()
+        x.state._density_operator = x.state.density_operator.Hermitian()
         x.state.density_operator.name = "%s\\left(%s\\right)"%(U.name, self.state.density_operator.name)
         return x
     #---------------------------------------------------------
@@ -680,6 +684,7 @@ class SimpleHarmonicOscillatorNumeric:
         x = copy(self)
         x.state._density_operator = x.a @ self.state._density_operator @ x.a.Dagger()
         x.state._density_operator /= x.state._density_operator.Trace()
+        x.state._density_operator = x.state.density_operator.Hermitian()
         return x
     #---------------------------------------------------------   
     def Create(self):
@@ -692,6 +697,7 @@ class SimpleHarmonicOscillatorNumeric:
          x = copy(self)
          x.state._density_operator = x.a.Dagger() @ self.state._density_operator @ x.a
          x.state._density_operator /= x.state._density_operator.Trace()
+         x.state._density_operator = x.state.density_operator.Hermitian()
          return x
     #--------------------------------------------------------- 
     def ProjectiveMeasurement(self, measurable, ntimes=1, return_all_systems=False, **kwargs):

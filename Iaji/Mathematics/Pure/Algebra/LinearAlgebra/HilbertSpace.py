@@ -5,9 +5,11 @@ This module describes a HilberSpace
 import sympy, numpy
 from Iaji.Mathematics.Pure.Algebra.LinearAlgebra.Matrix import Matrix
 from Iaji.Mathematics.Parameter import Parameter, ParameterSymbolic, ParameterNumeric
+from Iaji.Utilities import strutils
 #%%
 print_separator = "---------------------------------------------------------"
 ACCEPTED_TYPES = {sympy.sets.fancysets.Reals, sympy.sets.fancysets.Complexes}
+NUMBER_TYPES = [int, numpy.int64, float, numpy.float64, complex, numpy.complex64, numpy.complex128]
 #%%
 class HilbertSpace:
     """
@@ -234,6 +236,7 @@ class FockSpace(HilbertSpace):
     the cardinality of the natural numbers, on the field of complex numbers.
     It can describe the Hilbert space of a quantum harmonic oscillator and a
     single mode of a quantum field in second quantization theory.
+    This class is only made for symbolic manipulations.
     """
     #---------------------------
     def __init__(self, name="A"):
@@ -243,4 +246,229 @@ class FockSpace(HilbertSpace):
             pass
         self._vectors = self.symbol
     #---------------------------
-        
+    def CanonicalBasisVector(self, n):
+        """
+        Sets and returns the n-th canonical basis vector.
+        Vectors are numbered from 0.
+        """
+        vector = ParameterSymbolic(name="\\left|%s\\right\\rangle"%n, type="vector")  
+        return vector
+    # ---------------------------------------------------------------
+# In[Kets]
+class Ket(ParameterSymbolic):
+    """
+    This class defines a ket, i.e., a symbolic ray in a projective Hilbert space 
+    on the field of complex numbers.
+    """
+    #----------------------------------------------------------
+    def __init__(self, name="\\Psi"):
+        super().__init__(name="\\left\\vert%s\\right\\rangle"%name, type="vector")
+        self.name = name
+        self.symbol = self.expression
+    #----------------------------------------------------------
+    @property
+    def expression(self):
+        return self._expression
+    
+    @expression.setter
+    def expression(self, expression):
+        self._expression = expression
+        if expression is not None:
+            try:
+                #Construct the lambda function associated to the symbolic expression
+                self.expression_symbols = sorted(list(expression.free_symbols), key=lambda x: x.name)
+                """
+                If an expression has symbols whose names have proper latex
+                math formatting, sympy.lambdify will complain. So, convert
+                all symbol names from lateX to python variable friendly names.
+                """
+                expression_symbols_non_latex_names = []
+                for s in self.expression_symbols:
+                    name = strutils.de_latexify(s.name) #convert from lateX name to python-friendly name
+                    expression_symbols_non_latex_names.append(\
+                    sympy.symbols(names=name, real=s.is_real, nonnegative=s.is_nonnegative))
+                expression_non_latex = strutils.de_latexify(str(expression))
+                self.expression_lambda = sympy.lambdify(expression_symbols_non_latex_names,\
+                                                        expression_non_latex, modules="numpy")
+            except AttributeError:
+                self.expression_lambda = None
+            self.expression_changed.emit()  # emit expression changed signal
+        else:
+            self.expression_symbols = None
+            self.expression_lambda = None
+    
+    @expression.deleter
+    def expression(self):
+        del self._expression
+    # ----------------------------------------------------------
+    def __add__(self, other):
+        assert "Ket" in str(type(other)), \
+        TypeError("unsupported operand type(s) for +: %s and %s" % (type(self.expression, other.expression)))
+        other = self.prepare_other(other)
+        x = Ket(name="\\left(%s+%s\\right)"%(self.name, other.name))
+        x.expression = self.expression + other.expression
+        x.symbol = x.expression
+        return x
+    # ----------------------------------------------------------
+    def __mul__(self, other):
+        other = self.prepare_other(other)
+        x = Ket(name="\\left(%s%s\\right)"%(self.name, other.name))
+        x.expression = other.expression * self.expression 
+        x.symbol = x.expression
+        return x
+    # ----------------------------------------------------------
+    def __sub__(self, other):
+        assert "Ket" in str(type(other)), \
+        TypeError("unsupported operand type(s) for +: %s and %s" % (type(self.expression, other.expression)))
+        other = self.prepare_other(other)
+        x = Ket(name="\\left(%s-%s\\right)"%(self.name, other.name))
+        x.expression = self.expression - other.expression
+        x.symbol = x.expression
+        return x
+    # ----------------------------------------------------------
+    def __truediv__(self, other):
+        other = self.prepare_other(other)
+        x = Ket(name="\\left(\\frac{1}{%s}%s\\right)"%(other.name, self.name))
+        x.expression = self.expression/other.expression 
+        x.symbol = x.expression
+        return x
+    # ----------------------------------------------------------
+    def Dagger(self):
+        return Bra(self.name)
+    # ----------------------------------------------------------
+    def prepare_other(self, other):
+        """
+        Checks if the other operand is of the same type as self and, in case not
+        returns a compatible type object
+        """
+        if "Iaji" in str(type(other)):
+            return other
+        elif "sympy" in str(type(other)): 
+            #assuming other is a sympy symbol or expression
+            is_real = other.is_real is True
+            is_nonnegative = other.is_real is True and other.is_nonnegative is True
+            other_temp = ParameterSymbolic(name=str(other), \
+                                real=is_real, nonnegative=is_nonnegative)
+            other_temp.expression = other
+        else:
+            #Assuming other is a primitive numerical type
+            if type(other) in NUMBER_TYPES:
+                if "int" in str(type(other)):
+                    other = float(other)
+                is_real = numpy.isclose(numpy.imag(other), 0)
+                is_nonnegative = is_real is True and (other >= 0)
+                other_temp = ParameterSymbolic(name=str(other), \
+                                    real=is_real, nonnegative=is_nonnegative)
+                other_temp.expression = sympy.sympify(other)
+            else:
+                raise TypeError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
+        return other_temp
+# In[Bra]
+class Bra(ParameterSymbolic):
+    """
+    This class defines a bra, i.e., a symbolic linear application from a projective Hilbert space 
+    into the complex numbers.
+    """
+    #----------------------------------------------------------
+    def __init__(self, name="\\Psi"):
+        super().__init__(name="\\left\\langle%s\\right\\vert"%name, type="vector")
+        self.name = name
+        self.symbol = self.expression
+    #----------------------------------------------------------
+    @property
+    def expression(self):
+        return self._expression
+    
+    @expression.setter
+    def expression(self, expression):
+        self._expression = expression
+        if expression is not None:
+            try:
+                #Construct the lambda function associated to <the symbolic expression
+                self.expression_symbols = sorted(list(expression.free_symbols), key=lambda x: x.name)
+                """
+                If an expression has symbols whose names have proper latex
+                math formatting, sympy.lambdify will complain. So, convert
+                all symbol names from lateX to python variable friendly names.
+                """
+                expression_symbols_non_latex_names = []
+                for s in self.expression_symbols:
+                    name = strutils.de_latexify(s.name) #convert from lateX name to python-friendly name
+                    expression_symbols_non_latex_names.append(\
+                    sympy.symbols(names=name, real=s.is_real, nonnegative=s.is_nonnegative))
+                expression_non_latex = strutils.de_latexify(str(expression))
+                self.expression_lambda = sympy.lambdify(expression_symbols_non_latex_names,\
+                                                        expression_non_latex, modules="numpy")
+            except AttributeError:
+                self.expression_lambda = None
+            self.expression_changed.emit()  # emit expression changed signal
+        else:
+            self.expression_symbols = None
+            self.expression_lambda = None
+    
+    @expression.deleter
+    def expression(self):
+        del self._expression
+    # ----------------------------------------------------------
+    def __add__(self, other):
+        assert "Bra" in str(type(other)), \
+        TypeError("unsupported operand type(s) for +: %s and %s" % (type(self.expression, other.expression)))
+        other = self.prepare_other(other)
+        x = Bra(name="\\left(%s+%s\\right)"%(self.name, other.name))
+        x.expression = self.expression + other.expression
+        x.symbol = x.expression
+        return x
+    # ----------------------------------------------------------
+    def __mul__(self, other):
+        other = self.prepare_other(other)
+        x = Bra(name="\\left(%s%s\\right)"%(self.name, other.name))
+        x.expression = other.expression * self.expression 
+        x.symbol = x.expression
+        return x
+    # ----------------------------------------------------------
+    def __sub__(self, other):
+        assert "Bra" in str(type(other)), \
+        TypeError("unsupported operand type(s) for +: %s and %s" % (type(self.expression, other.expression)))
+        other = self.prepare_other(other)
+        x = Bra(name="\\left(%s-%s\\right)"%(self.name, other.name))
+        x.expression = self.expression - other.expression
+        x.symbol = x.expression
+        return x
+    # ----------------------------------------------------------
+    def __truediv__(self, other):
+        other = self.prepare_other(other)
+        x = Bra(name="\\left(\\frac{1}{%s}%s\\right)"%(other.name, self.name))
+        x.expression = self.expression/other.expression 
+        x.symbol = x.expression
+        return x
+    # ----------------------------------------------------------
+    def Dagger(self):
+        return Ket(self.name)
+    # ----------------------------------------------------------
+    def prepare_other(self, other):
+        """
+        Checks if the other operand is of the same type as self and, in case not
+        returns a compatible type object
+        """
+        if "Iaji" in str(type(other)):
+            return other
+        elif "sympy" in str(type(other)): 
+            #assuming other is a sympy symbol or expression
+            is_real = other.is_real is True
+            is_nonnegative = other.is_real is True and other.is_nonnegative is True
+            other_temp = ParameterSymbolic(name=str(other), \
+                                real=is_real, nonnegative=is_nonnegative)
+            other_temp.expression = other
+        else:
+            #Assuming other is a primitive numerical type
+            if type(other) in NUMBER_TYPES:
+                if "int" in str(type(other)):
+                    other = float(other)
+                is_real = numpy.isclose(numpy.imag(other), 0)
+                is_nonnegative = is_real is True and (other >= 0)
+                other_temp = ParameterSymbolic(name=str(other), \
+                                    real=is_real, nonnegative=is_nonnegative)
+                other_temp.expression = sympy.sympify(other)
+            else:
+                raise TypeError("Incompatible operand types (%s. %s)"%(type(self), type(other)))
+        return other_temp
