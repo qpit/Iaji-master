@@ -594,6 +594,8 @@ class NModeBosonicFieldNumeric:
             #Transform names in indices
             mode_indices = [numpy.where(numpy.array(self.mode_names) == modes[j])[0][0] \
                             for j in range(modes.size)]
+        else:
+            mode_indices = modes
         modes = [field.modes_list[j] for j in mode_indices]
         vacuum_field = NModeBosonicFieldNumeric.Vacuum(N=len(modes), \
                                                        truncated_dimensions=[m.hilbert_space.dimension for m in modes], \
