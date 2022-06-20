@@ -7,9 +7,8 @@ import sys
 
 #Test application
 sg = SG(address="USB0::0xF4ED::0xEE3A::NDG2XCA4160177::INSTR", name="Coherent State AOMs", channel_names=["MOD", "GATE"])
+
 app = QApplication(sys.argv)
 widget = SigilentSignalGeneratorWidget(signal_generator=sg)
 widget.show()
 app.exec()
-
-

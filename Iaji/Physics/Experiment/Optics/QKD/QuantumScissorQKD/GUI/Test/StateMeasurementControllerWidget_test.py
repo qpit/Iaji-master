@@ -12,7 +12,7 @@ import sys
 #Test application
 phase_controller = PhaseController(redpitaya_config_filename="O:\\LIST-QPIT\\Catlab\\Quantum-Scissors-QKD\\Software\\RedPitaya\\Pyrpl\\Config-files\\HD_Tx_lock",\
                                 enable_modulation_output=True, pid_autotune=False)
-acquisition_system = AcquisitionSystem(Scope(IP_address="10.54.11.187"))
+acquisition_system = AcquisitionSystem(Scope(IP_address="10.54.10.222"))
 hd = HomodyneDetectionController(phase_controller, acquisition_system)
 state_measurement = StateMeasurementController(hd)
 app = QApplication(sys.argv)
