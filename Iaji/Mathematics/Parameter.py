@@ -512,6 +512,19 @@ class ParameterSymbolic:
             raise TypeError("unsupported operant type for **: %s"%(type(x)))
         return x
     # ----------------------------------------------------------
+    def Sqrt(self):
+        """
+        Power
+        """
+        name = "\\sqrt{%s}"%self.name
+        x = ParameterSymbolic(name=name, type=self.type)
+        x.expression = self.expression
+        if self.type == "scalar":
+            x.expression = sympy.simplify(sympy.sqrt(x.expression))
+        else:
+            raise TypeError("unsupported operant type for **: %s"%(type(x)))
+        return x
+    # ----------------------------------------------------------
     def Conjugate(self):
         """
         Complex conjugate

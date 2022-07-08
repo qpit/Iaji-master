@@ -521,7 +521,7 @@ class NModeBosonicFieldNumeric:
     def BeamSplitter(self, modes, R):
         """
         Applies a two-port beam splitter to the selected modes, with power
-        reflectivity R. In the output mode
+        reflectivity R. 
         
         INPUTS
         ---------------
@@ -581,8 +581,8 @@ class NModeBosonicFieldNumeric:
         ----------------
             mode : type in {str, int}
                 name or index of the selected modes
-            zeta : type in {Iaji ParameterNumeric, complex}
-                two-mode squeezing parameter
+            etas : type in {Iaji ParameterNumeric, float}
+                transmission efficiencies
         """
         field = copy(self)
         modes = numpy.atleast_1d(modes)
