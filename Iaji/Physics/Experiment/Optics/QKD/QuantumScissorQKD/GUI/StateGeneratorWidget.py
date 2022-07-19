@@ -79,7 +79,7 @@ class StateGeneratorWidget(QWidget):
         self.tabs.addTab(self.calibration_widget, "Calibration")
         #Calibration button
         self.devices = ["aoms", "phase_eom", "amplitude_eom"]
-        self.state_generator.voltage_ranges = [(-5, 5), (-1, 1), (-1, 1)]
+        self.state_generator.voltage_ranges = [(0, 100e-3), (-1, 1), (-1, 1)]
         for col in range(len(self.devices)):
             device = self.devices[col]
             voltage_range = self.state_generator.voltage_ranges[col]
@@ -122,13 +122,15 @@ class StateGeneratorWidget(QWidget):
     # -------------------------------------------
     def aoms_button_clicked(self):
         '''
-
         :return:
         '''
         #Dummy test behavior
         axis = self.aoms_plot.figure.axes[0]
-        axis.lines[0].set_ydata(numpy.arange(20))
-        axis.lines[0].set_xdata(numpy.arange(20))
+        #Calibrate the aoms
+        min_voltage = float(self.aoms_min_voltage_linedit.text())
+        max_voltage = float(self.aoms_max_voltage_linedit.text())
+        x, y = self.state_generator.calibrate_aoms(voltage_range=[min_voltage, max_voltage])
+        axis.plot(x, y, linestyle="None", marker="o", markersize=10)
         self.aoms_plot.update()
     # -------------------------------------------
     def phase_eom_button_clicked(self):

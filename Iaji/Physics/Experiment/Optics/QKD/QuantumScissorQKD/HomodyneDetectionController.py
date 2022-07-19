@@ -9,6 +9,7 @@ import pyrpl
 from pyqtgraph.Qt import QtGui
 from .Exceptions import ConnectionError, ResonanceNotFoundError
 from .PhaseController import PhaseController
+from .AcquisitionSystem import AcquisitionSystem
 import numpy
 import time
 #%%
@@ -16,7 +17,7 @@ print_separator = "---------------------------------------------"
 #%%
 class HomodyneDetectionController:
     #-----------------------------------
-    def __init__(self, phase_controller: PhaseController, acquisition_system, DC_channel=1, AC_channel=2, name="Homodyne Detection Controller"):
+    def __init__(self, phase_controller: PhaseController, acquisition_system: AcquisitionSystem, DC_channel=1, AC_channel=2, name="Homodyne Detection Controller"):
         """
         :param phase_controller: Iaji QuantumScissorQKD PhaseController
             object that controls the phase of the interferometer

@@ -14,7 +14,7 @@ class AcquisitionSystem:
         self.scope = scope
         self.host_save_directory = "."
         channel_names = channel_names = list(self.scope.channels.keys())
-        self.filenames = self.filenames = dict(zip(channel_names, ["%s_trace"%channel_name for channel_name in channel_names]))
+        self.filenames = dict(zip(channel_names, ["%s_trace"%channel_name for channel_name in channel_names]))
     # --------------------------------    
     def set_host_save_directory(self, save_directory):
         self.host_save_directory = save_directory

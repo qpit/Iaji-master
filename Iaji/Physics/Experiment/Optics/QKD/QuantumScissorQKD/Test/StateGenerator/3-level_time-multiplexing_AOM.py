@@ -30,8 +30,10 @@ state_measurement = StateMeasurementController(None)
 #Signal generator
 #signal_generator = SigilentSignalGenerator(address="USB0::0xF4ED::0xEE3A::NDG2XCA4160177::INSTR", protocol="visa")
 #State generator
-rp_config = "O:\\LIST-QPIT\\Catlab\\Quantum-Scissors-QKD\\Software\\RedPitaya\\Pyrpl\\Config-files\\channel_losses"
-state_generator = StateGenerator(redpitaya_config_filename=rp_config, \
+mod_rp_config = "O:\\LIST-QPIT\\Catlab\\Quantum-Scissors-QKD\\Software\\RedPitaya\\Pyrpl\\Config-files\\input_state_modulation"
+calibr_rp_config = "O:\\LIST-QPIT\\Catlab\\Quantum-Scissors-QKD\\Software\\RedPitaya\\Pyrpl\\Config-files\\channel_losses"
+state_generator = StateGenerator(calibration_redpitaya_config_filename=calibr_rp_config, \
+                                 modulation_redpitaya_config_filename=mod_rp_config, \
                                  signal_enabler=None, state_measurement=state_measurement)
 #%%
 #Define the function that generates the 3-level step signal
@@ -54,13 +56,16 @@ def n_level_step_function(frequency, levels, duty_cycles, n_points, Ts):
     function = numpy.concatenate((function, function_period[:n_leftover]))
     return function
 
-asg0 = state_generator.pyrpl_obj.rp.asg0
-asg1 = state_generator.pyrpl_obj.rp.asg1
-scope = state_generator.pyrpl_obj.rp.scope
+asg0 = state_generator.pyrpl_obj_calibr.rp.asg0
+asg1 = state_generator.pyrpl_obj_calibr.rp.asg1
+
+asg0.output_direct = "out1"
+asg1.output_direct = "out2"
+
+scope = state_generator.pyrpl_obj_calibr.rp.scope
 scope.decimation = 128
 Ts = scope.decimation/125e6
 
-amplification_gain = 2.5
 amplification_gain = 2.5
 rp_offset = 1
 levels_3 = numpy.array([5, 0.5, 0]) / amplification_gain - rp_offset
@@ -74,8 +79,8 @@ asg0.data = n_level_step_function(frequency, levels_3, [0.6, 0.2, 0.2], n_points
 #visualize and acquire the waveforms on the scope
 scope.input1 = "asg0"
 scope.input2 = "asg1"
-max_delay = 2e-4
-delay = 4e-4
+max_delay = 1e-4
+delay = 2e-4
 while delay > max_delay:
     print("delay: %.2f ms > %.2f ms" % (delay*1e3, max_delay*1e3))
     asg1.setup(trigger_source="immediately")

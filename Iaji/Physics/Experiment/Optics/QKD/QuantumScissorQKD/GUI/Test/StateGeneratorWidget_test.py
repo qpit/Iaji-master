@@ -22,7 +22,8 @@ state_measurement = StateMeasurementController(hd)
 #Signal generator
 signal_generator = SigilentSignalGenerator(address="USB0::0xF4ED::0xEE3A::NDG2XCA4160177::INSTR", protocol="visa")
 #State generator
-state_generator = StateGenerator(redpitaya_config_filename="O:\\LIST-QPIT\\Catlab\\Quantum-Scissors-QKD\\Software\\RedPitaya\\Pyrpl\\Config-files\\input_state_modulation", \
+state_generator = StateGenerator(modulation_redpitaya_config_filename="O:\\LIST-QPIT\\Catlab\\Quantum-Scissors-QKD\\Software\\RedPitaya\\Pyrpl\\Config-files\\input_state_modulation", \
+                                calibration_redpitaya_config_filename="O:\\LIST-QPIT\\Catlab\\Quantum-Scissors-QKD\\Software\\RedPitaya\\Pyrpl\\Config-files\\channel_losses", \
                                  signal_enabler=signal_generator, state_measurement=state_measurement)
 #State generator widget
 app = QApplication(sys.argv)
