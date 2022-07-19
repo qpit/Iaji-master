@@ -112,7 +112,7 @@ class QuadratureTomographer:
         for j in range(self.n_phases):
             if apply_mode_function:
                 #Store after applying the mode function
-                self.quadratures[self.phases[j]] = self.mode_function.apply(x=quadratures[:, j].copy(), dt=self.dt)/(numpy.var(self.vacuum)*2)**0.5
+                self.quadratures[self.phases[j]] = self.temporal_mode_function.apply(x=quadratures[:, j].copy(), dt=self.dt)/(numpy.var(self.vacuum)*2)**0.5
             else: 
                 self.quadratures[self.phases[j]] = quadratures[:, j].copy()/(numpy.var(self.vacuum)*2)**0.5
         self.n_samples_filtered = len(self.quadratures[phases[0]]) #number of samples per filtered quadrature measurement

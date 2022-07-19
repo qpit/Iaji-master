@@ -108,15 +108,13 @@ class TemporalModeFunction():
         #it is assumed that the exponential damping factor 'gamma' is the first specified parameter
         #Calculate the characteristic duration of the temporal mode function
         initial_period = 1e-4
-        duration = None
+        duration = 0
         period_increase = 1
-        while duration is None:
+        while duration == 0:
             t = numpy.linspace(-initial_period/2*period_increase/2, initial_period/2*period_increase/2, int(1e6))
             coefficients = self.function(*parameters, t)
             t_duration = t[numpy.where(numpy.abs(coefficients) >= numpy.max(numpy.abs(coefficients))*CHARACTERISTIC_DURATION_FACTOR)]
             duration = numpy.abs(t_duration[-1] - t_duration[0])
-            if duration == 0:
-                duration = None
             period_increase *= 2
         self.characteristic_time = duration
         self.delay = t[numpy.argmax(numpy.abs(coefficients))]

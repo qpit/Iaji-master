@@ -35,7 +35,7 @@ ticks_fontsize = axis_font.get_size()*0.8
 # In[]
 p, q = [numpy.linspace(-5, 5, 200) for j in range(2)]
 # In[basic mode]
-mode = OneModeBosonicField(truncated_dimension=5).numeric.NumberState(1)
+mode = OneModeBosonicField(truncated_dimension=10).numeric.NumberState(1).Displace(.5*(1+1j))
 #Plot the Wigner function of the quantum state
 mode.state.PlotWignerFunction(q, p, plot_name="basic - Wigner function")
 #Plot the density operator
@@ -50,7 +50,7 @@ mode_displaced.state.PlotDensityOperator(plot_name="displaced - density operator
 # In[squeezed]
 zeta_0 = numpy.log(10**(2/10))/2
 mode_squeezed = mode\
-                  .Vacuum().Squeeze(zeta_0)
+                  .Squeeze(zeta_0)
 #Plot the Wigner function of the quantum state
 mode_squeezed.state.PlotWignerFunction(q, p, plot_name="squeezed - Wigner function")
 #Plot the density operator
@@ -84,7 +84,7 @@ axis_pdf.bar(PDF_values, PDF, color="tab:blue", alpha=0.5)
 # In[projective measurement of a generalized quadrature]
 figure_measure_quadrature = pyplot.figure(figsize=(11, 8))
 
-samples = mode_squeezed.ProjectiveMeasurement(measurable="x", ntimes=int(1e6), theta=numpy.pi/2)[0]
+samples = mode.ProjectiveMeasurement(measurable="x", ntimes=int(1e6), theta=numpy.pi/2)[0]
 
 figure_measure_quadrature.subplots_adjust(wspace=0.5)
 axis_samples = figure_measure_quadrature.add_subplot(1, 2, 1)

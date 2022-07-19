@@ -26,7 +26,7 @@ POVM_TYPES = ["on/off detection"]
 class NModeBosonicField: #TODO
     """
     This class describes a N-mode bosonic quantum field. 
-    It consists of a simple harmonic oscillator.
+    It consists of a collection of simple harmonic oscillators.
     It may be equipped with additional properties or functions, such as
     a composition operation, used to compose bosonic quantum fields.
     """
@@ -771,7 +771,7 @@ class NModeBosonicFieldNumeric:
                 use the latter to perform the POVM
             ntimes : int
                 number of times the measurement is performed
-            return_all_states : bool
+            return_all_fields : bool
                 If True, all the post-measurement modes are returned in an array.
                 Otherwise, only the post-measurement field associated to the last
                 measurement outcomes is returned.
@@ -826,7 +826,7 @@ class NModeBosonicFieldNumeric:
             return outcomes, values, p, post_measurement_field
         else:
             assert "povm_type" in list(kwargs.keys()), \
-                "Measurement operators are not specified. You need to specify a standard povm type in %s" \
+                "Measurement operators are not specified. You need to specify a standard POVM type in %s" \
                     %POVM_TYPES
             povm_type = kwargs["povm_type"]
             assert povm_type in POVM_TYPES, \
