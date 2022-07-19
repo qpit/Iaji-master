@@ -16,6 +16,7 @@ from Iaji.InstrumentsControl.SigilentSignalGenerator import SigilentSignalGenera
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.StateGenerator import StateGenerator
 import sys
 import time, threading, numpy
+from scipy import signal
 #%%
 #----------------------------------------------------------------------------------------------------------
 
@@ -62,13 +63,39 @@ Ts = scope.decimation/125e6
 amplification_gain = 2.5
 amplification_gain = 2.5
 rp_offset = 1
-levels_3 = numpy.array([0.25, 0.15, 0]) / amplification_gain - rp_offset
+levels_3 = numpy.array([5, 0.5, 0]) / amplification_gain - rp_offset
 levels_2 = numpy.array([0, 5]) / amplification_gain - rp_offset
 n_points = 2**14
 frequency = int(1/(n_points*Ts))
 asg0.data = n_level_step_function(frequency, levels_3, [0.6, 0.2, 0.2], n_points, Ts)
 #time.sleep(0.1)
-asg1.setup(trigger_source="immediately")
-asg1.data = n_level_step_function(frequency, levels_2, [0.5, 0.5], n_points, Ts)
+#Optimize the generation of the two waveforms by requiring that their (random) time delay between be lower
+#than a certain target value
+#visualize and acquire the waveforms on the scope
+scope.input1 = "asg0"
+scope.input2 = "asg1"
+max_delay = 2e-4
+delay = 4e-4
+while delay > max_delay:
+    print("delay: %.2f ms > %.2f ms" % (delay*1e3, max_delay*1e3))
+    asg1.setup(trigger_source="immediately")
+    asg1.data = n_level_step_function(frequency, levels_2, [0.6, 0.4], n_points, Ts)
+    #acquire
+    traces = scope.curve()
+    scope.continuous()
+    trace_3 = traces[0]
+    trace_2 = traces[1]
+    #Compute the gradients
+    gradient_3 = numpy.gradient(trace_3)
+    gradient_2 = numpy.gradient(trace_2)
+    #Find the first positive peak the 3-level step function
+    peak_3 = signal.find_peaks(-gradient_3)[0][0]
+    #Find the first negative peak the 2-level step function
+    peak_2 =  signal.find_peaks(gradient_2)[0][0]
+    delay = abs(Ts*(peak_3-peak_2))
+
+scope.input1 = "out1"
+scope.input2 = "out2"
+
 
 
