@@ -43,13 +43,14 @@ from Iaji.InstrumentsControl.GUI.LecroyOscilloscopeWidget import LecroyOscillosc
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.WidgetStyles import \
     AcquisitionSystemWidgetStyle
 from Iaji.Utilities.strutils import any_in_string
+from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.AcquisitionSystem import AcquisitionSystem
 # In[acquisition system widget]
 class AcquisitionSystemWidget(QWidget):
     '''
     This class describes a widget for the AcquisitionSystem module.
     '''
     # --------------------------------
-    def __init__(self, acquisition_system, name="Acquisition System Widget"):
+    def __init__(self, acquisition_system: AcquisitionSystem, name="Acquisition System Widget"):
         super().__init__()
         self.acquisition_system = acquisition_system
         self.name = name

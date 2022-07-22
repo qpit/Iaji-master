@@ -223,7 +223,7 @@ class LecroyOscilloscope:
             self.store_trace(channel_name=channel_name)
         #Transfer the selected traces to the host save directory
         if save_directory is None:
-            save_directory = self.save_directory
+            save_directory = self.host_drive + "\\" + self.get_save_directory()
         #If the destination save directory does not exist, create it
         if not os.path.isdir(save_directory):
             try:
@@ -332,7 +332,8 @@ class LecroyOscilloscope:
 
         :return:
         """
-        return  "\\".join(self.instrument.ask("DIRECTORY? DISK,HDD").split('\r\n')[1].split("Directory of ")[1].split("\\")[1:])
+        answer = self.instrument.ask("DIRECTORY? DISK,HDD")
+        return  "\\".join(answer.split('\r\n')[1].split("Directory of ")[1].split("\\")[1:])
 
 
     def get_local_drive_name(self):
@@ -483,7 +484,7 @@ class LecroyOscilloscpeChannel:
     def is_enabled(self):
         reply = self.instrument.ask("C"+str(self.number) + ":TRACE?")
         #reply = self.instrument.ask("C"+str(self.number) + ":TRACE?").split("TRA")[1].replace(" ", "")
-        if reply == "ON":
+        if "ON" in reply.split(":")[-1]:
             return True
         else:
             return False

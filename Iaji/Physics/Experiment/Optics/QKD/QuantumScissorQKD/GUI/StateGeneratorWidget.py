@@ -65,21 +65,86 @@ class StateGeneratorWidget(QWidget):
         self.state_measurement_widget = StateMeasurementControllerWidget(state_generator.state_measurement, \
                                                                          name=state_generator.state_measurement.name)
         self.tabs.addTab(self.state_measurement_widget, self.state_measurement_widget.name)
-        self.make_calibration_widget()
+        self.calibration_tab_layout = QVBoxLayout()
+        self.make_calibration_tab_widget()
+        self.tabs.addTab(self.calibration_tab_widget, "Calibration")
         # Set style
         self.style_sheets = StateGeneratorWidgetStyle().style_sheets
         self.set_style(theme="dark")
+
+    # -------------------------------------------
+    def make_calibration_tab_widget(self):
+        #Compound tab widget
+        self.calibration_tab_widget = QWidget()
+        #Layout
+        self.calibration_tab_layout = QVBoxLayout()
+        self.calibration_tab_widget.setLayout(self.calibration_tab_layout)
+        #Make tomography and calibration widgets
+        self.make_tomography_widget()
+        self.make_calibration_widget()
+        #Add sub-widgets
+        self.calibration_tab_layout.addWidget(self.tomography_widget)
+        self.calibration_tab_layout.addWidget(self.calibration_widget)
+    # -------------------------------------------
+    def make_tomography_widget(self):
+        #Define the widget
+        self.tomography_widget = QWidget()
+        # Layout for homodyne tomography
+        self.tomography_layout = QVBoxLayout()
+        self.tomography_widget.setLayout(self.tomography_layout)
+        # Tomography button
+        self.tomography_button = QPushButton("calibration tomography")
+        self.tomography_button.clicked.connect(self.tomography_button_clicked)
+        self.tomography_layout.addWidget(self.tomography_button)
+        # Hilbert space dimension
+        self.tomography_dimension_layout = QHBoxLayout()
+        self.tomography_layout.addLayout(self.tomography_dimension_layout)
+        ## Dimension slider
+        self.tomography_dimension_slider = QSlider(Qt.Horizontal)
+        self.tomography_dimension_slider.setRange(1, 50)
+        self.tomography_dimension_slider.setSingleStep(1)
+        if self.state_generator.state_measurement.quantum_state is not None:
+            self.tomography_dimension_slider.setValue(self.state_generator.state_measurement.quantum_state.hilbert_space.dimension)
+        self.tomography_dimension_slider.valueChanged.connect(self.tomography_dimension_slider_changed)
+        self.tomography_dimension_layout.addWidget(self.tomography_dimension_slider)
+        ##Dimension label
+        self.tomography_dimension_label = QLabel()
+        label = "dimension: %d" % self.tomography_dimension_slider.value()
+        self.tomography_dimension_label.setText(label)
+        self.tomography_dimension_layout.addWidget(self.tomography_dimension_label)
+        # Fixed AOM and EOM voltages
+        self.tomography_voltages_layout = QHBoxLayout()
+        self.tomography_layout.addLayout(self.tomography_voltages_layout)
+        self.devices = ["aoms", "phase_eom", "amplitude_eom"]
+        default_voltages = dict(zip(self.devices, [0.1, 0, 5]))
+        for device in self.devices:
+            # Label
+            setattr(self, "tomography_%s_label" % device, QLabel())
+            label = getattr(self, "tomography_%s_label" % device)
+            label.setText("%s voltage [V]" % device)
+            self.tomography_voltages_layout.addWidget(label)
+            # Linedit
+            setattr(self, "tomography_%s_linedit" % device, QLineEdit(str(default_voltages[device])))
+            linedit = getattr(self, "tomography_%s_linedit" % device)
+            self.tomography_voltages_layout.addWidget(linedit)
+        # Plot
+        figure = None
+        self.tomography_plot_widget = PyplotWidget(figure)
+        self.tomography_plot_widget.update()
+        self.tomography_layout.addWidget(self.tomography_plot_widget)
+
+
     # -------------------------------------------
     def make_calibration_widget(self):
         #Make widget and layout
         self.calibration_widget = QWidget()
+        #Layout with different calibrations
         self.calibration_layout = QGridLayout()
         self.calibration_widget.setLayout(self.calibration_layout)
         #Add tab
-        self.tabs.addTab(self.calibration_widget, "Calibration")
         #Calibration button
         self.devices = ["aoms", "phase_eom", "amplitude_eom"]
-        self.state_generator.voltage_ranges = [(0, 100e-3), (-1, 1), (-1, 1)]
+        self.state_generator.voltage_ranges = [(1e-2, 100e-3), (-1, 1), (-1, 1)]
         for col in range(len(self.devices)):
             device = self.devices[col]
             voltage_range = self.state_generator.voltage_ranges[col]
@@ -88,29 +153,36 @@ class StateGeneratorWidget(QWidget):
             title_label = getattr(self, "%s_label"%device)
             title_label.setText(device.replace("_", " "))
             self.calibration_layout.addWidget(title_label, 1, col+1)
+            # Voltage ranges
+            setattr(self, "%s_voltage_range_layout" % device, QHBoxLayout()) #horizontal layout
+            setattr(self, "%s_voltage_range_label"%device, QLabel()) #title
+            getattr(self, "%s_voltage_range_label"%device).setText("voltage range [V]") #title text
+            setattr(self, "%s_min_voltage_linedit" % device, QLineEdit(str(voltage_range[0]))) #minimum voltage
+            setattr(self, "%s_max_voltage_linedit" % device, QLineEdit(str(voltage_range[1]))) #maximum voltage
+            ## Add the widgets to layout
+            getattr(self, "%s_voltage_range_layout" % device).addWidget(
+                getattr(self, "%s_voltage_range_label" % device))
+            getattr(self, "%s_voltage_range_layout" % device).addWidget(
+                getattr(self, "%s_min_voltage_linedit" % device))
+            getattr(self, "%s_voltage_range_layout" % device).addWidget(
+                getattr(self, "%s_max_voltage_linedit" % device))
+            self.calibration_layout.addLayout(getattr(self, "%s_voltage_range_layout" % device), 2, col + 1)
             #Calibration button
             setattr(self, "%s_button"%device, QPushButton("Calibrate"))
             button = getattr(self, "%s_button"%device)
             button.clicked.connect(getattr(self, "%s_button_clicked"%device))
-            self.calibration_layout.addWidget(button, 2, col + 1)
-            #Voltage ranges
-            setattr(self, "%s_voltage_range_layout"%device, QHBoxLayout())
-            setattr(self, "%s_min_voltage_linedit"%device, QLineEdit(str(voltage_range[0])))
-            setattr(self, "%s_max_voltage_linedit" % device, QLineEdit(str(voltage_range[1])))
-            getattr(self, "%s_voltage_range_layout"%device).addWidget(getattr(self, "%s_min_voltage_linedit"%device))
-            getattr(self, "%s_voltage_range_layout" % device).addWidget(getattr(self, "%s_max_voltage_linedit" % device))
-            self.calibration_layout.addLayout(getattr(self, "%s_voltage_range_layout"%device), 3, col + 1)
+            self.calibration_layout.addWidget(button, 3, col + 1)
             #Plot widget
             #setattr(self, "%s_plot"%device, pyqtgraph.PlotWidget())
             figure = pyplot.figure()
             axis = figure.add_subplot(111)
-            metric = "$|\\alpha|$" * (device != "phase_aom") + "$Arg(\\alpha)$" * (device == "phase_eom")
+            metric = "$|\\alpha|$" * (device != "phase_eom") + "$Arg(\\alpha)$" * (device == "phase_eom")
             axis.set_xlabel("input voltage (V)", fontdict={"size":12, "family":"Times New Roman"})
             axis.set_ylabel(metric, fontdict={"size": 12, "family": "Times New Roman"})
             axis.grid(True)
             axis.plot(0, 0, color="green")
             plot_name = "%s_plot"%device
-            setattr(self, plot_name, PyplotWidget(figure=figure, name=plot_name))
+            setattr(self, plot_name, PyplotWidget(figure=figure, name=plot_name, shape=(50, 50)))
             self.calibration_layout.addWidget(getattr(self, plot_name), 4, col+1)
     # -------------------------------------------
     def make_generation_widget(self):
@@ -130,7 +202,7 @@ class StateGeneratorWidget(QWidget):
         min_voltage = float(self.aoms_min_voltage_linedit.text())
         max_voltage = float(self.aoms_max_voltage_linedit.text())
         x, y = self.state_generator.calibrate_aoms(voltage_range=[min_voltage, max_voltage])
-        axis.plot(x, y, linestyle="None", marker="o", markersize=10)
+        axis.plot(x, numpy.abs(y), linestyle="None", marker="o", markersize=10)
         self.aoms_plot.update()
     # -------------------------------------------
     def phase_eom_button_clicked(self):
@@ -148,7 +220,7 @@ class StateGeneratorWidget(QWidget):
     def set_style(self, theme):
         self.setStyleSheet(self.style_sheets["main"][theme])
         excluded_strings = ["layout", "callback", "clicked", "toggled", "changed", "edited", "checked"]
-        for widget_type in ["label", "button", "tabs"]:
+        for widget_type in ["label", "button", "tabs", "slider", "linedit"]:
             widgets = [getattr(self, name) for name in list(self.__dict__.keys()) if
                        widget_type in name and not any_in_string(excluded_strings, name)]
             for widget in widgets:
@@ -156,3 +228,21 @@ class StateGeneratorWidget(QWidget):
         #Set style of custom widgets
         self.state_measurement_widget.style_sheets = self.style_sheets
         self.state_measurement_widget.set_style(theme="dark")
+    # -------------------------------------------
+    def tomography_button_clicked(self):
+        '''
+        - Make tomography measurement with calibration settings
+        - Reconstruct and plot quantum state
+
+        :return:
+        '''
+        self.state_generator.tomography_mesaurement_for_calibration(\
+                                                                    aom_voltage = float(self.tomography_aoms_linedit.text()), \
+                                                                    amplitude_eom_voltage = float(self.tomography_amplitude_eom_linedit.text()), \
+                                                                    phase_eom_voltage = float(self.tomography_phase_eom_linedit.text()))
+    # -------------------------------------------
+    def tomography_dimension_slider_changed(self, value):
+        label = "dimension: %d" % value
+        self.tomography_dimension_label.setText(label)
+        self.state_generator.state_measurement.quantum_state = self.state_generator.state_measurement.quantum_state.Resize(value)
+        print(self.state_generator.state_measurement.quantum_state.hilbert_space.dimension)

@@ -10,6 +10,10 @@ from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.StateMeasurementContro
 from pyqtgraph.Qt import QtGui
 from matplotlib import pyplot
 from qopt import lecroy
+from scipy import signal
+from Iaji.SignalProcessing.Signals1D.correlator import correlator
+from Iaji.Physics.Theory.QuantumMechanics.SimpleHarmonicOscillator.QuantumStateTomography import QuadratureTomographer as Tomographer
+from Iaji.Physics.Theory.QuantumMechanics.SimpleHarmonicOscillator.SimpleHarmonicOscillator import SimpleHarmonicOscillatorNumeric
 
 class StateGenerator:
     """
@@ -83,15 +87,14 @@ class StateGenerator:
 
         scope = self.pyrpl_obj_calibr.rp.scope
         n_points = 2 ** 14
-        d = int(numpy.ceil(125e6/(frequency*n_points)))
-        scope.decimation = 2**d
+        scope.decimation = int(numpy.ceil(125e6/(frequency*n_points)))
         Ts = scope.decimation / 125e6
 
         amplification_gain = 2.5
         rp_offset = 1
         levels_3 = numpy.array(aom_levels) / amplification_gain - rp_offset
         levels_2 = numpy.array(eom_levels) / amplification_gain - rp_offset
-        asg0.data = n_level_step_function(frequency, levels_3, aom_duty_cycles, n_points, Ts)
+        asg0.data = self._n_level_step_function(frequency, levels_3, aom_duty_cycles, n_points, Ts)
         # time.sleep(0.1)
         # Optimize the generation of the two waveforms by requiring that their (random) time delay between be lower
         # than a certain target value
@@ -102,7 +105,7 @@ class StateGenerator:
         while delay > max_delay:
             print("delay: %.2f ms > %.2f ms" % (delay * 1e3, max_delay * 1e3))
             asg1.setup(trigger_source="immediately")
-            asg1.data = n_level_step_function(frequency, levels_2, eom_duty_cycles, n_points, Ts)
+            asg1.data = self._n_level_step_function(frequency, levels_2, eom_duty_cycles, n_points, Ts)
             # acquire
             traces = scope.curve()
             scope.continuous()
@@ -119,6 +122,7 @@ class StateGenerator:
 
         scope.input1 = "out1"
         scope.input2 = "out2"
+        print("delay: %.2f ms < %.2f ms" % (delay * 1e3, max_delay * 1e3))
     # -----------------------------------------
     def measure_quadrature_calibration(self, phase, acquisition_channels):
         '''
@@ -138,7 +142,7 @@ class StateGenerator:
         phase_controller.lock()
         #Set the file names
         channel_names = list(acquisition_channels.keys())
-        phase_str = str(numpy.round(phase/1e3, 3)).split(".")[1]
+        phase_str = "00"*(phase < 10) + "0"*(phase<100 and phase >= 10) + str(phase)
         for channel_name in channel_names:
             acq.filenames[channel_name] = channel_name + "_" + phase_str + "deg"
         #Acquire
@@ -166,7 +170,7 @@ class StateGenerator:
         for name in channel_names:
             acq.scope.channels[name].enable(True)
     # ----------------------------------------
-    def calibrate_aoms(self, voltage_range=[0, 0.1], acquisition_channels={"hd": 1, "time-multiplexing": 2}): #TODO
+    def calibrate_aoms(self, voltage_range=[1e-2, 0.1], acquisition_channels={"hd": 1, "time-multiplexing": 2}): #TODO
         '''
         Calibrates the state generation AOMs with respect to the induced amplitude variation.
         The aim is to draw a functional dependence of the induced amplitude variation on the voltage output from the
@@ -178,15 +182,16 @@ class StateGenerator:
             range of voltages output from the signal generator that feeds into the AOM driver [V]
         :return:
         '''
-        n_points = 10
+        acq = self.state_measurement.hd_controller.acquisition_system
+        n_points = 6
         aom_high = 5
         aom_low = 0
         aom_medium_array = numpy.linspace(voltage_range[0], voltage_range[1], n_points)
         # EOM transmits when there is no voltage and blocks when there is voltage
-        eom_high = 0
+        eom_high = 2.5
         eom_low = 5
         # Define properties of time multiplexing signals
-        max_delay = 1e-4
+        max_delay = 2e-4
         frequency = 60
         aom_duty_cycles = [0.6, 0.2, 0.2]
         eom_duty_cycles = [0.6, 0.4]
@@ -194,7 +199,10 @@ class StateGenerator:
         self._setup_acquisition_calibration(channels=acquisition_channels)
         channel_names = list(acquisition_channels.keys())
         #Calibrate phase controller
+        self.pyrpl_obj_calibr.rp.asg0.waveform = "dc"
+        self.pyrpl_obj_calibr.rp.asg0.offset = 1
         self.state_measurement.hd_controller.phase_controller.calibrate()
+        self.pyrpl_obj_calibr.rp.asg0.offset = 0
         #define array of displacements
         self.displacements = []
         for i in range(n_points):
@@ -204,30 +212,36 @@ class StateGenerator:
             self._time_multiplexing_signals(max_delay, aom_levels, eom_levels, frequency, aom_duty_cycles,
                                        eom_duty_cycles)
             #Lock the homodyne detector and measure its output, together with the AOM time multiplexing signal
+            phase = -45
             #q quadrature
-            self.measure_quadrature_calibration(phase=0, acquisition_channels=acquisition_channels)
+            self.measure_quadrature_calibration(phase=phase, acquisition_channels=acquisition_channels)
             traces_q = {channel_names[0]: acq.scope.traces[channel_names[0]], \
                         channel_names[1]: acq.scope.traces[channel_names[1]]}
             #p quadrature
-            self.measure_quadrature_calibration(phase=90, acquisition_channels=acquisition_channels)
+            self.measure_quadrature_calibration(phase=phase+90, acquisition_channels=acquisition_channels)
             traces_p = {channel_names[0]: acq.scope.traces[channel_names[0]], \
                         channel_names[1]: acq.scope.traces[channel_names[1]]}
             #Extract acquisition time information
             Ts = traces_q[channel_names[0]][0]['horiz_interval'] #acquisition sampling period [s]
             #Analyze q quadrature
-            vac, sig = self._extract_quadrature_measurements(hd_output=traces_q[channel_names[0]], \
-                                                             time_multiplexing_signal=traces_q[channel_names[0]], \
-                                                             Ts=Ts, dead_time=7e-4)
+            vac, sig = self._extract_quadrature_measurements(hd_output=traces_q[channel_names[0]][2][0, :], \
+                                                             time_multiplexing_signal=traces_q[channel_names[1]][2][0, :], \
+                                                             Ts=Ts, dead_time=0.5e-3, plot = False)
+            print("Number of signal samples: %d"%len(sig))
             vac_std = numpy.std(vac)
-            q_mean = numpy.mean(sig)/vac_std
+            q_mean = numpy.mean(sig)/vac_std / (1/numpy.sqrt(2))
             #Analyze p quadrature
-            vac, sig = self._extract_quadrature_measurements(hd_output=traces_p[channel_names[0]], \
-                                                             time_multiplexing_signal=traces_p[channel_names[0]], \
-                                                             Ts=Ts, dead_time=7e-4)
+            vac, sig = self._extract_quadrature_measurements(hd_output=traces_p[channel_names[0]][2][0, :], \
+                                                             time_multiplexing_signal=traces_p[channel_names[1]][2][0, :], \
+                                                             Ts=Ts, dead_time=0.5e-3, plot = False)
             vac_std = numpy.std(vac)
-            p_mean = numpy.mean(sig) / vac_std
+            p_mean = numpy.mean(sig) / vac_std / (1/numpy.sqrt(2))
+            #Compute the actual q and p quadratures
+            phase_rad = phase*numpy.pi/180
+            q_actual_mean = q_mean*numpy.cos(phase_rad) - p_mean*numpy.sin(phase_rad)
+            p_actual_mean = q_mean * numpy.sin(phase_rad) - p_mean * numpy.cos(phase_rad)
             #Compute and save displacement
-            self.displacements.append((q_mean+1j*p_mean)/numpy.sqrt(2))
+            self.displacements.append((q_actual_mean+1j*p_actual_mean)/(numpy.sqrt(2)))
         return aom_medium_array, self.displacements
 
     # -------------------------------------------
@@ -279,32 +293,45 @@ class StateGenerator:
         drifts significantly because of the absence of phase locking.
         '''
         # Smoothen the homodyne detector output
-        b = signal.firwin(501, cutoff=100, fs=1 / Ts, pass_zero="lowpass")  # band-pass filter coefficients [a.u.]
+        b = signal.firwin(501, cutoff=30, fs=1 / Ts, pass_zero="lowpass")  # band-pass filter coefficients [a.u.]
         n_samples = len(hd_output)
-        n_plot = numpy.min([n_samples, int(3e6)])
+        n_plot = numpy.min([n_samples, int(5e6)])
         smooth = signal.filtfilt(b, 1, time_multiplexing_signal)
-        gradient = numpy.gradient(smooth)
         time = Ts * numpy.arange(n_samples)
+        #Align the HD output with the time multiplexing signal in time
+        corr = correlator(signal_1=smooth, signal_2=hd_output, sampling_period=Ts)
+        smooth, hd_output, time = corr.recorrelate()
+        gradient = numpy.gradient(smooth)
         if plot:
             pyplot.figure()
-            pyplot.plot(time[:n_plot], hd_output[:n_plot], label='HD output', color="tab:red", linestyle="None",
+            pyplot.plot(time[:n_plot:10], hd_output[:n_plot:10], label='HD output', color="tab:red", linestyle="None",
                         marker=".", linewidth=3)
-            pyplot.plot(time[:n_plot], gradient[:n_plot], label='time multiplexing signal (smoothened and gradient)',
-                        color="tab:green", linestyle="--", linewidth=3)
+            pyplot.plot(time[:n_plot:10], smooth[:n_plot:10], label='time multiplexing signal (smoothened)',
+                        color="tab:green",  linestyle="None",
+                        marker=".", linewidth=3)
+            pyplot.plot(time[:n_plot:10], 1e3*gradient[:n_plot:10], label='time multiplexing signal (smoothened and gradient)',
+                       color="tab:green", linestyle="--", linewidth=3)
             pyplot.legend(loc='upper right')
             pyplot.xlabel("time (s)")
             pyplot.grid()
         # Detect all the egdes in the time-multiplexing signal
-        positive_peak_indices, properties = signal.find_peaks(gradient, height=0.1 * numpy.max(gradient))
+        positive_peak_indices, properties = signal.find_peaks(gradient, height=0.01 * numpy.max(gradient))
         positive_peak_heights = properties["peak_heights"]
+        good_indices = numpy.where(positive_peak_heights > .8*numpy.max(positive_peak_heights))
+        positive_peak_indices = positive_peak_indices[good_indices]
+        positive_peak_heights = positive_peak_heights[good_indices]
 
-        negative_peak_indices, properties = signal.find_peaks(-gradient, height=0.1 * numpy.max(-gradient))
+        negative_peak_indices, properties = signal.find_peaks(-gradient, height=0.01 * numpy.max(-gradient))
         negative_peak_heights = -properties["peak_heights"]
+        good_indices = numpy.where(numpy.logical_or(negative_peak_heights < .8*numpy.min(negative_peak_heights), \
+                                                     negative_peak_heights > .2*numpy.min(negative_peak_heights)))
+        negative_peak_indices = negative_peak_indices[good_indices]
+        negative_peak_heights = negative_peak_heights[good_indices]
 
         if plot:
-            pyplot.plot(positive_peak_indices * Ts, positive_peak_heights, linestyle="None", marker="x",
+            pyplot.plot(positive_peak_indices * Ts, 1e3*positive_peak_heights, linestyle="None", marker="x",
                         color="tab:green", markersize=10)
-            pyplot.plot(negative_peak_indices * Ts, negative_peak_heights, linestyle="None", marker="x",
+            pyplot.plot(negative_peak_indices * Ts, 1e3*negative_peak_heights, linestyle="None", marker="x",
                         color="tab:green", markersize=10)
         '''
         Periods of the 3-level time-multiplexing signal start with one positive peak
@@ -314,23 +341,29 @@ class StateGenerator:
         '''
         vac, sig, time_vac, time_sig = ([], [], [], [])
         dead_samples = int(dead_time / Ts)
+        end_dead_samples = dead_samples
         for j in range(len(positive_peak_indices[1:-1])):
+            #print("j = %d"%j)
             start, end = (positive_peak_indices[j], positive_peak_indices[j + 1])
-            peak1, peak2 = negative_peak_indices[numpy.where(numpy.logical_and( \
+            neg_peak_indices =  negative_peak_indices[numpy.where(numpy.logical_and( \
                 negative_peak_indices > start, \
                 negative_peak_indices < end))]
-            vac_temp = hd_output[peak2 + dead_samples:end - dead_samples]
+            #Debug printing
+           # print("(start time, end time) = (%f, %f)"%(start*Ts, end*Ts))
+           # print("negative peak times: %s"%(numpy.array(neg_peak_indices)*Ts))
+            peak1, peak2 = (neg_peak_indices[0], neg_peak_indices[1])
+            vac_temp = hd_output[peak2 + dead_samples:end - end_dead_samples]
             if plot:
-                time_vac_temp = time[peak2 + dead_samples:end - dead_samples]
+                time_vac_temp = time[peak2 + dead_samples:end - end_dead_samples]
                 time_vac = numpy.concatenate((time_vac, time_vac_temp))
 
             if measurement_time == -1:
-                measurement_stop = peak2 - dead_samples
+                measurement_stop = peak2
             else:
                 measurement_stop = int(measurement_time / Ts)
-            sig_temp = hd_output[peak1 + dead_samples:measurement_stop]
+            sig_temp = hd_output[peak1 + dead_samples:measurement_stop - end_dead_samples]
             if plot:
-                time_sig_temp = time[peak1 + dead_samples:measurement_stop]
+                time_sig_temp = time[peak1 + dead_samples:measurement_stop - end_dead_samples]
                 time_sig = numpy.concatenate((time_sig, time_sig_temp))
             # Correct for the offset
             vac_mean = numpy.mean(vac_temp)
@@ -340,9 +373,152 @@ class StateGenerator:
             vac = numpy.concatenate((vac, vac_temp))
             sig = numpy.concatenate((sig, sig_temp))
         if plot:
-            pyplot.plot(time_vac[:n_plot], vac[:n_plot], color="tab:blue", label="vacuum quadrature samples",
+            pyplot.plot(time_vac[:n_plot:10], vac[:n_plot:10], color="tab:blue", label="vacuum quadrature samples",
                         linestyle="None", marker=".", linewidth=3)
-            pyplot.plot(time_sig[:n_plot], sig[:n_plot], color="tab:purple", label="signal quadrature samples",
+            pyplot.plot(time_sig[:n_plot:10], sig[:n_plot:10], color="tab:purple", label="signal quadrature samples",
                         linestyle="None", marker=".", linewidth=3)
             pyplot.legend(loc="upper right")
         return vac, sig
+
+    # -------------------------------------------
+    def tomography_mesaurement_for_calibration(self, aom_voltage, amplitude_eom_voltage, phase_eom_voltage, phases=15+numpy.array([0, 30, 60, 90, 120, 150]), \
+                                               acquisition_channels={"hd": 1, "time-multiplexing": 2}):
+        '''
+        Performs a homodyne tomography measurement with the time-multiplexing sch
+
+        :param phases:
+        :return:
+        '''
+        phases = numpy.array(phases)
+        acq = self.state_measurement.hd_controller.acquisition_system
+        aom_high = 5
+        aom_low = 0
+        aom_medium = aom_voltage
+        # EOM transmits when there is no voltage and blocks when there is voltage
+        amplitude_eom_high = 2.5
+        amplitude_eom_low = amplitude_eom_voltage
+        # Define properties of time multiplexing signals
+        max_delay = 2e-4
+        frequency = 60
+        aom_duty_cycles = [0.6, 0.2, 0.2]
+        eom_duty_cycles = [0.6, 0.4]
+        #Set up acquisition system
+        self._setup_acquisition_calibration(channels=acquisition_channels)
+        channel_names = list(acquisition_channels.keys())
+        #Calibrate phase controller
+        self.pyrpl_obj_calibr.rp.asg0.waveform = "dc"
+        self.pyrpl_obj_calibr.rp.asg0.offset = 1
+        self.state_measurement.hd_controller.phase_controller.calibrate()
+        self.pyrpl_obj_calibr.rp.asg0.offset = 0
+        #Generate time-multiplexing signals for AOM and amplitude EOM
+        aom_levels = [aom_high, aom_medium, aom_low]
+        eom_levels = [amplitude_eom_high, amplitude_eom_low]
+        self._time_multiplexing_signals(max_delay, aom_levels, eom_levels, frequency, aom_duty_cycles,
+                                        eom_duty_cycles)
+        #Define data dictionaries
+        vac, sig = [dict(zip(phases, [None for j in range(len(phases))])) for s in range(2)]
+        traces = dict(zip(phases, [dict(zip(channel_names, [None for j in range(len(channel_names))])) for s in range(len(phases))]))
+        for phase in phases:
+            self.measure_quadrature_calibration(phase=phase, acquisition_channels=acquisition_channels)
+            traces[phase][channel_names[0]] = acq.scope.traces[channel_names[0]]
+            traces[phase][channel_names[1]] = acq.scope.traces[channel_names[1]]
+        # Extract acquisition time information
+        Ts = traces[phases[0]][channel_names[0]][0]['horiz_interval']  # acquisition sampling period [s]
+        # Analyze quadratures
+        for phase in phases:
+            vac[phase], sig[phase] = self._extract_quadrature_measurements(hd_output=traces[phase][channel_names[0]][2][0, :], \
+                                                             time_multiplexing_signal=traces[phase][channel_names[1]][2][0,:], \
+                                                             Ts=Ts, dead_time=0.5e-3, plot=False)
+
+        #%%
+        # Plot the raw power spectral densities
+        figure_PSD_raw = pyplot.figure()
+
+        figure_PSD_raw.subplots_adjust(wspace=0.4, hspace=0.7)
+        axis = figure_PSD_raw.add_subplot(111)
+        axis.set_xlabel("frequency (MHz)")
+        axis.set_ylabel("power spectral density (dBm/Hz)")
+        axis.grid(True)
+        PSDs_raw = {}
+        # Plot electronic and vacuum noise
+        '''
+        frequency, PSD = signal.welch(electronic_noise, fs=1/Ts, nperseg=len(electronic_noise)/100, noverlap=20)
+        axis.plot(frequency*1e-6, 10*numpy.log10(abs(PSD)/1e-3), label='electronic noise', marker=default_marker)
+        PSDs_raw['electronic noise'] = PSD
+        '''
+        frequency, PSD = signal.welch(vac[phases[0]], fs=1 / Ts, nperseg=len(vac[phases[0]]) / 100, noverlap=20)
+        axis.plot(frequency * 1e-6, 10 * numpy.log10(abs(PSD) / 1e-3), label='vacuum quadrature', marker=".")
+        PSDs_raw['vacuum quadrature'] = PSD
+
+        PSDs_raw['frequency'] = frequency
+
+        for phase in phases:
+            trace = sig[phase]
+            frequency, PSD = signal.welch(trace, fs=1 / Ts, nperseg=len(trace) / 100, noverlap=20)
+            axis.plot(frequency * 1e-6, 10 * numpy.log10(abs(PSD) / 1e-3), label="phase = %.1f$^\\circ$" % phase,
+                      marker=".")
+            PSDs_raw[phase] = PSD
+
+        axis.legend(loc='upper right')
+        #%%
+
+        # Do tomography
+        ## Prefilter the data
+        b = signal.firwin(501, cutoff=20e6, fs=1 / Ts, pass_zero="lowpass")
+        for phase in phases:
+            sig[phase] = signal.filtfilt(b, 1, sig[phase])
+            vac[phase] = signal.filtfilt(b, 1, vac[phase])
+        ## Prepare data in the form of an array
+        n_samples_sig = numpy.min([sig[phase].size for phase in phases])  # take quadrature traces of the same length, at the cost of some samples
+        n_samples_vac = numpy.min([vac[phase].size for phase in phases])
+        n_samples = numpy.min([n_samples_vac, n_samples_sig])
+        sig_array = numpy.zeros((n_samples, len(phases)))
+        vac_array = numpy.zeros((n_samples, len(phases)))
+        for j in range(len(phases)):
+            phase = phases[j]
+            sig_array[:, j] = sig[phase][:n_samples]
+            vac_array[:, j] = vac[phase][:n_samples]
+        vac = vac_array.flatten()
+        ## Setup tomographer
+        convergence_rule = 'fidelity of state'  # 'fidelity of iteration operator'#
+        n_max = self.state_measurement.quantum_state.hilbert_space.dimension - 1
+        self.state_measurement.tomographer = Tomographer(n_max=n_max, \
+                                  convergence_rule=convergence_rule)
+        #tomographer.temporal_mode_function = mode_function
+        self.state_measurement.tomographer.setQuadratureData(quadratures=sig_array, vacuum=vac, phases=phases * numpy.pi / 180, dt=Ts,
+                                      apply_mode_function=False)
+        # %%
+        self.state_measurement.tomographer.reconstruct(quadratures_range_increase=0, convergence_parameter=1e-8)
+        # In[Create quantum state]
+        self.state_measurement.quantum_state._density_operator.value = self.state_measurement.tomographer.rho
+        self.state_measurement.quantum_state.density_operator.name = "\\hat{\\rho}"
+        # In[Compute the displacement of the]
+        harmonic_oscillator = SimpleHarmonicOscillatorNumeric(truncated_dimension=n_max + 1)
+        displacement = (harmonic_oscillator.a @ self.state_measurement.quantum_state.density_operator).Trace()
+       # displacement = (harmonic_oscillator.q + 1j*harmonic_oscillator.p)/numpy.sqrt(2)
+        print("displacement: %f"%abs(displacement).value)
+        displacement_angle = (displacement.Angle()).value  # rad
+        print("displacement angle: %f" % displacement_angle)
+        # In[Plot wigner function]
+        self.state_measurement.quantum_state.PlotWignerFunction(self.state_measurement.q, self.state_measurement.p, plot_name="reconstructed state")
+        self.state_measurement.quantum_state.PlotDensityOperator(plot_name="reconstructed state")
+        self.state_measurement.quantum_state.PlotNumberDistribution(plot_name="reconstructed state")
+
+        # Check marginal probability densities
+        from Iaji.Utilities.statistics import PDF_histogram
+        n_bins = 100
+        histograms = {}
+        pyplot.figure()
+        for phase in phases * numpy.pi / 180:
+            histograms[phase] = PDF_histogram(self.state_measurement.tomographer.quadratures[phase],
+                                              [numpy.min(self.state_measurement.tomographer.quadratures[phase]),
+                                               numpy.max(self.state_measurement.tomographer.quadratures[phase])],
+                                              n_bins=n_bins)
+            pyplot.plot(histograms[phase][0], histograms[phase][1],
+                        label="phase = %.1f$^\\circ$" % (phase * 180 / numpy.pi), marker='.')
+        histogram_vac = PDF_histogram(self.state_measurement.tomographer.vacuum,
+                                      [numpy.min(self.state_measurement.tomographer.vacuum),
+                                       numpy.max(self.state_measurement.tomographer.vacuum)], n_bins=n_bins)
+        pyplot.plot(histogram_vac[0], histogram_vac[1], label='vac', marker='.')
+        pyplot.grid()
+        pyplot.legend()

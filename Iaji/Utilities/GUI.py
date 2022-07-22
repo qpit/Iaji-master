@@ -45,12 +45,14 @@ class PyplotWidget(QWidget):
     This class describes a Qt widget that contains a matplotlib.pyplot figure
     """
     #-------------------------------------
-    def __init__(self, figure: Figure = None, name="Plot"):
+    def __init__(self, figure: Figure = None, name="Plot", shape = None):
         """
         :param figure: matplotlib.figure.Figure
             figure
         :param name: str
             name of the plot
+        :param shape: length-2 iterable
+            (width, height) of the figure
         """
         super().__init__()
         self.figure = figure
@@ -67,6 +69,8 @@ class PyplotWidget(QWidget):
         self.navigation_toolbar = NavigationToolbar(self.canvas, self)
         self.layout.addWidget(self.navigation_toolbar)
         #Figure widget
+        if shape is not None:
+            self.resize(*shape)
         self.layout.addWidget(self.canvas)
     # -------------------------------------
     def set_style(self, theme):

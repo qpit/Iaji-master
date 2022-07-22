@@ -211,7 +211,8 @@ class QuadratureTomographer:
             log_likelihood = 0
             for p in range(self.n_phases):
                 for j in range(self.n_bins): #for each bin
-                    self.measurement_probabilities[j, p] = numpy.trace(self.projection_operators[:, :, j, p] @ self.rho)
+                   # print("j = %d; p = %f" % (j, p))
+                    self.measurement_probabilities[j, p] = numpy.real(numpy.trace(self.projection_operators[:, :, j, p] @ self.rho))
             self.measurement_probabilities /= self.n_phases
             self.R = numpy.tensordot(self.n_observations/self.measurement_probabilities, self.projection_operators, axes=([0, 1], [2, 3]))              
             self.R /= numpy.trace(self.R)
@@ -257,9 +258,9 @@ class QuadratureTomographer:
                                    "trace distance(iteration operator, identity)": None, \
                                     "likelihood": None}
         has_converged = False
-        convergence_metrics["fidelity of state"] = float(qfutils.quantumStateFidelity(self.rho, self.rho_last))
+        convergence_metrics["fidelity of state"] = numpy.real(qfutils.quantumStateFidelity(self.rho, self.rho_last))
         convergence_metrics["fidelity of iteration operator"] = numpy.abs(qfutils.quantumStateFidelity(self.R, 1/(self.n_max+1)*numpy.eye(self.n_max+1, dtype=complex)))
-        convergence_metrics["trace distance(iteration operator, identity)"] = float(qfutils.traceDistance(self.R, 1/(self.n_max+1)*numpy.eye(self.n_max+1, dtype=complex)))
+        convergence_metrics["trace distance(iteration operator, identity)"] = numpy.real(qfutils.traceDistance(self.R, 1/(self.n_max+1)*numpy.eye(self.n_max+1, dtype=complex)))
         convergence_metrics["likelihood"] = numpy.exp(self.log_likelihood[-1])
         if convergence_rule == 'fidelity of state':
             has_converged = convergence_metrics["fidelity of state"] > 1-convergence_parameter

@@ -215,14 +215,14 @@ class correlator:
             self.computeCorrelationCoefficient(delete_correlation_function)  
         #Compute the delay in samples
         delay_samples = abs(int(numpy.ceil(self.delay/self.Xs)))
-        sign = numpy.sign(self.correlation_coefficient)
+        #sign = numpy.sign(self.correlation_coefficient)
         self.n_samples_recorrelated = self.n_samples-delay_samples #number of correlated samples
         #Select the portions of the signals that are overlapped, according to the delay         
         if self.delay > 0 :       
             self.signal_1_recorrelated = self.signal_1[delay_samples:]
-            self.signal_2_recorrelated = sign*self.signal_2[0:self.n_samples_recorrelated]
+            self.signal_2_recorrelated = self.signal_2[0:self.n_samples_recorrelated]
         else:
-            self.signal_2_recorrelated = sign*self.signal_2[delay_samples:]
+            self.signal_2_recorrelated = self.signal_2[delay_samples:]
             self.signal_1_recorrelated = self.signal_1[0:self.n_samples_recorrelated]
             
        

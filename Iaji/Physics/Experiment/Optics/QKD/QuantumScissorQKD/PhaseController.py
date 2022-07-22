@@ -122,8 +122,8 @@ class PhaseController:
         self.pid_control.input = self.error_signal
         self.pid_control.output_direct = 'off'
         self.pid_control.inputfilter = [2e3, 2e3, 0, 0]
-        self.pid_control.p = 1
-        self.pid_control.i = 0
+        self.pid_control.p = 0.05
+        self.pid_control.i = 20
         self.pid_control.ival = 0
 
     def enable_pid_control(self):
