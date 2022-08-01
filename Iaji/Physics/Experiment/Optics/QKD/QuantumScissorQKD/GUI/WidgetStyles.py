@@ -120,7 +120,7 @@ class WidgetStyle:
                                                  border-color:#EEEEEE;
                                                  font-family: Times New Roman;
                                                  font-size: 13pt;
-                                                 max-width : 80px;
+                                                 max-width : 130px;
                                                  }
                                                  """
         self.style_sheets["doublespinbox"]["dark"] = """

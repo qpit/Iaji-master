@@ -80,7 +80,7 @@ class QuadratureTomographer:
         self.convergence_rule = convergence_rule
         return
     
-    def setQuadratureData(self, quadratures, vacuum, phases, dt, apply_mode_function=False):
+    def setQuadratureData(self, quadratures, vacuum, phases, dt, hbar=1, apply_mode_function=False):
         """
         This function sets the quadrature data and associated quadrature angles.
         
@@ -103,6 +103,7 @@ class QuadratureTomographer:
         self.n_samples = len(quadratures[:, 0]) #number of samples per raw quadratures
         self.phases = phases
         self.n_phases = len(phases)
+        self.vacuum_var = (hbar/2) #quadrature variance of the vacuum state according to the specified normalization
         if apply_mode_function:
             self.vacuum = self.temporal_mode_function.apply(x=vacuum.copy(), dt=self.dt)
         else:
@@ -112,12 +113,12 @@ class QuadratureTomographer:
         for j in range(self.n_phases):
             if apply_mode_function:
                 #Store after applying the mode function
-                self.quadratures[self.phases[j]] = self.temporal_mode_function.apply(x=quadratures[:, j].copy(), dt=self.dt)/(numpy.var(self.vacuum)*2)**0.5
+                self.quadratures[self.phases[j]] = self.temporal_mode_function.apply(x=quadratures[:, j].copy(), dt=self.dt)/(numpy.var(self.vacuum)/self.vacuum_var)**0.5
             else: 
-                self.quadratures[self.phases[j]] = quadratures[:, j].copy()/(numpy.var(self.vacuum)*2)**0.5
+                self.quadratures[self.phases[j]] = quadratures[:, j].copy()/(numpy.var(self.vacuum)/self.vacuum_var)**0.5
         self.n_samples_filtered = len(self.quadratures[phases[0]]) #number of samples per filtered quadrature measurement
         self.dt_filtered = self.dt*float(int(self.n_samples/len(self.quadratures[self.phases[0]]))) #time separation between adjacent filtered quadrature samples [s]
-        self.vacuum /= (numpy.var(self.vacuum)*2)**0.5 
+        self.vacuum /= (numpy.var(self.vacuum)/self.vacuum_var)**0.5
         
     def reconstruct(self, n_bins=None, n_max=None, quadratures_range_increase=2, convergence_rule=None, convergence_parameter=None, method='maximum likelihood'):
         """

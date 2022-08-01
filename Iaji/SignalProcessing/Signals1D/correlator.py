@@ -169,7 +169,7 @@ class correlator:
         return self.coherence_width 
     
     
-    def computeDelay(self, delete_correlation_function=False):
+    def computeDelay(self, absolute_correlation=True, delete_correlation_function=False):
         """
         This function computes the delay between the two signals, by extremizing the correlation function 
         
@@ -182,18 +182,16 @@ class correlator:
         if self.correlation_function is None: 
             self.computeCorrelationFunction()
             could_delete = True
-        self.delay =self.Xs*(numpy.argmax(numpy.abs(self.correlation_function))-self.n_samples+1)
+        if absolute_correlation:
+            self.delay =self.Xs*(numpy.argmax(numpy.abs(self.correlation_function))-self.n_samples+1)
+        else:
+            self.delay = self.Xs * (numpy.argmax(self.correlation_function) - self.n_samples + 1)
         #If the user wanXs to delete the correlation function, and if it was newly computed, then delete it
         if delete_correlation_function and could_delete:
-            self.correlation_function, self.lags = [None for j in range(2)] 
-            
-    def getDelay(self):
-        """
-        This function returns the delay between the input signals. 
-        
-        OUTPUTS:           
-            - delay: delay between the input signals [same units as 'x'] - float (>=0)
-        """
+            self.correlation_function, self.lags = [None for j in range(2)]
+
+    def getDelay(self, absolute_correlation=True, delete_correlation_function=False):
+        self.computeDelay(absolute_correlation, delete_correlation_function)
         return self.delay
     
     def recorrelate(self, delete_correlation_function=False):

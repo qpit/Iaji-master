@@ -515,7 +515,7 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
             if self.figure_name is None:
                 self.figure_name = "Quantum State - $%s$ "%self.name
         else:
-            self.figure_name = "Quantum State - $%s$ "%figure_name
+            self.figure_name = figure_name
         figure = pyplot.figure(num=self.figure_name, figsize=(13, 9))
         if len(figure.axes) == 0:
             figure.add_subplot(2, 2, 1,  projection='3d') #Wigner function 3D
