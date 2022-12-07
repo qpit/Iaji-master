@@ -502,9 +502,9 @@ class QuantumStateFockNumeric(QuantumStateNumeric):
        axis.clear()
        axis.set_xlabel("quantum number", font=axis_font)
        axis.set_ylabel("probability", font=axis_font)
-       photon_number_dsitribution = [numpy.abs(rho[j, j]) for j in range(rho.shape[0])]
+       photon_number_distribution = [numpy.abs(rho[j, j]) for j in range(rho.shape[0])]
        #Plot
-       axis.bar(n, photon_number_dsitribution, color=color, alpha=alpha)
+       axis.bar(n, photon_number_distribution, color=color, alpha=alpha)
        pyplot.pause(.05)
        axis.set_xticks(n)
        #axis.set_xticklabels(axis.get_xticklabels(), fontsize=ticks_fontsize)

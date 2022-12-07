@@ -13,6 +13,7 @@ import vxi11
 from .Exceptions import ConnectionError, InvalidParameterError
 import shutil
 import numpy as np
+import time
 from qopt import lecroy as LecroyReader
 from signalslot.signal import Signal
 #%%
@@ -22,6 +23,7 @@ class LecroyOscilloscope:
     def __init__(self, IP_address, channel_names=["C1", "C2", "C3", "C4"], name="Lecroy Oscilloscope", connect=True):
         self.name = name
         self.IP_address = IP_address
+        print(self.IP_address)
         self.host_drive = "L:"
         self.channels = {}
         self.channel_names_changed = Signal()
@@ -32,8 +34,9 @@ class LecroyOscilloscope:
                 self.save_directory = self.get_save_directory()
                 self.channels = dict(zip(channel_names, [LecroyOscilloscpeChannel(instrument=self.instrument, channel_number=j+1, name=channel_names[j]) for j in range(len(channel_names))]))
                 self.traces = dict(zip(channel_names, [None for j in range(len(channel_names))]))
-            except: 
+            except:
                 print('WARNING: it was not possible to connect to the oscilloscope '+self.name)
+                print('Check if oscilloscope remote control setting is configured to VXI11')
                 return
     # ----------------------------------------------
     def connect(self):
@@ -190,7 +193,8 @@ class LecroyOscilloscope:
         channel_number = self.channels[channel_name].number
         command_string = 'STO ' + "C"+str(channel_number) + ', FILE'
         self.instrument.write(command_string)
-        self.instrument.ask('*OPC?')
+        #self.instrument.ask('*OPC?')
+        self.wait()
         return command_string
 
     def acquire(self, channel_names, filenames=None, save_directory=None, \
@@ -206,6 +210,17 @@ class LecroyOscilloscope:
             the file names associated to the saved traces.
         :return:
         """
+        # See what is there in the scope's save directory
+        scope_save_directory = self.host_drive + "\\" + self.save_directory
+        print("Saving files to", scope_save_directory)
+        scope_filenames = os.listdir()  # important! For some reason, looking always into the same scope's directory does not update the file list
+        scope_filenames = os.listdir(scope_save_directory)
+        if len(scope_filenames) == 0:
+            print('Saving folder is empty.')
+            last_file = None
+        else:
+            print('Last saved file:', scope_filenames[-1])
+            last_file = scope_filenames[-1]
         #Enable the input channels in the scope
         adapt_display = "vertical" * (adapt_vertical_axis and not adapt_horizontal_axis) +\
                         "horizontal" * (adapt_horizontal_axis and not adapt_vertical_axis) +\
@@ -221,9 +236,25 @@ class LecroyOscilloscope:
         #Store traces locally in the oscilloscope
         for channel_name in channel_names:
             self.store_trace(channel_name=channel_name)
+        #Need to wait for the scope to save trace to drive
+        # See what is there in the scope's save directory
+        scope_save_directory = self.host_drive + "\\" + self.save_directory
+        scope_filenames = os.listdir()  # important! For some reason, looking always into the same scope's directory does not update the file list
+        scope_filenames = os.listdir(scope_save_directory)
+        saved_file = scope_filenames[-1]
+        start_time = time.time()
+        time.sleep(2)
+        while saved_file == last_file:
+            time.sleep(1)
+            scope_filenames = os.listdir()  # important! For some reason, looking always into the same scope's directory does not update the file list
+            scope_filenames = os.listdir(scope_save_directory)
+            saved_file = scope_filenames[-1]
+        print('Time to acquire = %.2f sec'%(time.time()-start_time))
+        print('Saved file:', saved_file)
         #Transfer the selected traces to the host save directory
         if save_directory is None:
-            save_directory = self.host_drive + "\\" + self.get_save_directory()
+            save_directory = "C:" + "\\" + self.get_save_directory()
+        print("PC saving directory is", save_directory)
         #If the destination save directory does not exist, create it
         if not os.path.isdir(save_directory):
             try:
@@ -234,9 +265,9 @@ class LecroyOscilloscope:
         scope_save_directory = self.host_drive+"\\"+self.save_directory
         scope_filenames = os.listdir() #important! For some reason, looking always into the same scope's directory does not update the file list
         scope_filenames = os.listdir(scope_save_directory)
-        scope_filenames_latest = []
         #Select the most recent files for the selected traces
         #These will be the files to be sent
+        scope_filenames_latest = []
         for j in range(len(channel_names)):
             channel_name = channel_names[j]
             channel_number = self.channels[channel_name].number

@@ -31,7 +31,11 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.StateGenerator import StateGenerator
-from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.StateMeasurementControllerWidget import StateMeasurementControllerWidget
+from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.StateChecking import StateChecking
+from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.ABStateMeasurementControllerWidget import AliceStateMeasurementControllerWidget
+from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.ABStateMeasurementControllerWidget import BobStateMeasurementControllerWidget
+from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.HomodyneDetectionControllerWidget import HomodyneDetectionControllerWidget as HDWidget
+from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.PhaseControllerWidget import PhaseControllerWidget
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.WidgetStyles import StateGeneratorWidgetStyle
 from Iaji.Utilities.GUI import PyplotWidget
 from Iaji.Utilities.strutils import any_in_string
@@ -39,16 +43,17 @@ from matplotlib import pyplot
 import numpy
 import datetime
 import time
+import os
 # In[]
 fonts = {"title": {"fontsize": 26, "family": "Times New Roman"}, \
                  "axis": {"fontsize": 22, "family": "Times New Roman"}, \
                  "legend": {"size": 24, "family": "Times New Roman"}}
 # In[]
-class StateGeneratorWidget(QWidget):
+class StateCheckingWidget(QWidget):
     """
     """
     #-------------------------------------------
-    def __init__(self, state_generator: StateGenerator, name = "State Generator Widget"):
+    def __init__(self, state_generator: StateGenerator, state_checking: StateChecking, relay_lock,name = "State Checking Widget"):
         '''
         :param state_generator: Iaji StateGenerator
         :param name: str
@@ -56,7 +61,17 @@ class StateGeneratorWidget(QWidget):
         super().__init__()
         self.setWindowTitle(name)
         self.state_generator = state_generator
+        if state_checking == None:
+            self.Bob_HD = False
+        else:
+            self.Bob_HD = True
+        self.state_checking = state_checking
+        if self.Bob_HD:
+            self.Bob_state_measurement = self.state_checking.state_measurement
+        else:
+            self.Bob_state_measurement = None
         self.name = name
+        self.relay_lock = relay_lock
         #Main Layout
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
@@ -68,8 +83,7 @@ class StateGeneratorWidget(QWidget):
         self.tabs = QTabWidget()
         self.layout.addWidget(self.tabs)
         #State Measurement Widget
-        self.state_measurement_widget = StateMeasurementControllerWidget(state_generator.state_measurement, \
-                                                                         name=state_generator.state_measurement.name)
+        self.state_measurement_widget = AliceStateMeasurementControllerWidget(state_generator.state_measurement, self.Bob_state_measurement, state_generator)
         self.tabs.addTab(self.state_measurement_widget, self.state_measurement_widget.name)
         #State calibration tab widget
         self.make_calibration_and_tomography_widget()
@@ -118,6 +132,9 @@ class StateGeneratorWidget(QWidget):
         ##Calibration
         self.make_calibration_widget()
         self.calibration_tabs.addTab(self.calibration_widget, "Calibrations")
+        ##Relay phase controller
+        self.make_phase_calibration_widget()
+        self.calibration_tabs.addTab(self.phase_calibration_widget,"Relay Phase Controller")
         ##Tomography
         self.make_tomography_widget()
         self.calibration_tabs.addTab(self.tomography_widget, "Tomography")
@@ -176,7 +193,7 @@ class StateGeneratorWidget(QWidget):
         self.voltages_layout.addWidget(self.aoms_high_voltage_linedit)
         # Default medium voltages
         self.devices = ["aoms", "amplitude_eom", "phase_eom"]
-        default_voltages = dict(zip(self.devices, [0.2, 5, 0]))
+        default_voltages = dict(zip(self.devices, [0.05, 5, 0]))
         for device in self.devices:
             # Label
             setattr(self, "%s_voltage_label" % device, QLabel())
@@ -221,8 +238,6 @@ class StateGeneratorWidget(QWidget):
         self.tomography_plot_widget = PyplotWidget(figure=figure)
         self.tomography_plot_widget.update()
         self.tomography_layout.addWidget(self.tomography_plot_widget)
-
-
     # -------------------------------------------
     def make_calibration_widget(self):
         #Make widget and layout
@@ -233,7 +248,7 @@ class StateGeneratorWidget(QWidget):
         #Add tab
         #Calibration button
         self.devices = ["aoms", "amplitude_eom", "phase_eom"]
-        self.state_generator.voltage_ranges = [(5e-2, 2e-1), (5, 0), (-2, 2)]
+        self.state_generator.voltage_ranges = [(1e-2, 1e-1), (3, 5), (-2, 2)]
         for col in range(len(self.devices)):
             device = self.devices[col]
             voltage_range = self.state_generator.voltage_ranges[col]
@@ -303,6 +318,16 @@ class StateGeneratorWidget(QWidget):
             button.clicked.connect(getattr(self, "%s_clear_button_clicked" % device))
             self.calibration_layout.addWidget(button, 7, col + 1)
     # -------------------------------------------
+    def make_phase_calibration_widget(self):
+        #Make widget and layout
+        self.phase_calibration_widget = QWidget()
+        self.phase_calibration_layout = QVBoxLayout()
+        self.phase_calibration_widget.setLayout(self.phase_calibration_layout)
+        #Phase controller
+        self.relay_lock_widget = PhaseControllerWidget(self.relay_lock.hd_controller.phase_controller)
+        #self.relay_lock_widget = HDWidget(self.relay_lock.hd_controller)
+        self.phase_calibration_layout.addWidget(self.relay_lock_widget)
+    # -------------------------------------------
     def make_generation_widget(self):
         '''
 
@@ -320,6 +345,8 @@ class StateGeneratorWidget(QWidget):
     # -------------------------------------------
     def amplitude_eom_voltage_linedit_changed(self, text):
         self.state_generator.devices['amplitude_eom']['levels']['state_generation'] = float(text)
+        self.state_generator.devices['amplitude_eom']['instrument'].offset = float(text)/self.state_generator.devices['amplitude_eom']['amplification_gain'] - self.state_generator.devices['amplitude_eom']['instrument_offset']
+        self.state_generator.pyrpl_obj_calibr.rp.asg1.output_direct = 'out2'
     # -------------------------------------------
     def phase_eom_voltage_linedit_changed(self, text):
         self.state_generator.devices['phase_eom']['levels']['state_generation'] = float(text)
@@ -349,20 +376,19 @@ class StateGeneratorWidget(QWidget):
         self.state_generation_plot_widget.figure.axes[0].plot(q, p, linestyle="None", marker="o", markersize=10)
     # -------------------------------------------
     def aoms_clear_button_clicked(self):
-        plt.clf()
-        #axis = self.aoms_plot.figure.axes[0]
-        #axis.lines = []
+        axis = self.aoms_plot.figure.axes[0]
+        axis.lines = []
         self.aoms_plot.update()
     # -------------------------------------------
     def amplitude_eom_clear_button_clicked(self):
         axis = self.amplitude_eom_plot.figure.axes[0]
         axis.lines = []
-        self.aoms_plot.update()
+        self.amplitude_eom_plot.update()
     # -------------------------------------------
     def phase_eom_clear_button_clicked(self):
         axis = self.phase_eom_plot.figure.axes[0]
         axis.lines = []
-        self.aoms_plot.update()
+        self.phase_eom_plot.update()
     # -------------------------------------------
     def aoms_button_clicked(self):
         '''
@@ -459,7 +485,13 @@ class StateGeneratorWidget(QWidget):
         was_on = not self.time_multiplexing_signals_checkbox.isChecked()
         if was_on:
             for name in ['aoms', 'amplitude_eom']:
-                self.state_generator.devices[name]['instrument'].output_direct = "off"
+                print('TEST: Change it in StateGeneratorWidget if it works.')
+                self.devices[name]['instrument'].output_direct = 'off'
+                n_points = 2**14
+                self.devices[name]['instrument'].data = numpy.zeros(n_points)
+                self.state_generator.devices[name]['instrument'].offset = self.state_generator.devices[name]['levels']['lock']
+                self.state_generator.pyrpl_obj_calibr.rp.asg0.output_direct = 'out1'
+                self.state_generator.pyrpl_obj_calibr.rp.asg1.output_direct = 'out2'
         else:
             if self.state_generator.amplitude_eom_low == None:
                 self.state_generator.find_low_eom_transmission()
@@ -468,8 +500,9 @@ class StateGeneratorWidget(QWidget):
             duty_cycles = self.state_generator.time_multiplexing['duty_cycles']
             frequency = self.state_generator.time_multiplexing['frequency']
             max_delay = self.state_generator.time_multiplexing['max_delay']
-            self.state_generator._time_multiplexing_signals(max_delay=max_delay, frequency=frequency, aom_levels=aom_levels, aom_duty_cycles=duty_cycles, \
-                                                            eom_levels=eom_levels, eom_duty_cycles=duty_cycles)
+            print('aom levels:', aom_levels)
+            self.state_generator._time_multiplexing_signals(max_delay=max_delay, aom_levels=aom_levels, eom_levels=eom_levels, \
+                                                            frequency=frequency, aom_duty_cycles=duty_cycles, eom_duty_cycles=duty_cycles)
     # --------------------------------------------
     def set_style(self, theme):
         self.setStyleSheet(self.style_sheets["main"][theme])

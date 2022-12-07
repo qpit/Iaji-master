@@ -12,7 +12,7 @@ class AcquisitionSystem:
     def __init__(self, scope:LecroyOscilloscope, name="Acquisition System"):
         self.name = name
         self.scope = scope
-        self.host_save_directory = "."
+        self.host_save_directory = "C:\\Users\\qpitlab\\Desktop\\Scissor QKD data\\Test-delete"
         channel_names = channel_names = list(self.scope.channels.keys())
         self.filenames = dict(zip(channel_names, ["%s_trace"%channel_name for channel_name in channel_names]))
     # --------------------------------    

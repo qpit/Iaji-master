@@ -105,7 +105,10 @@ class QuadratureTomographer:
         self.n_phases = len(phases)
         self.vacuum_var = (hbar/2) #quadrature variance of the vacuum state according to the specified normalization
         if apply_mode_function:
-            self.vacuum = self.temporal_mode_function.apply(x=vacuum.copy(), dt=self.dt)
+            #self.vacuum = self.temporal_mode_function.apply(x=vacuum.copy(), dt=self.dt)
+            print('len vacuum = %d' % len(vacuum.copy()))
+            print('len temporal mode = %d' % len(self.temporal_mode_function))
+            self.vacuum = numpy.multiply(vacuum.copy(), self.temporal_mode_function)
         else:
             self.vacuum = vacuum.copy()
         if numpy.shape(quadratures)[1] != self.n_phases:
@@ -113,7 +116,10 @@ class QuadratureTomographer:
         for j in range(self.n_phases):
             if apply_mode_function:
                 #Store after applying the mode function
-                self.quadratures[self.phases[j]] = self.temporal_mode_function.apply(x=quadratures[:, j].copy(), dt=self.dt)/(numpy.var(self.vacuum)/self.vacuum_var)**0.5
+                #self.quadratures[self.phases[j]] = self.temporal_mode_function.apply(x=quadratures[:, j].copy(), dt=self.dt)/(numpy.var(self.vacuum)/self.vacuum_var)**0.5
+                print('len quadratures = %d'%len(quadratures[:,0]))
+                print('len temporal mode = %d'%len(self.temporal_mode_function))
+                self.quadratures[self.phases[j]] = numpy.multiply(quadratures[:, j].copy(), self.temporal_mode_function)/(numpy.var(self.vacuum)/self.vacuum_var)**0.5
             else: 
                 self.quadratures[self.phases[j]] = quadratures[:, j].copy()/(numpy.var(self.vacuum)/self.vacuum_var)**0.5
         self.n_samples_filtered = len(self.quadratures[phases[0]]) #number of samples per filtered quadrature measurement

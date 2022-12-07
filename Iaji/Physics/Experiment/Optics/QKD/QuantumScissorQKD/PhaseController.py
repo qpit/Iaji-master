@@ -1,8 +1,13 @@
 #%%
 import time
+
+import numpy
 import numpy as np
+import matplotlib.pyplot as plt
 import threading
 import pyrpl
+import time
+from scipy.fft import fft, fftfreq
 from pyqtgraph.Qt import QtGui
 
 print_separator = "-------------------------------------------------------------------"
@@ -25,11 +30,13 @@ class PhaseController:
     where theta is the interferometer phase and phi is the demodulation phase. By tuning the coefficients of the
     convex combination one can lock to an arbitrary theta, by locking e(t) at 0 value.
     """
-    def __init__(self, redpitaya_config_filename, name="Phase Controller", enable_modulation_output=False, pid_autotune=True, \
+    def __init__(self, redpitaya_config_filename, frequency, name="Phase Controller", enable_modulation_output=False, pid_autotune=True, \
                  show_pyrpl_GUI=True):
         """
         :param redpitaya_config_filename: str
             object representing the pyrpl interface for the controlling RedPitaya
+        :param frequency: float
+            modulation frequency for locking
         :param name: str
             name of the phase controller
         :param modulation_output_enabled: bool
@@ -45,8 +52,8 @@ class PhaseController:
         self.modulation_output_enabled = enable_modulation_output
         self.pid_autotune = pid_autotune
         # Define some useful variables
-        self.scanning_frequency = 5  # Hz
-        self.modulation_frequency = 25e6  # [Hz]
+        self.scanning_frequency = 15  # Hz
+        self.modulation_frequency = frequency  # [Hz]
         self.phase = 0
         self.error_signal_amplitude_scanned = 0
         self.error_signal_amplitude = 0
@@ -140,13 +147,26 @@ class PhaseController:
         self.asg_control.frequency = self.scanning_frequency
 
     def setup_iq(self):
+        """
+        Send modulation signal
+
+        Positive bandwitdhs are low-pass filters and negativa are low-pass
+        :return:
+        """
         self.iq.input = self.error_signal_input
-        self.iq.acbandwidth = 0.8 * self.modulation_frequency
+        if self.modulation_frequency > 10**5:
+            self.iq.acbandwidth = 0.8 * self.modulation_frequency
+        else:
+            self.iq.acbandwidth = 0.3 * self.modulation_frequency
         self.iq.frequency = self.modulation_frequency
         self.iq.bandwidth = [2e3, 2e3]
-        self.iq.quadrature_factor = 20
         self.iq.gain = 0
-        self.iq.amplitude = 0.5
+        if self.modulation_frequency > 10**5:
+            self.iq.quadrature_factor = 20
+            self.iq.amplitude = 1
+        else:
+            self.iq.quadrature_factor = 10
+            self.iq.amplitude = 0.2
         self.iq.phase = 0
         self.iq.output_direct = "off"
         if self.modulation_output_enabled:
@@ -204,6 +224,19 @@ class PhaseController:
         self.asg_control.output_direct = self.control_signal_output
         self.is_scanning = True
         self.is_locking = False
+        """
+        time.sleep(2)
+        trace = self.get_scope_curve(channel=1)
+        Ts = self.scope.decimation/125e6
+        time_s = Ts*numpy.array(numpy.arange(len(trace)))
+
+        plt.figure()
+        plt.plot(time_s, trace)
+        plt.title('HD scan')
+        plt.xlabel('Time')
+        plt.ylabel('HD signal')
+        plt.show()
+        """
 
     def set_demodulation_phase(self):
         was_not_scanning = not self.is_scanning
@@ -219,6 +252,7 @@ class PhaseController:
             trace = self.get_scope_curve(channel=2)
             amplitudes[i] = np.max(trace) - np.min(trace)
         self.iq.phase = x_phase[np.argmax(amplitudes)]
+        print("iq phase:", self.iq.phase)
 
         if was_not_scanning:
             self.turn_off_scan()
@@ -233,6 +267,9 @@ class PhaseController:
         amplitude_pid_DC = self.get_signal_amplitude(signal_name=self.DC_error_signal)
         amplitude_iq = self.get_signal_amplitude(signal_name=self.iq.name)
         self.iq.quadrature_factor *= amplitude_pid_DC / amplitude_iq
+
+        self.scope.input1 = self.AC_error_signal
+        self.scope.input2 = self.DC_error_signal
 
         if was_not_scanning:
             self.turn_off_scan()
@@ -257,6 +294,19 @@ class PhaseController:
 
     def flip_iq_phase(self):
         self.iq.phase = np.mod(self.iq.phase + 180, 360)
+
+    def get_signal_mean(self, signal_name=None):
+        """
+        This function gets the mean value of the desired signal.
+        """
+        if signal_name is not None:
+            self.scope.input1 = signal_name
+        # Get trace
+        trace = self.get_scope_curve(channel=1)
+        # Compute the amplitude
+        signal_mean = np.mean(trace)
+
+        return signal_mean
 
     def get_signal_amplitude(self, signal_name=None):
         """¨
@@ -294,15 +344,81 @@ class PhaseController:
             self.lock()
         return signal_amplitude_scanned
 
+    def get_ringing_frequency(self, signal_name):
+        """
+        This function gets the frequency of the ringing
+        """
+        if signal_name is not None:
+            self.scope.input1 = signal_name
+        trace = self.get_scope_curve(channel=1)
+
+        Ts = self.scope.decimation/125e6
+        time = Ts*numpy.array(numpy.arange(len(trace)))
+
+        plt.figure()
+        plt.plot(time, trace)
+        plt.title('Scope data')
+        plt.xlabel('Time')
+        plt.ylabel('Data')
+        plt.show()
+
+        fourier_transform = fft(trace)
+        fourier_frequencies = fftfreq(len(trace), Ts)
+
+        plt.figure()
+        plt.plot(fourier_frequencies, numpy.abs(fourier_transform))
+        plt.title('Fourier transform')
+        plt.xlabel('Frequency')
+        plt.ylabel('Fourier transform')
+        plt.show()
+
+        max_index = numpy.where(numpy.abs(fourier_transform) == numpy.max(numpy.abs(fourier_transform)))
+        ringing_frequency = fourier_frequencies[max_index]
+        print('Ringing frequency is', ringing_frequency)
+        return ringing_frequency
+
+
+
+    def get_scan_mean(self, signal_name=None):
+        """
+        This function does the following:
+            - acquire a trace from the error signal
+            - return the amplitude of the error signal
+        """
+        was_not_scanning = not self.is_scanning
+        was_locking = self.is_locking
+
+        if signal_name is not None:
+            self.scope.input1 = signal_name
+
+        self.scan()
+        trace = self.get_scope_curve(channel=1)
+        signal_mean = (np.max(trace) + np.min(trace))/2
+
+        if was_not_scanning:
+            self.turn_off_scan()
+        if was_locking:
+            self.lock()
+
+        return signal_mean
+
     def lock(self, keep_locked=True):
         self.unlock()
+        print('Phase:', self.phase)
+        self.set_phase(self.phase)
         if self.pid_autotune:
             # Get the amplitude of the scanned error signal
             self.error_signal_amplitude_scanned = self.get_scanned_signal_amplitude(signal_name=self.error_signal)
             print("Amplitude of the error signal: %0.3f" % self.error_signal_amplitude_scanned)
             self.is_locking = True
-            self.remove_offset_pid_DC()
+            print('Manual autotune')
             self.PID_manual_autotune(keep_locked)
+            #signal_mean = self.get_signal_mean(signal_name=self.error_signal_input)
+            #self.unlock()
+            #scan_mean = self.get_scan_mean(signal_name=self.error_signal_input)
+            #signal_amplitude = self.get_scanned_signal_amplitude(signal_name=self.error_signal_input)
+            #angle = np.arcsin(2*(signal_mean - scan_mean)/signal_amplitude)
+            #print("Locking angle = %.1f"%(angle*180/np.pi))
         else:
             self.enable_pid_control()
 
@@ -315,6 +431,9 @@ class PhaseController:
             3) Decrease P until the lock does not ring anymore
             4) Increase I until the lock rings
             5) Decrease I until the lock does not ring anymore
+        """
+        """
+        #TODO: First find a good value for I with P = 0, then find a good value for P, and then a good value for I again
         """
 
         # Phase 1): Initialize PID parameters
@@ -335,15 +454,22 @@ class PhaseController:
         self.pid_control.p = initial_p
         while not self.is_lock_ringing():
             self.pid_control.p *= 2
+            time.sleep(0.5)
          #   print('P = %0.4f' % self.pid_control.p)
         print("Phase 2): lock is ringing" + print_separator)
         # ---------------
         # Phase 3)
         # ------------------
+        i = 1
         while self.is_lock_ringing():
+            #print('DEBUG: ringing')
             self.pid_control.p *= 0.8
+            #if i == 1:
+            #    self.get_ringing_frequency(self.error_signal)
+            #i += 1
           #  print('P = %0.4f' % self.pid_control.p)
         self.pid_control.p *= 0.9 ** 4# reduce a bit further for safety
+        print("P = %.4f"%self.pid_control.p)
         # ----------------
         # Phase 4)
         # ----------------
@@ -361,6 +487,7 @@ class PhaseController:
           #  print('P = %0.4f' % self.pid_control.i)
             # -------------
         self.pid_control.i *= 0.9 ** 4 # reduce a bit further for safety
+        print("I = %.4f"%self.pid_control.i)
         print("Locked" + print_separator)
         if not keep_locked:
             self.unlock()
@@ -408,3 +535,35 @@ class PhaseController:
         self.set_demodulation_phase()
         #time.sleep(0.2)
         #self.setup_pid_control()
+        self.remove_offset_pid_DC()
+        self.scope.input1 = self.AC_error_signal
+        self.scope.input2 = self.DC_error_signal
+
+    def find_transfer_function(self):
+        #TODO
+        # Assure HD is locked and calibrated
+        if self.is_locking:
+            pass
+        else:
+            self.calibrate()
+            self.set_iq_qfactor()
+            self.lock()
+
+        # Parameters of the sine wave
+        frequency_initial = 1e2
+        frequency_final = 1e4
+        points = 1e2
+        frequency_range = numpy.linspace(frequency_initial, frequency_final, points)
+        amplitude = 0.1
+        asg = self.redpitaya.asg1
+        reflection = []
+        transmission = []
+        for i in frequency_range:
+            asg.setup(waveform='sin', amplitude=amplitude, frequency = frequency_range[i], offset=0)
+            asg.output_direct = self.control_signal_output
+        #Set the scope
+        self.scope.input1 = "asg1"
+        self.scope.input2 = self.error_signal_input
+        trace_R = self.get_scope_curve(channel=1)
+        trace_T = self.get_scope_curve(channel=2)
+        #Extract ampl R and T

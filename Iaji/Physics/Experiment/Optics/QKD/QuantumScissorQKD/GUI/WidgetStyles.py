@@ -40,7 +40,7 @@ class WidgetStyle:
                                               border-bottom-left-radius: 4px;
                                               border-bottom-right-radius: 4px;
                                               max-width : 200px;
-                                              max-height :  30px;
+                                              max-height :  40px;
                                               font-family: Times New Roman;
                                               font-size: 13pt;
                                               }
@@ -100,13 +100,13 @@ class WidgetStyle:
                                               color: #EEEEEE;
                                               }
                                               """
+        #border: 1.5 px solid  # C4C4C3;
         self.style_sheets["checkbox"]["dark"] = """
                                               QCheckBox
                                               {
                                               background-color: #2C394B; 
                                               color: #EEEEEE; 
                                               border-color: #EEEEEE;
-                                              border: 1.5px solid #C4C4C3;
                                               font-family: Times New Roman;
                                               font-size: 13pt;
                                               max-width : 200px;

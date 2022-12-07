@@ -68,13 +68,13 @@ class PhaseControllerWidget(QWidget):
         self.control_layout.addWidget(self.name_label, Qt.AlignCenter)
         #Define push buttons
         self.control_buttons_layout = QGridLayout()
-        control_button_names = ["scan", "lock", "unlock", "calibrate", "remove_offset_pid_DC", "set_demodulation_phase"]
+        control_button_names = ["scan", "lock", "unlock", "flip_iq_phase", "calibrate", "set_iq_qfactor"]
         control_button_callbacks = dict(
             zip(control_button_names, [getattr(self, "control_button_"+name+"_callback") for name in control_button_names]))
         n_rows = 2
         for j in range(len(control_button_names)):
             name = control_button_names[j]
-            button = QPushButton(name)
+            button = QPushButton(name.replace("_"," "))
             button.clicked.connect(control_button_callbacks[name])
             self.control_buttons_layout.addWidget(button, int(j / n_rows), int(np.mod(j, n_rows)))
             setattr(self, "control_button_"+name, button)
@@ -106,7 +106,6 @@ class PhaseControllerWidget(QWidget):
         self.scope_widget = self.phase_controller.redpitaya.scope._module_widget
         self.scope_layout.addWidget(self.scope_widget)
         self.layout.addLayout(self.scope_layout)
-
         self.setLayout(self.layout)
         self.style_sheets = PhaseControllerWidgetStyle().style_sheets
         self.set_style(theme="dark")
@@ -123,8 +122,8 @@ class PhaseControllerWidget(QWidget):
         self.pid_widget.style_sheets = self.style_sheets
         self.pid_widget.set_style(theme="dark")
 
-
-
+    def control_find_transfer_function_callback(self):
+        self.phase_controller.find_transfer_function()
 
     def control_button_scan_callback(self):
         self.phase_controller.scan()
@@ -146,6 +145,9 @@ class PhaseControllerWidget(QWidget):
 
     def control_button_set_iq_qfactor_callback(self):
         self.phase_controller.set_iq_qfactor()
+
+    def control_button_flip_iq_phase_callback(self):
+        self.phase_controller.flip_iq_phase()
 
     def slider_set_phase_value_changed_callback(self, value):
         self.phase_controller.set_phase(value)

@@ -8,15 +8,24 @@ from Iaji.InstrumentsControl.SigilentSignalGenerator import SigilentSignalGenera
 
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.StateGenerator import StateGenerator
 from Iaji.Physics.Experiment.Optics.QKD.QuantumScissorQKD.GUI.StateGeneratorWidget import StateGeneratorWidget
+from matplotlib import pyplot
 import sys
 #%%
 #----------------------------------------------------------------------------------------------------------
+MainScope = True
 
 #Test application
 #State measurement controller
 phase_controller = PhaseController(redpitaya_config_filename="O:\\LIST-QPIT\\Catlab\\Quantum-Scissors-QKD\\Software\\RedPitaya\\Pyrpl\\Config-files\\HD_Tx_lock",\
                                 enable_modulation_output=True, pid_autotune=False)
-acquisition_system = AcquisitionSystem(Scope(IP_address="10.54.10.222"))
+if MainScope:
+#Main scope
+    acquisition_system = AcquisitionSystem(Scope(IP_address="10.54.10.222"))
+    print('Main scope')
+#Test scope
+else:
+    acquisition_system = AcquisitionSystem(Scope(IP_address="10.54.11.44"))
+    print('Test scope')
 hd = HomodyneDetectionController(phase_controller, acquisition_system)
 state_measurement = StateMeasurementController(hd)
 #Signal generator
@@ -29,4 +38,5 @@ state_generator = StateGenerator(modulation_redpitaya_config_filename="O:\\LIST-
 app = QApplication(sys.argv)
 widget = StateGeneratorWidget(state_generator=state_generator)
 widget.show()
+pyplot.close('all')
 app.exec()
