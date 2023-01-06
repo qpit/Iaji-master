@@ -60,7 +60,7 @@ class StateGenerator:
             self.devices[name]['levels'] = dict(zip(['lock', 'state_generation', 'vacuum'], [None, None, None]))
         self.aoms_amplification_gain = 1.25
         self.aoms_high = 2.25
-        self.phase_eom_amplification_gain = None
+        self.phase_eom_amplification_gain = 10
         self.devices['aoms']['levels']['lock'] = self.aoms_high
         self.devices['aoms']['levels']['vacuum'] = 0
         self.devices['amplitude_eom']['levels']['lock'] = 2.5

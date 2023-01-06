@@ -44,59 +44,52 @@ import numpy
 
 class AliceStateMeasurementControllerWidget(QWidget):
     #-------------------------------------------
-    def __init__(self, Alice_state_measurement:StateMeasurementController, Bob_state_measurement:StateMeasurementController, state_generator: StateGenerator,name = "State Measurement Controller Widget"):
+    def __init__(self, Dr_Jacoby_state_measurement:StateMeasurementController, Blue_Velvet_state_measurement:StateMeasurementController, state_generator: StateGenerator,name = "State Measurement Controller Widget"):
         super().__init__()
         self.setWindowTitle(name)
         self.name = name
         self.state_generator = state_generator
-        self.Alice_state_measurement = Alice_state_measurement
-        if Bob_state_measurement == None:
-            self.Bob_HD = False
-        else:
-            self.Bob_HD = True
-        self.Bob_state_measurement = Bob_state_measurement
+        self.Dr_Jacoby_state_measurement = Dr_Jacoby_state_measurement
+        self.Blue_Velvet_state_measurement = Blue_Velvet_state_measurement
         #Main layout
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
         #Title
         self.title_label = QLabel()
         self.layout.addWidget(self.title_label)
-        self.title_label.setText(self.Alice_state_measurement.name)
+        self.title_label.setText(self.Dr_Jacoby_state_measurement.name)
         #State Measurement Layout
-        self.Alice_state_measurement_widget = QWidget()
+        self.Dr_Jacoby_state_measurement_widget = QWidget()
         ##State measurement buttons
-        self.Alice_state_measurement_layout = QVBoxLayout()
-        self.Alice_state_measurement_widget.setLayout(self.Alice_state_measurement_layout)
-        self.Alice_state_measurement_buttons_layout = QHBoxLayout()
-        self.Alice_state_measurement_layout.addLayout(self.Alice_state_measurement_buttons_layout)
-        self.layout.addLayout(self.Alice_state_measurement_layout)
-        button_names = ["Alice_tomography_measurement", "Alice_scanned_measurement"]
+        self.Dr_Jacoby_state_measurement_layout = QVBoxLayout()
+        self.Dr_Jacoby_state_measurement_widget.setLayout(self.Dr_Jacoby_state_measurement_layout)
+        self.Dr_Jacoby_state_measurement_buttons_layout = QHBoxLayout()
+        self.Dr_Jacoby_state_measurement_layout.addLayout(self.Dr_Jacoby_state_measurement_buttons_layout)
+        self.layout.addLayout(self.Dr_Jacoby_state_measurement_layout)
+        button_names = ["Dr_Jacoby_tomography", "Dr_Jacoby_scan_measure"]
         for name in button_names:
             setattr(self, name+"_button",  QPushButton(name.replace("_", " ")))
             button = getattr(self, name+"_button")
-            self.Alice_state_measurement_buttons_layout.addWidget(button)
+            self.Dr_Jacoby_state_measurement_buttons_layout.addWidget(button)
             button.clicked.connect(getattr(self, name+"_button_clicked"))
         # Homodyne detection controller
-        self.hd_controller_widget = HDWidget(self.Alice_state_measurement.hd_controller)
-        self.Alice_state_measurement_layout.addWidget(self.hd_controller_widget)
+        self.hd_controller_widget = HDWidget(self.Dr_Jacoby_state_measurement.hd_controller)
+        self.Dr_Jacoby_state_measurement_layout.addWidget(self.hd_controller_widget)
         #State measurement and analysis tabs
         self.state_tabs = QTabWidget()
         self.layout.addWidget(self.state_tabs)
-        # Make Alice state measurement widget and add tab
-        self.state_tabs.addTab(self.Alice_state_measurement_widget, "Alice State Measurement")
-        print('DEBUG:', self.Bob_state_measurement)
-        if self.Bob_HD:
-            # Make Bob state measurement widget and add tab
-            self.Bob_state_measurement_widget = BobStateMeasurementControllerWidget(self.Bob_state_measurement)
-            self.state_tabs.addTab(self.Bob_state_measurement_widget, "Bob State Measurement")
-            # Make state analysis widget and add tab
-            self.state_analysis_widget = StateAnalysisWidget(self.Bob_state_measurement, self.state_generator)
-            self.state_tabs.addTab(self.state_analysis_widget, "State Analysis")
-            # Set style
-            self.style_sheets = StateMeasurementControllerStyle().style_sheets
-            self.set_style(theme="dark")
-        else:
-            pass
+        # Make Dr_Jacoby state measurement widget and add tab
+        self.state_tabs.addTab(self.Dr_Jacoby_state_measurement_widget, "Dr Jacoby")
+        # Make Blue_Velvet state measurement widget and add tab
+        self.Blue_Velvet_state_measurement_widget = BobStateMeasurementControllerWidget(self.Blue_Velvet_state_measurement)
+        self.state_tabs.addTab(self.Blue_Velvet_state_measurement_widget, "Blue Velvet")
+        # Make state analysis widget and add tab
+        self.state_analysis_widget = StateAnalysisWidget(self.Blue_Velvet_state_measurement, self.state_generator)
+        self.state_tabs.addTab(self.state_analysis_widget, "State Analysis")
+        # Set style
+        self.style_sheets = StateMeasurementControllerStyle().style_sheets
+        self.set_style(theme="dark")
+
     # -------------------------------------------
     def set_style(self, theme):
         self.setStyleSheet(self.style_sheets["main"][theme])
@@ -109,40 +102,38 @@ class AliceStateMeasurementControllerWidget(QWidget):
         #Set style of custom widgets
         self.hd_controller_widget.style_sheets = self.style_sheets
         self.hd_controller_widget.set_style(theme="dark")
-        if self.Bob_HD:
-            self.Bob_state_measurement_widget.style_sheets = self.style_sheets
-            self.Bob_state_measurement_widget.set_style(theme="dark")
-            self.state_analysis_widget.style_sheets = self.style_sheets
-            self.state_analysis_widget.set_style(theme="dark")
-        else:
-            pass
+        self.Blue_Velvet_state_measurement_widget.style_sheets = self.style_sheets
+        self.Blue_Velvet_state_measurement_widget.set_style(theme="dark")
+        self.state_analysis_widget.style_sheets = self.style_sheets
+        self.state_analysis_widget.set_style(theme="dark")
+
     #-------------------------------------------
-    def Alice_tomography_measurement_button_clicked(self):
-        self.Alice_state_measurement.tomography_measurement(phases=[0, 30, 60, 90, 120, 150])
+    def Dr_Jacoby_tomography_button_clicked(self):
+        self.Dr_Jacoby_state_measurement.tomography_measurement(phases=[0, 30, 60, 90, 120, 150])
     # -------------------------------------------
-    def Alice_scanned_measurement_button_clicked(self): #TODO
-        self.Alice_state_measurement.scanned_measurement()
+    def Dr_Jacoby_scan_measure_button_clicked(self): #TODO
+        self.Dr_Jacoby_state_measurement.scanned_measurement()
 # In[]
 class BobStateMeasurementControllerWidget(QWidget):
     #-------------------------------------------
-    def __init__(self, Bob_state_measurement:StateMeasurementController, name = "Bob State Measurement Controller Widget"):
+    def __init__(self, Blue_Velvet_state_measurement:StateMeasurementController, name = "Blue_Velvet State Measurement Controller Widget"):
         super().__init__()
         self.name = name
-        self.Bob_state_measurement = Bob_state_measurement
+        self.Blue_Velvet_state_measurement = Blue_Velvet_state_measurement
         #Main layout
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
         #Buttons Layout
-        self.Bob_state_measurement_buttons_layout = QHBoxLayout()
-        self.layout.addLayout(self.Bob_state_measurement_buttons_layout)
-        button_names = ["Bob_tomography_measurement", "Bob_scanned_measurement"]
+        self.Blue_Velvet_state_measurement_buttons_layout = QHBoxLayout()
+        self.layout.addLayout(self.Blue_Velvet_state_measurement_buttons_layout)
+        button_names = ["Blue_Velvet_tomography", "Blue_Velvet_scan_measure"]
         for name in button_names:
             setattr(self, name+"_button",  QPushButton(name.replace("_", " ")))
             button = getattr(self, name+"_button")
-            self.Bob_state_measurement_buttons_layout.addWidget(button)
+            self.Blue_Velvet_state_measurement_buttons_layout.addWidget(button)
             button.clicked.connect(getattr(self, name+"_button_clicked"))
         # Homodyne detection controller
-        self.hd_controller_widget = HDWidget(self.Bob_state_measurement.hd_controller)
+        self.hd_controller_widget = HDWidget(self.Blue_Velvet_state_measurement.hd_controller)
         self.layout.addWidget(self.hd_controller_widget)
         # Set style
         self.style_sheets = StateMeasurementControllerStyle().style_sheets
@@ -160,11 +151,11 @@ class BobStateMeasurementControllerWidget(QWidget):
         self.hd_controller_widget.style_sheets = self.style_sheets
         self.hd_controller_widget.set_style(theme="dark")
     # -------------------------------------------
-    def Bob_tomography_measurement_button_clicked(self):
-        self.Bob_state_measurement.tomography_measurement(phases=[0, 30, 60, 90, 120, 150])
+    def Blue_Velvet_tomography_button_clicked(self):
+        self.Blue_Velvet_state_measurement.tomography_measurement(phases=[0, 30, 60, 90, 120, 150])
     # -------------------------------------------
-    def Bob_scanned_measurement_button_clicked(self): #TODO
-        self.Bob_state_measurement.scanned_measurement()
+    def Blue_Velvet_scan_measure_button_clicked(self):
+        self.Blue_Velvet_state_measurement.scanned_measurement()
 # In[]
 class StateAnalysisWidget(QWidget):
     # -------------------------------------------
