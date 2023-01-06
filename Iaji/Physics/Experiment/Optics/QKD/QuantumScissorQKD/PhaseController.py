@@ -76,7 +76,9 @@ class PhaseController:
         self.setup_pid_AC()
         self.setup_pid_control()
         # Setup  iq
+        print('DEBUG: before setup iq')
         self.setup_iq()
+        print('DEBUG: after setup iq')
         # Set locks off
         self.unlock()
 
@@ -154,8 +156,9 @@ class PhaseController:
         :return:
         """
         self.iq.input = self.error_signal_input
+        print('DEBUG: modulation frequency,' self.modulation_frequency)
         if self.modulation_frequency > 10**5:
-            self.iq.acbandwidth = 0.8 * self.modulation_frequency
+            self.iq.acbandwidth = 0#0.5 * self.modulation_frequency
         else:
             self.iq.acbandwidth = 0.3 * self.modulation_frequency
         self.iq.frequency = self.modulation_frequency
@@ -224,6 +227,7 @@ class PhaseController:
         self.asg_control.output_direct = self.control_signal_output
         self.is_scanning = True
         self.is_locking = False
+        print('DEBUG: scan')
         """
         time.sleep(2)
         trace = self.get_scope_curve(channel=1)

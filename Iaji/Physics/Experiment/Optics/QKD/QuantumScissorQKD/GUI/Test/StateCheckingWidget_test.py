@@ -15,46 +15,32 @@ from matplotlib import pyplot
 #%%
 #----------------------------------------------------------------------------------------------------------
 MainScope = True
-Bob_HD = True
-Bob_detector = "Blue velvet" #"Blue velvet" for Rx1, "Dr Jacoby" for Rx2
 OPO2 = False
-
-modulation_frequency = 25e6
 
 local_config_files_folder = "C:\\Users\\qpitlab\\Desktop\\Scissor QKD data\\Config-files\\"
 network_config_files_folder = "O:\\LIST-QPIT\\Catlab\\Quantum-Scissors-QKD\\Software\\RedPitaya\\Pyrpl\\Config-files\\"
+folder = local_config_files_folder
 
 #Test application
 #State measurement controller
 
-print('Alice phase controller')
-Alice_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(local_config_files_folder, "HD_Tx_lock"),\
-                                frequency=modulation_frequency, name="Alice Phase Controller", enable_modulation_output=True, pid_autotune=True)
-if Bob_HD:
-    print('Bob phase controller')
-    print('Rx' + '1'*(Bob_detector == "Blue velvet") + '2'*(Bob_detector == "Dr Jacoby") + ' - ' + Bob_detector)
-    if Bob_detector == "Blue velvet":
-        Bob_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(local_config_files_folder, "HD_Rx1_lock"),\
-                                        frequency=50e3, name="Blue Velvet Phase Controller", enable_modulation_output=True, pid_autotune=True)
-    elif Bob_detector == "Dr Jacoby":
-        Bob_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(local_config_files_folder, "HD_Rx2_lock"),\
-                                        frequency=50e3, name = "Dr Jacoby Phase Controller", enable_modulation_output=True, pid_autotune=True)
-    else:
-        print("Bob wasn't assigned a valid detector")
-else:
-    Bob_phase_controller = None
-if OPO2:
-    pass
 '''
-Alice_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(local_config_files_folder, "HD_Rx1_lock"),\
-                                        frequency=25e6, name="Silencio HD on Blue Velvet pitaya", enable_modulation_output=True, pid_autotune=True)
-Bob_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(local_config_files_folder, "HD_Tx_lock"),\
-                                frequency=80e3, name="Blue Velvet HD on Silencio pitaya", enable_modulation_output=True, pid_autotune=True)
+In PhaseController, set frequency to either "calibration_frequency" for modulation done with amplitude EOM or
+"measurement_frequency" for modulation done with PG OPO piezo. Values are defined in PhaseController module.
 '''
 
+print('Dr. Jacoby phase controller')
+Dr_Jacoby_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(folder, "HD_Dr_Jacoby"),\
+                                frequency="calibration_frequency", name="Dr. Jacoby Phase Controller", enable_modulation_output=False, pid_autotune=True)
+print('Blue Velvet phase controller')
+Blue_Velvet_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(folder, "HD_Blue_Velvet"),\
+                                        frequency="measurement_frequency", name="Blue Velvet Phase Controller", enable_modulation_output=True, pid_autotune=True)
+if OPO2:
+    pass
+
 #Relay interference phase controller
-relay_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(local_config_files_folder, "input_state_single_photon_interference"),\
-                                frequency=modulation_frequency, name="Relay Phase Controller", enable_modulation_output=False, pid_autotune=True)
+relay_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(folder, "relay_phase_lock"),\
+                                frequency="calibration_frequency", name="Relay Phase Controller", enable_modulation_output=True, pid_autotune=True)
 
 if MainScope:
 #Main scope
@@ -65,17 +51,12 @@ else:
     acquisition_system = AcquisitionSystem(Scope(IP_address="10.54.11.44"))
     print('Test scope')
 
-Alice_hd = HomodyneDetectionController(Alice_phase_controller, acquisition_system)
-if Bob_HD:
-    Bob_hd = HomodyneDetectionController(Bob_phase_controller, acquisition_system)
-else:
-    Bob_hd = None
+Dr_Jacoby_hd = HomodyneDetectionController(Dr_Jacoby_phase_controller, acquisition_system)
+Blue_Velvet_hd = HomodyneDetectionController(Blue_Velvet_phase_controller, acquisition_system)
 relay_hd = HomodyneDetectionController(relay_phase_controller, acquisition_system)
-Alice_state_measurement = StateMeasurementController(Alice_hd)
-if Bob_HD:
-    Bob_state_measurement = StateMeasurementController(Bob_hd)
-else:
-    Bob_state_measurement = None
+
+Dr_Jacoby_state_measurement = StateMeasurementController(Dr_Jacoby_hd)
+Blue_Velvet_state_measurement = StateMeasurementController(Blue_Velvet_hd)
 relay_state_measurement = StateMeasurementController(relay_hd)
 
 #Signal generator
@@ -84,17 +65,13 @@ signal_generator = SigilentSignalGenerator(address="USB0::0xF4ED::0xEE3A::NDG2XC
 print('State generator')
 state_generator = StateGenerator(modulation_redpitaya_config_filename=os.path.join(local_config_files_folder, "input_state_modulation"), \
                                 calibration_redpitaya_config_filename=os.path.join(local_config_files_folder, "channel_losses"), \
-                                 signal_enabler=signal_generator, state_measurement=Alice_state_measurement)
+                                 signal_enabler=signal_generator, state_measurement=Dr_Jacoby_state_measurement)
 #State checking
-if Bob_HD:
-    state_checking = StateChecking(state_measurement=Bob_state_measurement, state_generator=state_generator)
-else:
-    state_checking = None
+state_checking = StateChecking(state_measurement=Blue_Velvet_state_measurement, state_generator=state_generator)
 #State generator widget
 app = QApplication(sys.argv)
 widget = StateCheckingWidget(state_generator=state_generator, state_checking=state_checking, relay_lock=relay_state_measurement)
 print("Connected to " + "Main"*(MainScope) + "Secundary"*(not MainScope) + " scope.")
-print("Not c"*(not Bob_HD) + "C"*(Bob_HD) + "onnected to Bob's HD.")
 print("Not c"*(not OPO2) + "C"*(OPO2) + "onnected to OPO2.")
 widget.show()
 pyplot.close('all')

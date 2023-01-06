@@ -79,11 +79,19 @@ class PhaseControllerWidget(QWidget):
             self.control_buttons_layout.addWidget(button, int(j / n_rows), int(np.mod(j, n_rows)))
             setattr(self, "control_button_"+name, button)
         self.control_layout.addLayout(self.control_buttons_layout)
+        #Checkbox layout
+        self.checkbox_layout = QVBoxLayout()
         #PID autotune lock checkbox
         self.pid_autotune_checkbox = QCheckBox("PID autotune")
         self.pid_autotune_checkbox.setChecked(self.phase_controller.pid_autotune)
         self.pid_autotune_checkbox.toggled.connect(self.pid_autotune_checkbox_toggled)
-        self.control_layout.addWidget(self.pid_autotune_checkbox)
+        self.checkbox_layout.addWidget(self.pid_autotune_checkbox)
+        #Enable output modulation checkbox
+        self.enable_output_modulation_checkbox = QCheckBox("Enable output modulation")
+        self.enable_output_modulation_checkbox.setChecked(self.phase_controller.modulation_output_enabled)
+        self.enable_output_modulation_checkbox.toggled.connect(self.enable_output_modulation_checkbox_toggled)
+        self.checkbox_layout.addWidget(self.enable_output_modulation_checkbox)
+        self.control_layout.addLayout(self.checkbox_layout)
         #Phase selection layout
         self.set_phase_layout = QHBoxLayout()
         self.control_layout.addLayout(self.set_phase_layout)
@@ -156,7 +164,15 @@ class PhaseControllerWidget(QWidget):
     def pid_autotune_checkbox_toggled(self):
         self.phase_controller.pid_autotune = self.pid_autotune_checkbox.isChecked()
 
-
+    def enable_output_modulation_checkbox_toggled(self):
+        is_on = self.enable_output_modulation_checkbox.isChecked()
+        if is_on:
+            self.phase_controller.modulation_output_enabled = True
+            self.phase_controller.setup_iq()
+        else:
+            self.phase_controller.modulation_output_enabled = False
+            self.phase_controller.setup_iq()
+        print("Output modulation is " + "on"*(self.phase_controller.modulation_output_enabled) + "off"*(not self.phase_controller.modulation_output_enabled))
 
 
 
