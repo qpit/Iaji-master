@@ -54,7 +54,7 @@ class PhaseController:
         # Define some useful variables
         self.scanning_frequency = 15  # Hz
         #Setting modulation frequencies
-        self.calibration_frequency = 1e6
+        self.calibration_frequency = 120e3
         self.measurement_frequency = 50e3
         if frequency == "calibration_frequency":
             print('Calibration frequency')
@@ -66,6 +66,7 @@ class PhaseController:
             self.calibration_frequency_on = False
             self.measurement_frequency_on = True
             self.modulation_frequency = self.measurement_frequency
+        print('DEBUG:', self.modulation_frequency)
         self.phase = 0
         self.error_signal_amplitude_scanned = 0
         self.error_signal_amplitude = 0
@@ -138,6 +139,7 @@ class PhaseController:
         self.pid_DC.output_direct = 'off'
         self.pid_DC.inputfilter = [2e3, 2e3, 0, 0]
         # Set the initial proportional value such that the curve fits in a fraction of the scope range
+        print(self.name)
         self.pid_DC.p = 1 / 5 * (2 / self.get_scanned_signal_amplitude(signal_name=self.error_signal_input))
         self.pid_DC.i = 0
         self.pid_DC.ival = 0
@@ -181,22 +183,20 @@ class PhaseController:
         :return:
         """
         self.iq.input = self.error_signal_input
-        if self.modulation_frequency > 10**5:
-            self.iq.acbandwidth = 0.8 * self.modulation_frequency
-        else:
-            self.iq.acbandwidth = 0.3 * self.modulation_frequency
+        #if self.modulation_frequency > 10**5:
+        #    self.iq.acbandwidth = 0.8 * self.modulation_frequency
+        #else:
+        self.iq.acbandwidth = 0.3 * self.modulation_frequency
         self.iq.frequency = self.modulation_frequency
-        self.iq.bandwidth = [2e3, 2e3]
         self.iq.gain = 0
-        if self.modulation_frequency > 10**5:
-            self.iq.quadrature_factor = 20
-            self.iq.amplitude = 0.05
-        else:
-            self.iq.quadrature_factor = 10
-            self.iq.amplitude = 0.2
-
+        self.iq.bandwidth = [1e3, 1e3]
+        #if self.modulation_frequency > 10**5:
+        #    self.iq.quadrature_factor = 20
+        #    self.iq.amplitude = 0.05
+        #else:
+        self.iq.quadrature_factor = 10
+        self.iq.amplitude = 0.2
         self.iq.phase = 0
-        self.iq.output_direct = "off"
         if self.modulation_output_enabled:
             self.iq.output_direct = self.modulation_signal_output
         else:
@@ -296,7 +296,17 @@ class PhaseController:
 
         amplitude_pid_DC = self.get_signal_amplitude(signal_name=self.DC_error_signal)
         amplitude_iq = self.get_signal_amplitude(signal_name=self.iq.name)
-        self.iq.quadrature_factor *= amplitude_pid_DC / amplitude_iq
+        print('DEBUG: Amplitude pid DC', amplitude_pid_DC, 'Amplitude iq', amplitude_iq)
+        if amplitude_pid_DC == 0:
+            print('DEBUG: Amplitude pid DC is zero')
+            self.phase = 45*np.pi/180
+            amplitude_pid_DC = self.get_signal_amplitude(signal_name=self.DC_error_signal)
+        if amplitude_iq == 0:
+            print('DEBUG: Amplitude iq is zero')
+            self.iq.quadrature_factor = amplitude_pid_DC
+        if amplitude_iq != 0:
+            self.iq.quadrature_factor *= amplitude_pid_DC / amplitude_iq
+        print('DEBUG: iq quadrature factor', self.iq.quadrature_factor)
 
         self.scope.input1 = self.AC_error_signal
         self.scope.input2 = self.DC_error_signal
@@ -481,12 +491,12 @@ class PhaseController:
         self.pid_control.i = initial_i
         while not self.is_lock_ringing():
             self.pid_control.p *= 2
-            time.sleep(0.2)
          #   print('P = %0.4f' % self.pid_control.p)
         print("Lock is ringing" + print_separator)
         while self.is_lock_ringing():
             #print('DEBUG: ringing')
             self.pid_control.p *= 0.8
+            time.sleep(0.2)
             #self.get_ringing_frequency(self.error_signal)
           #  print('P = %0.4f' % self.pid_control.p)
         self.pid_control.p *= 0.9 ** 4# reduce a bit further for safety
@@ -503,6 +513,7 @@ class PhaseController:
         print("Lock is ringing" + print_separator)
         while self.is_lock_ringing():
             self.pid_control.i *= 0.8
+            time.sleep(0.2)
           #  print('P = %0.4f' % self.pid_control.i)
             # -------------
         self.pid_control.i *= 0.9 ** 4 # reduce a bit further for safety
@@ -514,11 +525,11 @@ class PhaseController:
         print("Phase 4): adjust P" + print_separator)
         while not self.is_lock_ringing():
             self.pid_control.p *= 2
-            time.sleep(0.2)
         #   print('P = %0.4f' % self.pid_control.p)
         while self.is_lock_ringing():
             # print('DEBUG: ringing')
             self.pid_control.p *= 0.8
+            time.sleep(0.2)
             # self.get_ringing_frequency(self.error_signal)
         #  print('P = %0.4f' % self.pid_control.p)
         self.pid_control.p *= 0.9 ** 4  # reduce a bit further for safety
@@ -558,7 +569,7 @@ class PhaseController:
             time.sleep(5)
         '''
 
-    def is_lock_ringing(self, relative_threshold=0.3):
+    def is_lock_ringing(self, relative_threshold=0.2):
         """
         This scope checks whether the homodyne detection lock is ringing by
         checking if the current amplitude of the error signal is above a certain
