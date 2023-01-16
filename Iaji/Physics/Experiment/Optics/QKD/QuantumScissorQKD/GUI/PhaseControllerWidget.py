@@ -66,6 +66,20 @@ class PhaseControllerWidget(QWidget):
         self.name_label = QLabel()
         self.name_label.setText(self.phase_controller.name)
         self.control_layout.addWidget(self.name_label, Qt.AlignCenter)
+        #Demodulation frequency choice
+        self.demodulation_layout = QHBoxLayout()
+        self.label_demod = QLabel()
+        self.label_demod.setText("Demodulation phase:")
+        self.demodulation_layout.addWidget(self.label_demod)
+        self.calibration_frequency_checkbox = QCheckBox("%.2f MHz" %(self.phase_controller.calibration_frequency/1e6))
+        self.calibration_frequency_checkbox.setChecked(self.phase_controller.calibration_frequency_on)
+        self.calibration_frequency_checkbox.toggled.connect(self.calibration_frequency_checkbox_toggled)
+        self.demodulation_layout.addWidget(self.calibration_frequency_checkbox)
+        self.measurement_frequency_checkbox = QCheckBox("%.2f kHz" %(self.phase_controller.measurement_frequency/1e3))
+        self.measurement_frequency_checkbox.setChecked(self.phase_controller.measurement_frequency_on)
+        self.measurement_frequency_checkbox.toggled.connect(self.measurement_frequency_checkbox_toggled)
+        self.demodulation_layout.addWidget(self.measurement_frequency_checkbox)
+        self.layout.addLayout(self.demodulation_layout)
         #Define push buttons
         self.control_buttons_layout = QGridLayout()
         control_button_names = ["scan", "lock", "unlock", "flip_iq_phase", "calibrate", "set_iq_qfactor"]
@@ -85,8 +99,15 @@ class PhaseControllerWidget(QWidget):
         self.pid_autotune_checkbox = QCheckBox("PID autotune")
         self.pid_autotune_checkbox.setChecked(self.phase_controller.pid_autotune)
         self.pid_autotune_checkbox.toggled.connect(self.pid_autotune_checkbox_toggled)
+<<<<<<< HEAD
         self.checkbox_layout.addWidget(self.pid_autotune_checkbox)
         #Enable output modulation checkbox
+=======
+        self.control_layout.addWidget(self.pid_autotune_checkbox)
+        # Checkbox layout
+        self.checkbox_layout = QVBoxLayout()
+        # Enable output modulation checkbox
+>>>>>>> origin/qpitlab_folder
         self.enable_output_modulation_checkbox = QCheckBox("Enable output modulation")
         self.enable_output_modulation_checkbox.setChecked(self.phase_controller.modulation_output_enabled)
         self.enable_output_modulation_checkbox.toggled.connect(self.enable_output_modulation_checkbox_toggled)
@@ -97,8 +118,9 @@ class PhaseControllerWidget(QWidget):
         self.control_layout.addLayout(self.set_phase_layout)
         #Label to show the current phase
         self.label_phase = QLabel()
-        self.label_phase.setText("Phase: %0.2f deg" % (self.phase_controller.phase * 180 / np.pi))
+        self.label_phase.setText("Phase:")
         self.set_phase_layout.addWidget(self.label_phase)
+        '''
         #Slider to set the phase
         self.slider_set_phase = QSlider(Qt.Horizontal)
         self.slider_set_phase.setRange(0, 180)
@@ -106,12 +128,23 @@ class PhaseControllerWidget(QWidget):
         self.slider_set_phase.valueChanged.connect(self.slider_set_phase_value_changed_callback)
         self.set_phase_layout.addWidget(self.slider_set_phase, Qt.AlignLeft)
         self.layout.addLayout(self.control_layout, Qt.AlignLeft)
+        '''
+        #Phase selection linedit
+        self.set_phase_linedit = QLineEdit(str(0))
+        self.set_phase_linedit.textEdited.connect(self.set_phase_linedit_changed)
+        self.set_phase_layout.addWidget(self.set_phase_linedit)
+        self.control_layout.addLayout(self.set_phase_layout)
+        self.layout.addLayout(self.control_layout)
         #PID widget
         self.pid_widget = PIDControlWidget(self.phase_controller.pid_control)
         self.layout.addWidget(self.pid_widget)
         #Define a monitor scope layout and widget
         self.scope_layout = QVBoxLayout()
-        self.scope_widget = self.phase_controller.redpitaya.scope._module_widget
+        self.scope = self.phase_controller.redpitaya.scope
+        try:
+            self.scope_widget = self.scope._module_widget
+        except:
+            raise Exception("Problem with scope widget, refer to 'Red Pitaya troubleshooting' in QPIT Knowledge Base. \nPitaya with the problem:", self.phase_controller.name)
         self.scope_layout.addWidget(self.scope_widget)
         self.layout.addLayout(self.scope_layout)
         self.setLayout(self.layout)
@@ -138,6 +171,8 @@ class PhaseControllerWidget(QWidget):
 
     def control_button_lock_callback(self):
         self.phase_controller.lock()
+        self.pid_widget.p_doublespinbox.setValue(self.phase_controller.pid_control.p)
+        self.pid_widget.i_doublespinbox.setValue(self.phase_controller.pid_control.i)
 
     def control_button_unlock_callback(self):
         self.phase_controller.unlock()
@@ -161,6 +196,10 @@ class PhaseControllerWidget(QWidget):
         self.phase_controller.set_phase(value)
         self.label_phase.setText("Phase: %0.2f deg"%(self.phase_controller.phase * 180 / np.pi))
 
+    def set_phase_linedit_changed(self, value):
+        self.phase_controller.set_phase(value)
+        self.label_phase.setText("Phase: %.2f"%(self.phase_controller.phase*180/np.pi))
+
     def pid_autotune_checkbox_toggled(self):
         self.phase_controller.pid_autotune = self.pid_autotune_checkbox.isChecked()
 
@@ -173,6 +212,23 @@ class PhaseControllerWidget(QWidget):
             self.phase_controller.modulation_output_enabled = False
             self.phase_controller.setup_iq()
         print("Output modulation is " + "on"*(self.phase_controller.modulation_output_enabled) + "off"*(not self.phase_controller.modulation_output_enabled))
+<<<<<<< HEAD
+=======
+
+    def calibration_frequency_checkbox_toggled(self):
+        self.measurement_frequency_checkbox.setChecked(False)
+        self.phase_controller.calibration_frequency_on = True
+        self.phase_controller.measurement_frequency_on = False
+        self.phase_controller.modulation_frequency = self.phase_controller.calibration_frequency
+        self.phase_controller.setup_iq()
+
+    def measurement_frequency_checkbox_toggled(self):
+        self.calibration_frequency_checkbox.setChecked(False)
+        self.phase_controller.calibration_frequency_on = False
+        self.phase_controller.measurement_frequency_on = True
+        self.phase_controller.modulation_frequency = self.phase_controller.measurement_frequency
+        self.phase_controller.setup_iq()
+>>>>>>> origin/qpitlab_folder
 
 
 

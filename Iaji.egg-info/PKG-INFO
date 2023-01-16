@@ -2,7 +2,8 @@ Metadata-Version: 2.1
 Name: Iaji
 Version: 0.1
 Summary: Utility packages of various types
-Home-page: UNKNOWN
+Home-page: 
+Download-URL: 
 Author: Iyad Suleiman
 Author-email: isule@fysik.dtu.dk
 License: LGPLv3
@@ -18,5 +19,3 @@ Classifier: Operating System :: Linux :: Ubuntu
 License-File: LICENSE
 
 Collection of instruments drivers for instruments available at qpit
-
-

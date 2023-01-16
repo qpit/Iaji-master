@@ -61,15 +61,8 @@ class StateCheckingWidget(QWidget):
         super().__init__()
         self.setWindowTitle(name)
         self.state_generator = state_generator
-        if state_checking == None:
-            self.Bob_HD = False
-        else:
-            self.Bob_HD = True
         self.state_checking = state_checking
-        if self.Bob_HD:
-            self.Bob_state_measurement = self.state_checking.state_measurement
-        else:
-            self.Bob_state_measurement = None
+        self.Blue_Velvet_state_measurement = self.state_checking.state_measurement
         self.name = name
         self.relay_lock = relay_lock
         #Main Layout
@@ -83,7 +76,7 @@ class StateCheckingWidget(QWidget):
         self.tabs = QTabWidget()
         self.layout.addWidget(self.tabs)
         #State Measurement Widget
-        self.state_measurement_widget = AliceStateMeasurementControllerWidget(state_generator.state_measurement, self.Bob_state_measurement, state_generator)
+        self.state_measurement_widget = AliceStateMeasurementControllerWidget(state_generator.state_measurement, self.Blue_Velvet_state_measurement, state_generator)
         self.tabs.addTab(self.state_measurement_widget, self.state_measurement_widget.name)
         #State calibration tab widget
         self.make_calibration_and_tomography_widget()
@@ -192,7 +185,7 @@ class StateCheckingWidget(QWidget):
         self.aoms_high_voltage_linedit.textEdited.connect(self.aoms_high_voltage_linedit_changed)
         self.voltages_layout.addWidget(self.aoms_high_voltage_linedit)
         # Default medium voltages
-        self.devices = ["aoms", "amplitude_eom", "phase_eom"]
+        self.devices = ["aoms", "amplitude_eom"]#, "phase_eom"]
         default_voltages = dict(zip(self.devices, [0.05, 5, 0]))
         for device in self.devices:
             # Label
@@ -247,7 +240,7 @@ class StateCheckingWidget(QWidget):
         self.calibration_widget.setLayout(self.calibration_layout)
         #Add tab
         #Calibration button
-        self.devices = ["aoms", "amplitude_eom", "phase_eom"]
+        self.devices = ["aoms", "amplitude_eom"]#, "phase_eom"]
         self.state_generator.voltage_ranges = [(1e-2, 1e-1), (3, 5), (-2, 2)]
         for col in range(len(self.devices)):
             device = self.devices[col]
@@ -287,6 +280,8 @@ class StateCheckingWidget(QWidget):
             button = getattr(self, "%s_button"%device)
             button.clicked.connect(getattr(self, "%s_button_clicked"%device))
             self.calibration_layout.addWidget(button, 4, col + 1)
+            #Uncomment if using phase EOM
+            '''
             if device == "phase_eom":
                 setattr(self, "%s_scanned_calibration_layout" % device, QHBoxLayout()) #horizontal layout
                 #Scanned calibration button
@@ -300,6 +295,7 @@ class StateCheckingWidget(QWidget):
                 checkbox.toggled.connect(getattr(self, "%s_scan_checkbox_toggled" % device))
                 getattr(self, "%s_scanned_calibration_layout" % device).addWidget(checkbox)
                 self.calibration_layout.addLayout(getattr(self, "%s_scanned_calibration_layout" % device), 5, col + 1)
+            '''
             #Plot widget
             #setattr(self, "%s_plot"%device, pyqtgraph.PlotWidget())
             figure = pyplot.figure()
@@ -348,8 +344,10 @@ class StateCheckingWidget(QWidget):
         self.state_generator.devices['amplitude_eom']['instrument'].offset = float(text)/self.state_generator.devices['amplitude_eom']['amplification_gain'] - self.state_generator.devices['amplitude_eom']['instrument_offset']
         self.state_generator.pyrpl_obj_calibr.rp.asg1.output_direct = 'out2'
     # -------------------------------------------
+    '''
     def phase_eom_voltage_linedit_changed(self, text):
         self.state_generator.devices['phase_eom']['levels']['state_generation'] = float(text)
+    '''
     # -------------------------------------------
     def displacement_linedit_changed(self, text):
         self.state_generator.amplitude = float(text)
@@ -367,6 +365,9 @@ class StateCheckingWidget(QWidget):
         self.amplitude_eom_voltage_linedit.setText("%.2f"%self.state_generator.devices['amplitude_eom']['levels']['state_generation'])
         print("Amplitude EOM voltage: %.2f" %self.state_generator.devices['amplitude_eom']['levels']['state_generation'])
         #Set angle
+        #TODO
+        #Angle should be set by phase of relay lock
+        '''
         self.state_generator.devices['phase_eom']['levels']['state_generation'] = self.state_generator.calibrations["phase_eom"]["function"](self.state_generator.angle)
         self.phase_eom_voltage_linedit.setText("%.2f"%self.state_generator.devices['phase_eom']['levels']['state_generation'])
         print("Phase EOM voltage: %.2f" %self.state_generator.devices['phase_eom']['levels']['state_generation'])
@@ -374,6 +375,7 @@ class StateCheckingWidget(QWidget):
         q, p = ( (alpha*numpy.exp(-1j*theta) + numpy.conj(alpha)*numpy.exp(1j*theta))/numpy.sqrt(2),\
                  1j*(alpha*numpy.exp(-1j*theta) - numpy.conj(alpha)*numpy.exp(1j*theta))/numpy.sqrt(2) )
         self.state_generation_plot_widget.figure.axes[0].plot(q, p, linestyle="None", marker="o", markersize=10)
+        '''
     # -------------------------------------------
     def aoms_clear_button_clicked(self):
         axis = self.aoms_plot.figure.axes[0]
@@ -385,10 +387,12 @@ class StateCheckingWidget(QWidget):
         axis.lines = []
         self.amplitude_eom_plot.update()
     # -------------------------------------------
+    '''
     def phase_eom_clear_button_clicked(self):
         axis = self.phase_eom_plot.figure.axes[0]
         axis.lines = []
         self.phase_eom_plot.update()
+    '''
     # -------------------------------------------
     def aoms_button_clicked(self):
         '''
@@ -409,6 +413,7 @@ class StateCheckingWidget(QWidget):
         axis.legend(prop={"family":"Times New Roman"})
         self.aoms_plot.update()
     # -------------------------------------------
+    """
     def phase_eom_button_clicked(self):
         '''
 
@@ -426,8 +431,9 @@ class StateCheckingWidget(QWidget):
         self.phase_eom_plot.update()
         numpy.savez(file=self.state_generator.state_measurement.hd_controller.acquisition_system.host_save_directory, \
                     voltages=x, displacements=y)
-
+    """
     # -------------------------------------------
+    '''
     def phase_eom_scan_calibrate_button_clicked(self):
         min_voltage = float(self.phase_eom_min_voltage_linedit.text())
         max_voltage = float(self.phase_eom_max_voltage_linedit.text())
@@ -451,7 +457,9 @@ class StateCheckingWidget(QWidget):
         axis.legend(loc="upper right", prop=fonts["legend"])
         self.phase_eom_scan_checkbox.setChecked(False)
         self.phase_eom_plot.update()
+    '''
     # -------------------------------------------
+    '''
     def phase_eom_scan_checkbox_toggled(self):
         asg = self.state_generator.devices['phase_eom']['instrument']
         is_on = self.phase_eom_scan_checkbox.isChecked()
@@ -461,6 +469,7 @@ class StateCheckingWidget(QWidget):
             self.state_generator.scan_phase_eom(frequency=frequency, voltage_range=voltage_range)
         else:
             self.state_generator.turn_off_phase_eom_scan()
+    '''
     # -------------------------------------------
     def amplitude_eom_button_clicked(self):
         '''

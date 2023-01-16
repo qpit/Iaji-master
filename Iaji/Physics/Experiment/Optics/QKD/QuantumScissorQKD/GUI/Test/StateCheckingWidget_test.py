@@ -24,6 +24,14 @@ folder = local_config_files_folder
 #Test application
 #State measurement controller
 
+<<<<<<< HEAD
+=======
+Dr_Jacoby_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(local_config_files_folder, "HD_Dr_Jacoby"),\
+                                frequency="calibration_frequency", name="Dr Jacoby Phase Controller", enable_modulation_output=False, pid_autotune=True)
+Blue_Velvet_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(local_config_files_folder, "HD_Blue_Velvet"),\
+                                        frequency="measurement_frequency", name="Blue Velvet Phase Controller", enable_modulation_output=True, pid_autotune=True)
+
+>>>>>>> origin/qpitlab_folder
 '''
 In PhaseController, set frequency to either "calibration_frequency" for modulation done with amplitude EOM or
 "measurement_frequency" for modulation done with PG OPO piezo. Values are defined in PhaseController module.
@@ -39,7 +47,11 @@ if OPO2:
     pass
 
 #Relay interference phase controller
+<<<<<<< HEAD
 relay_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(folder, "relay_phase_lock"),\
+=======
+relay_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(local_config_files_folder, "relay_phase_lock"),\
+>>>>>>> origin/qpitlab_folder
                                 frequency="calibration_frequency", name="Relay Phase Controller", enable_modulation_output=True, pid_autotune=True)
 
 if MainScope:
@@ -54,7 +66,10 @@ else:
 Dr_Jacoby_hd = HomodyneDetectionController(Dr_Jacoby_phase_controller, acquisition_system)
 Blue_Velvet_hd = HomodyneDetectionController(Blue_Velvet_phase_controller, acquisition_system)
 relay_hd = HomodyneDetectionController(relay_phase_controller, acquisition_system)
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/qpitlab_folder
 Dr_Jacoby_state_measurement = StateMeasurementController(Dr_Jacoby_hd)
 Blue_Velvet_state_measurement = StateMeasurementController(Blue_Velvet_hd)
 relay_state_measurement = StateMeasurementController(relay_hd)
@@ -68,6 +83,10 @@ state_generator = StateGenerator(modulation_redpitaya_config_filename=os.path.jo
                                  signal_enabler=signal_generator, state_measurement=Dr_Jacoby_state_measurement)
 #State checking
 state_checking = StateChecking(state_measurement=Blue_Velvet_state_measurement, state_generator=state_generator)
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/qpitlab_folder
 #State generator widget
 app = QApplication(sys.argv)
 widget = StateCheckingWidget(state_generator=state_generator, state_checking=state_checking, relay_lock=relay_state_measurement)
