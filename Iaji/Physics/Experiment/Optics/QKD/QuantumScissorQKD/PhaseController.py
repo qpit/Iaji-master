@@ -185,18 +185,10 @@ class PhaseController:
         :return:
         """
         self.iq.input = self.error_signal_input
-<<<<<<< HEAD
-        print('DEBUG: modulation frequency,' self.modulation_frequency)
-        if self.modulation_frequency > 10**5:
-            self.iq.acbandwidth = 0#0.5 * self.modulation_frequency
-        else:
-            self.iq.acbandwidth = 0.3 * self.modulation_frequency
-=======
         #if self.modulation_frequency > 10**5:
         #    self.iq.acbandwidth = 0.8 * self.modulation_frequency
         #else:
         self.iq.acbandwidth = 0.3 * self.modulation_frequency
->>>>>>> origin/qpitlab_folder
         self.iq.frequency = self.modulation_frequency
         self.iq.gain = 0
         self.iq.bandwidth = [1e3, 1e3]
