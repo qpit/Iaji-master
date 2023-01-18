@@ -71,7 +71,7 @@ class PhaseControllerWidget(QWidget):
         self.label_demod = QLabel()
         self.label_demod.setText("Demodulation phase:")
         self.demodulation_layout.addWidget(self.label_demod)
-        self.calibration_frequency_checkbox = QCheckBox("%.2f MHz" %(self.phase_controller.calibration_frequency/1e6))
+        self.calibration_frequency_checkbox = QCheckBox("%.2f kHz" %(self.phase_controller.calibration_frequency/1e3))
         self.calibration_frequency_checkbox.setChecked(self.phase_controller.calibration_frequency_on)
         self.calibration_frequency_checkbox.toggled.connect(self.calibration_frequency_checkbox_toggled)
         self.demodulation_layout.addWidget(self.calibration_frequency_checkbox)

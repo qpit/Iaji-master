@@ -610,10 +610,12 @@ class PhaseController:
         #time.sleep(0.2)
         #self.setup_pid_AC()
         #time.sleep(0.2)
+        self.setup_pid_DC()
         self.set_demodulation_phase()
         #time.sleep(0.2)
         #self.setup_pid_control()
         self.remove_offset_pid_DC()
+        self.set_iq_qfactor()
         self.scope.input1 = self.AC_error_signal
         self.scope.input2 = self.DC_error_signal
 
