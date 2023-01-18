@@ -503,6 +503,8 @@ class MatrixSymbolic(ParameterSymbolic):
                     sympy.symbols(names=name, real=s.is_real, nonnegative=s.is_nonnegative))
                 
                 expression_non_latex = strutils.de_latexify(str(expression))
+                print('non_latex')
+                print(expression_non_latex)
                 self.expression_lambda = sympy.lambdify(expression_symbols_non_latex_names,\
                                                         expression_non_latex, modules="numpy")
             except AttributeError:

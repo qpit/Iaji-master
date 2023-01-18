@@ -93,14 +93,21 @@ class PhaseControllerWidget(QWidget):
             self.control_buttons_layout.addWidget(button, int(j / n_rows), int(np.mod(j, n_rows)))
             setattr(self, "control_button_"+name, button)
         self.control_layout.addLayout(self.control_buttons_layout)
+        #Checkbox layout
+        self.checkbox_layout = QVBoxLayout()
         #PID autotune lock checkbox
         self.pid_autotune_checkbox = QCheckBox("PID autotune")
         self.pid_autotune_checkbox.setChecked(self.phase_controller.pid_autotune)
         self.pid_autotune_checkbox.toggled.connect(self.pid_autotune_checkbox_toggled)
+<<<<<<< HEAD
+        self.checkbox_layout.addWidget(self.pid_autotune_checkbox)
+        #Enable output modulation checkbox
+=======
         self.control_layout.addWidget(self.pid_autotune_checkbox)
         # Checkbox layout
         self.checkbox_layout = QVBoxLayout()
         # Enable output modulation checkbox
+>>>>>>> origin/qpitlab_folder
         self.enable_output_modulation_checkbox = QCheckBox("Enable output modulation")
         self.enable_output_modulation_checkbox.setChecked(self.phase_controller.modulation_output_enabled)
         self.enable_output_modulation_checkbox.toggled.connect(self.enable_output_modulation_checkbox_toggled)
@@ -205,6 +212,8 @@ class PhaseControllerWidget(QWidget):
             self.phase_controller.modulation_output_enabled = False
             self.phase_controller.setup_iq()
         print("Output modulation is " + "on"*(self.phase_controller.modulation_output_enabled) + "off"*(not self.phase_controller.modulation_output_enabled))
+<<<<<<< HEAD
+=======
 
     def calibration_frequency_checkbox_toggled(self):
         self.measurement_frequency_checkbox.setChecked(False)
@@ -219,6 +228,7 @@ class PhaseControllerWidget(QWidget):
         self.phase_controller.measurement_frequency_on = True
         self.phase_controller.modulation_frequency = self.phase_controller.measurement_frequency
         self.phase_controller.setup_iq()
+>>>>>>> origin/qpitlab_folder
 
 
 

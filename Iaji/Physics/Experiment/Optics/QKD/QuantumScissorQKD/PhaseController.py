@@ -89,7 +89,9 @@ class PhaseController:
         self.setup_pid_AC()
         self.setup_pid_control()
         # Setup  iq
+        print('DEBUG: before setup iq')
         self.setup_iq()
+        print('DEBUG: after setup iq')
         # Set locks off
         self.unlock()
         # Setup scope
@@ -254,6 +256,7 @@ class PhaseController:
         self.asg_control.output_direct = self.control_signal_output
         self.is_scanning = True
         self.is_locking = False
+        print('DEBUG: scan')
         """
         time.sleep(2)
         trace = self.get_scope_curve(channel=1)
