@@ -72,7 +72,7 @@ class StateGenerator:
         ###Amplification gains
         self.devices['aoms']['amplification_gain'] = self.aoms_amplification_gain
         self.devices['amplitude_eom']['amplification_gain'] = 2.5
-        self.devices['phase_eom']['amplification_gain'] = self.phase_eom_amplification_gain
+        #self.devices['phase_eom']['amplification_gain'] = self.phase_eom_amplification_gain
         self.time_multiplexing = {'duty_cycles': [0.6, 0.2, 0.2], 'frequency': 60, 'max_delay': 1e-4}
         self.amplitude_eom_low = None
         self.calibrations = {}
@@ -132,6 +132,14 @@ class StateGenerator:
         del self._phase_eom_amplification_gain
     # -------------------------------------------
     def connect_to_redpitayas(self, show_pyrpl_GUI=True):
+        # Connect to AOMs and amplitude EOM bias calibration Pitaya
+        self.pyrpl_obj_calibr = pyrpl.Pyrpl(config=self.calibration_redpitaya_config_filename)
+        self.pyrpl_obj_calibr.rp.asg0.offset = 0 #AOMs
+        self.pyrpl_obj_calibr.rp.asg0.output_direct = "off"
+        self.pyrpl_obj_calibr.rp.asg1.offset = 0 #Amplitude EOM
+        self.pyrpl_obj_calibr.rp.asg1.output_direct = "off"
+        if show_pyrpl_GUI:
+            self.pyrpl_GUI_calibr = QtGui.QApplication.instance()
         # Connect to modulation Pitaya
         self.pyrpl_obj_mod = pyrpl.Pyrpl(config=self.modulation_redpitaya_config_filename)
         if show_pyrpl_GUI:
@@ -141,14 +149,6 @@ class StateGenerator:
                                                                     trigger_source='immediately')
             getattr(self.pyrpl_obj_mod.rp, "asg%d" % channel).output_direct = "off" * (channel == 0) + "out%d" % (
                     channel + 1) * (channel == 1)
-        # Connect to AOMs and amplitude EOM bias calibration Pitaya
-        self.pyrpl_obj_calibr = pyrpl.Pyrpl(config=self.calibration_redpitaya_config_filename)
-        self.pyrpl_obj_calibr.rp.asg0.offset = 0 #AOMs
-        self.pyrpl_obj_calibr.rp.asg0.output_direct = "off"
-        self.pyrpl_obj_calibr.rp.asg1.offset = 0 #Amplitude EOM
-        self.pyrpl_obj_calibr.rp.asg1.output_direct = "off"
-        if show_pyrpl_GUI:
-            self.pyrpl_GUI_calibr = QtGui.QApplication.instance()
     # -------------------------------------------
     def _n_level_step_function(self, frequency, levels, duty_cycles, n_points, Ts):
         assert len(levels) == len(duty_cycles), \
@@ -376,7 +376,7 @@ class StateGenerator:
             sig = numpy.concatenate((sig, sig_temp))
         if plot:
             pyplot.plot(time_vac[:n_plot:10], vac[:n_plot:10], color="tab:blue", label="vacuum quadrature samples",
-                        linestyle="None", marker=".", linewidth=3)
+                                                                                                                                                    linestyle="None", marker=".", linewidth=3)
             pyplot.plot(time_sig[:n_plot:10], sig[:n_plot:10], color="tab:purple", label="signal quadrature samples",
                         linestyle="None", marker=".", linewidth=3)
             pyplot.legend(loc="upper right")

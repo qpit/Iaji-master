@@ -57,7 +57,6 @@ class PhaseController:
         self.calibration_frequency = 120e3
         self.measurement_frequency = 50e3
         if frequency == "calibration_frequency":
-            print('Calibration frequency')
             self.calibration_frequency_on = True
             self.measurement_frequency_on = False
             self.modulation_frequency = self.calibration_frequency
@@ -66,7 +65,7 @@ class PhaseController:
             self.calibration_frequency_on = False
             self.measurement_frequency_on = True
             self.modulation_frequency = self.measurement_frequency
-        print('DEBUG:', self.modulation_frequency)
+        print(name, 'Modulation frequency:', self.modulation_frequency)
         self.phase = 0
         self.error_signal_amplitude_scanned = 0
         self.error_signal_amplitude = 0
@@ -89,9 +88,7 @@ class PhaseController:
         self.setup_pid_AC()
         self.setup_pid_control()
         # Setup  iq
-        print('DEBUG: before setup iq')
         self.setup_iq()
-        print('DEBUG: after setup iq')
         # Set locks off
         self.unlock()
         # Setup scope
@@ -256,7 +253,6 @@ class PhaseController:
         self.asg_control.output_direct = self.control_signal_output
         self.is_scanning = True
         self.is_locking = False
-        print('DEBUG: scan')
         """
         time.sleep(2)
         trace = self.get_scope_curve(channel=1)
