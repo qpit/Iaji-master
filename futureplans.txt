@@ -1,3 +1,0 @@
-1. Lock EOM BIAS
-
-2. Create info class which has a button on the widget explaining how each part works.

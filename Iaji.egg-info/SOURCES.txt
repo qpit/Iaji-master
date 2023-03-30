@@ -1,9 +1,0 @@
-LICENSE
-README.md
-setup.py
-Iaji/Exceptions.py
-Iaji/__init__.py
-Iaji.egg-info/PKG-INFO
-Iaji.egg-info/SOURCES.txt
-Iaji.egg-info/dependency_links.txt
-Iaji.egg-info/top_level.txt
