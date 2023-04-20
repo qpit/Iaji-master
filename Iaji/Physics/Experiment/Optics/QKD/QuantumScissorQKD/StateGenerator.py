@@ -59,7 +59,7 @@ class StateGenerator:
         for name in ['aoms', 'amplitude_eom', 'phase_eom']:
             self.devices[name]['levels'] = dict(zip(['lock', 'state_generation', 'vacuum'], [None, None, None]))
         self.aoms_amplification_gain = 1.25
-        self.aoms_high = 2.25
+        self.aoms_high = None #2.25
         self.phase_eom_amplification_gain = 10
         self.devices['aoms']['levels']['lock'] = self.aoms_high
         self.devices['aoms']['levels']['vacuum'] = 0
@@ -650,10 +650,11 @@ class StateGenerator:
         rp_offset = 1
         phase_controller.scope.input1 = 'in1'
         phase_controller.scope.input2 = "in2"
-        voltages = numpy.linspace(1.25, 0, 6)
+        voltages = numpy.linspace(2, 0, 10)
+        print('Finding high voltage for AOMs')
+        print(voltages)
         for voltage in voltages:
-            print('voltage = %.1f V'%voltage)
-            print(voltages)
+            print('voltage = %.2f V'%voltage)
             asg_aom.waveform = "dc"
             asg_aom.offset = voltage/amplification_gain - 1
             asg_aom.output_direct = 'out1'
@@ -694,7 +695,7 @@ class StateGenerator:
             if all(value < limit for value in trace_ac) and all(value > -limit for value in trace_ac):
                 rounded_voltage = round(voltage, 2)
                 self.aoms_high = rounded_voltage
-                print('Found! Voltage = %f V' %rounded_voltage)
+                print("Highest AOM voltage which doesn't saturate HD = %f V" %rounded_voltage)
                 return
     # -------------------------------------------
     def calibrate_phase_eom(self, voltage_range=[-1, 1], n_points = 6, acquisition_channels={"hd": 1, "time-multiplexing": 2}): #TODO

@@ -8,6 +8,7 @@ import threading
 import pyrpl
 import time
 from scipy.fft import fft, fftfreq
+from scipy import optimize
 from pyqtgraph.Qt import QtGui
 
 print_separator = "-------------------------------------------------------------------"
@@ -194,7 +195,7 @@ class PhaseController:
         #    self.iq.amplitude = 0.05
         #else:
         self.iq.quadrature_factor = 10
-        self.iq.amplitude = 0.2
+        self.iq.amplitude = 0.02
         self.iq.phase = 0
         if self.modulation_output_enabled:
             self.iq.output_direct = self.modulation_signal_output
@@ -203,7 +204,7 @@ class PhaseController:
         self.iq.output_signal = 'quadrature'
 
     def setup_scope(self):
-        self.scope.duration = 4 / self.scanning_frequency / 50
+        self.scope.duration = 12 / self.scanning_frequency / 50
         self.scope.trigger_source = self.asg_control.name
         self.scope.threshold = 0
         self.scope.input1 = self.error_signal_input
@@ -382,6 +383,45 @@ class PhaseController:
         if was_locking:
             self.lock()
         return signal_amplitude_scanned
+
+    def get_voltage_frequency(self):
+        plot = True
+
+        self.scan()
+        self.scope.input1 = self.error_signal_input
+
+        _trace = self.get_scope_curve(channel=1)
+        trace = _trace[0:int(len(_trace)/3)]
+
+        Ts = self.scope.decimation/125e6
+        time = Ts*numpy.array(numpy.arange(len(trace)))
+
+        def cos(x, amplitude, freq, phase, offset):
+            return offset + amplitude * numpy.cos(freq * x + phase)
+
+        offset_guess = (numpy.max(trace) - numpy.min(trace))/2
+        amplitude_guess = (numpy.max(trace) + numpy.min(trace))/2
+        freq_guess = 220
+        phase_guess = 0
+        fit_guess = [amplitude_guess, freq_guess, phase_guess, offset_guess]
+        fit_params, fit_covar = optimize.curve_fit(f=cos, xdata = time, ydata=trace, p0=fit_guess)
+        amplitude, freq, phase, offset = fit_params
+        fitted_scan = cos(time, amplitude, freq, phase, offset)
+
+        if plot:
+            plt.figure()
+            plt.plot(time, trace)
+            plt.plot(time, fitted_scan)
+            plt.xlabel('Time')
+            plt.ylabel('Data')
+            plt.show()
+
+        period = 1/freq
+        voltage_period = period*self.asg_control.amplitude/((1/self.asg_control.frequency)/2)
+        print('Voltage period:', voltage_period)
+        print('Guessed parameters:', fit_guess)
+        print('Amplitude, Frequency, Phase, Offset:', fit_params)
+        return voltage_period
 
     def get_ringing_frequency(self, signal_name):
         """
@@ -609,6 +649,7 @@ class PhaseController:
         #time.sleep(0.2)
         #self.setup_pid_AC()
         #time.sleep(0.2)
+        self.get_voltage_frequency()
         self.setup_pid_DC()
         self.set_demodulation_phase()
         #time.sleep(0.2)
