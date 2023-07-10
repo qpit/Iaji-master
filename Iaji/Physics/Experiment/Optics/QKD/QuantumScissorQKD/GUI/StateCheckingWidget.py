@@ -186,7 +186,9 @@ class StateCheckingWidget(QWidget):
         self.voltages_layout.addWidget(self.aoms_high_voltage_linedit)
         # Default medium voltages
         self.devices = ["aoms", "amplitude_eom"]#, "phase_eom"]
-        default_voltages = dict(zip(self.devices, [0.05, 5, 0]))
+        aoms_default = self.state_generator.devices['aoms']['levels']['state_generation']
+        amplitude_eom_default = self.state_generator.devices['amplitude_eom']['levels']['state_generation']
+        default_voltages = dict(zip(self.devices, [aoms_default, amplitude_eom_default, 0]))
         for device in self.devices:
             # Label
             setattr(self, "%s_voltage_label" % device, QLabel())
@@ -334,7 +336,7 @@ class StateCheckingWidget(QWidget):
     def aoms_high_voltage_linedit_changed(self, text):
         self.state_generator.aoms_high = float(text)
         self.state_generator.devices['aoms']['instrument'].offset = float(text)/self.state_generator.aoms_amplification_gain - 1
-        self.state_generator.pyrpl_obj_calibr.rp.asg0.output_direct = 'out1'
+        self.state_generator.pyrpl_obj_aom.rp.asg0.output_direct = 'out1'
     # -------------------------------------------
     def aoms_voltage_linedit_changed(self, text):
         self.state_generator.devices['aoms']['levels']['state_generation'] = float(text)
@@ -342,7 +344,7 @@ class StateCheckingWidget(QWidget):
     def amplitude_eom_voltage_linedit_changed(self, text):
         self.state_generator.devices['amplitude_eom']['levels']['state_generation'] = float(text)
         self.state_generator.devices['amplitude_eom']['instrument'].offset = float(text)/self.state_generator.devices['amplitude_eom']['amplification_gain'] - self.state_generator.devices['amplitude_eom']['instrument_offset']
-        self.state_generator.pyrpl_obj_calibr.rp.asg1.output_direct = 'out2'
+        self.state_generator.pyrpl_obj_eom.rp.asg0.output_direct = 'out1'
     # -------------------------------------------
     '''
     def phase_eom_voltage_linedit_changed(self, text):
@@ -493,23 +495,33 @@ class StateCheckingWidget(QWidget):
     def time_multiplexing_signals_checkbox_toggled(self):
         was_on = not self.time_multiplexing_signals_checkbox.isChecked()
         if was_on:
-            for name in ['aoms', 'amplitude_eom']:
-                print('TEST: Change it in StateGeneratorWidget if it works.')
-                self.devices[name]['instrument'].output_direct = 'off'
-                n_points = 2**14
-                self.devices[name]['instrument'].data = numpy.zeros(n_points)
-                self.state_generator.devices[name]['instrument'].offset = self.state_generator.devices[name]['levels']['lock']
-                self.state_generator.pyrpl_obj_calibr.rp.asg0.output_direct = 'out1'
-                self.state_generator.pyrpl_obj_calibr.rp.asg1.output_direct = 'out2'
+            self.state_generator.turn_off_time_multiplexing_signals()
+            #aom = self.state_generator.devices['aoms']['instrument']
+            #eom = self.state_generator.devices['amplitude_eom']['instrument']
+            #sample_hold = self.state_generator.pyrpl_obj_aom.rp.asg1
+
+            #aom_value = float(self.aoms_high_voltage_linedit.text())
+            #print(aom_value)
+            #eom_value = float(self.amplitude_eom_voltage_linedit.text())
+            #sample_hold_value = 1
+
+            #aom.setup(trigger_source="immediately", amplitude=1, offset=aom_value)
+            #eom.setup(trigger_source="immediately", amplitude=1, offset=eom_value)
+            #sample_hold.setup(trigger_source="immediately", amplitude=1, offset=sample_hold_value)
+
+            #for name in ['aoms', 'amplitude_eom']:
+            #    self.devices[name]['instrument'].output_direct = 'off'
+            #    n_points = 2**14
+            #    self.devices[name]['instrument'].data = numpy.zeros(n_points)
+            #    self.state_generator.devices[name]['instrument'].offset = self.state_generator.devices[name]['levels']['lock']
+            #    self.state_generator.pyrpl_obj_aom.rp.asg0.output_direct = 'out1'
+            #    self.state_generator.pyrpl_obj_eom.rp.asg0.output_direct = 'out1'
         else:
-            if self.state_generator.amplitude_eom_low == None:
-                self.state_generator.find_low_eom_transmission()
             aom_levels = [self.state_generator.devices['aoms']['levels'][x] for x in ['lock', 'state_generation', 'vacuum']]
             eom_levels = [self.state_generator.devices['amplitude_eom']['levels'][x] for x in ['lock', 'state_generation', 'vacuum']]
             duty_cycles = self.state_generator.time_multiplexing['duty_cycles']
             frequency = self.state_generator.time_multiplexing['frequency']
             max_delay = self.state_generator.time_multiplexing['max_delay']
-            print('aom levels:', aom_levels)
             self.state_generator._time_multiplexing_signals(max_delay=max_delay, aom_levels=aom_levels, eom_levels=eom_levels, \
                                                             frequency=frequency, aom_duty_cycles=duty_cycles, eom_duty_cycles=duty_cycles)
     # --------------------------------------------

@@ -95,6 +95,7 @@ class PhaseController:
         # Setup scope
         self.scope.input1 = self.AC_error_signal
         self.scope.input2 = self.error_signal_input
+        self.ival_jump = None
     '''
     @property
     def modulation_output_enabled(self):
@@ -158,8 +159,8 @@ class PhaseController:
         self.pid_control.input = self.error_signal
         self.pid_control.output_direct = 'off'
         self.pid_control.inputfilter = [2e5, 2e5, 0, 0]
-        self.pid_control.p = 0.05
-        self.pid_control.i = 20
+        self.pid_control.p = 0.15
+        self.pid_control.i = 5
         self.pid_control.ival = 0
 
     def enable_pid_control(self):
@@ -296,7 +297,6 @@ class PhaseController:
 
         amplitude_pid_DC = self.get_signal_amplitude(signal_name=self.DC_error_signal)
         amplitude_iq = self.get_signal_amplitude(signal_name=self.iq.name)
-        print('DEBUG: Amplitude pid DC', amplitude_pid_DC, 'Amplitude iq', amplitude_iq)
         if amplitude_pid_DC == 0:
             print('DEBUG: Amplitude pid DC is zero')
             self.phase = 45*np.pi/180
@@ -348,7 +348,7 @@ class PhaseController:
 
         return signal_mean
 
-    def get_signal_amplitude(self, signal_name=None):
+    def get_signal_amplitude(self, signal_name=None, plot = False):
         """¨
         This function does the following:
             - scan
@@ -362,6 +362,11 @@ class PhaseController:
         trace = self.get_scope_curve(channel=1)
         # Compute the amplitude
         signal_amplitude = np.max(trace) - np.min(trace)
+
+        if plot == True:
+            plt.figure()
+            plt.plot(numpy.linspace(1, len(trace), len(trace)), trace)
+            plt.show()
 
         return signal_amplitude
 
@@ -385,43 +390,51 @@ class PhaseController:
         return signal_amplitude_scanned
 
     def get_voltage_frequency(self):
-        plot = True
+        if self.ival_jump == None:
+            pass
+        else:
+            plot = True
 
-        self.scan()
-        self.scope.input1 = self.error_signal_input
+            self.scan()
+            self.scope.input1 = self.error_signal_input
 
-        _trace = self.get_scope_curve(channel=1)
-        trace = _trace[0:int(len(_trace)/3)]
+            _trace = self.get_scope_curve(channel=1)
+            trace = _trace[0:int(len(_trace)/3)]
 
-        Ts = self.scope.decimation/125e6
-        time = Ts*numpy.array(numpy.arange(len(trace)))
+            Ts = self.scope.decimation/125e6
+            time = Ts*numpy.array(numpy.arange(len(trace)))
 
-        def cos(x, amplitude, freq, phase, offset):
-            return offset + amplitude * numpy.cos(freq * x + phase)
+            def cos(x, amplitude, freq, phase, offset):
+                return offset + amplitude * numpy.cos(freq * x + phase)
 
-        offset_guess = (numpy.max(trace) - numpy.min(trace))/2
-        amplitude_guess = (numpy.max(trace) + numpy.min(trace))/2
-        freq_guess = 220
-        phase_guess = 0
-        fit_guess = [amplitude_guess, freq_guess, phase_guess, offset_guess]
-        fit_params, fit_covar = optimize.curve_fit(f=cos, xdata = time, ydata=trace, p0=fit_guess)
-        amplitude, freq, phase, offset = fit_params
-        fitted_scan = cos(time, amplitude, freq, phase, offset)
+            offset_guess = (numpy.max(trace) - numpy.min(trace))/2
+            amplitude_guess = (numpy.max(trace) + numpy.min(trace))/2
+            freq_guess = 220
+            phase_guess = 0
+            fit_guess = [amplitude_guess, freq_guess, phase_guess, offset_guess]
+            fit_params, fit_covar = optimize.curve_fit(f=cos, xdata = time, ydata=trace, p0=fit_guess)
+            amplitude, freq, phase, offset = fit_params
+            fitted_scan = cos(time, amplitude, freq, phase, offset)
 
-        if plot:
-            plt.figure()
-            plt.plot(time, trace)
-            plt.plot(time, fitted_scan)
-            plt.xlabel('Time')
-            plt.ylabel('Data')
-            plt.show()
+            if plot:
+                plt.figure()
+                plt.plot(time, trace)
+                plt.plot(time, fitted_scan)
+                plt.xlabel('Time')
+                plt.ylabel('Data')
+                plt.show()
 
-        period = 1/freq
-        voltage_period = period*self.asg_control.amplitude/((1/self.asg_control.frequency)/2)
-        print('Voltage period:', voltage_period)
-        print('Guessed parameters:', fit_guess)
-        print('Amplitude, Frequency, Phase, Offset:', fit_params)
-        return voltage_period
+            period = 1/freq
+            self.ival_jump = period
+            voltage_period = period*self.asg_control.amplitude/((1/self.asg_control.frequency)/2)
+            print('Voltage period:', voltage_period)
+            print('Guessed parameters:', fit_guess)
+            print('Amplitude, Frequency, Phase, Offset:', fit_params)
+
+            self.pid_control.ival_max_bound = 0.98
+            self.pid_control.ival_min_bound = - self.pid_control.ival_max_bound
+            self.pid_control.ival_max_jump_dst = abs(voltage_period)
+            self.pid_control.ival_min_jump_dst = - self.pid_control.ival_max_jump_dst
 
     def get_ringing_frequency(self, signal_name):
         """

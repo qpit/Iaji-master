@@ -241,14 +241,24 @@ class LecroyOscilloscope:
         scope_save_directory = self.host_drive + "\\" + self.save_directory
         scope_filenames = os.listdir()  # important! For some reason, looking always into the same scope's directory does not update the file list
         scope_filenames = os.listdir(scope_save_directory)
-        saved_file = scope_filenames[-1]
+        if len(scope_filenames) != 0:
+            saved_file = scope_filenames[-1]
+        else:
+            saved_file = last_file
         start_time = time.time()
         time.sleep(2)
+        round = 0
         while saved_file == last_file:
+            round += 1
+            if round == 20:
+                print('Data is taking long to be saved. Check if saving folder on scope is the same as the one set on python code.')
             time.sleep(1)
             scope_filenames = os.listdir()  # important! For some reason, looking always into the same scope's directory does not update the file list
             scope_filenames = os.listdir(scope_save_directory)
-            saved_file = scope_filenames[-1]
+            if len(scope_filenames) != 0:
+                saved_file = scope_filenames[-1]
+            else:
+                saved_file = last_file
         print('Time to acquire = %.2f sec'%(time.time()-start_time))
         print('Saved file:', saved_file)
         #Transfer the selected traces to the host save directory

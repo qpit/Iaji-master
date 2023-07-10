@@ -35,15 +35,15 @@ In PhaseController, set frequency to either "calibration_frequency" for modulati
 '''
 
 Dr_Jacoby_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(folder, "HD_Dr_Jacoby"),\
-                                frequency="calibration_frequency", name="Dr. Jacoby Phase Controller", enable_modulation_output=False, pid_autotune=True)
+                                frequency="calibration_frequency", name="Dr. Jacoby Phase Controller", enable_modulation_output=False, pid_autotune=False)
 Blue_Velvet_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(folder, "HD_Blue_Velvet"),\
-                                        frequency="measurement_frequency", name="Blue Velvet Phase Controller", enable_modulation_output=True, pid_autotune=True)
+                                        frequency="measurement_frequency", name="Blue Velvet Phase Controller", enable_modulation_output=True, pid_autotune=False)
 if OPO2:
     pass
 
 #Relay interference phase controller
 relay_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(local_config_files_folder, "relay_phase_lock"),\
-                                frequency="calibration_frequency", name="Relay Phase Controller", enable_modulation_output=True, pid_autotune=True)
+                                frequency="calibration_frequency", name="Relay Phase Controller", enable_modulation_output=True, pid_autotune=False)
 
 if MainScope:
 #Main scope
@@ -63,12 +63,12 @@ Blue_Velvet_state_measurement = StateMeasurementController(Blue_Velvet_hd)
 relay_state_measurement = StateMeasurementController(relay_hd)
 
 #Signal generator
-signal_generator = SigilentSignalGenerator(address="USB0::0xF4ED::0xEE3A::NDG2XCA4160177::INSTR", protocol="visa")
+#signal_generator = SigilentSignalGenerator(address="USB0::0xF4ED::0xEE3A::NDG2XCA4160177::INSTR", protocol="visa")
 #State generator
 print('State generator')
-state_generator = StateGenerator(modulation_redpitaya_config_filename=os.path.join(local_config_files_folder, "input_state_modulation"), \
-                                calibration_redpitaya_config_filename=os.path.join(local_config_files_folder, "channel_losses"), \
-                                 signal_enabler=signal_generator, state_measurement=Dr_Jacoby_state_measurement)
+state_generator = StateGenerator(eom_redpitaya_config_filename=os.path.join(local_config_files_folder, "eom_pitaya"), \
+                                aom_redpitaya_config_filename=os.path.join(local_config_files_folder, "aom_pitaya"), \
+                                state_measurement=Dr_Jacoby_state_measurement)
 #State checking
 state_checking = StateChecking(state_measurement=Blue_Velvet_state_measurement, state_generator=state_generator)
 
