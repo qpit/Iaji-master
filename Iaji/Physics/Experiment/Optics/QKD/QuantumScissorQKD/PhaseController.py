@@ -96,6 +96,8 @@ class PhaseController:
         self.scope.input1 = self.AC_error_signal
         self.scope.input2 = self.error_signal_input
         self.ival_jump = None
+        if self.name == "Relay Phase Controller":
+            self.ival_jump = 'yes'
     '''
     @property
     def modulation_output_enabled(self):
@@ -140,7 +142,6 @@ class PhaseController:
         self.pid_DC.output_direct = 'off'
         self.pid_DC.inputfilter = [2e3, 2e3, 0, 0]
         # Set the initial proportional value such that the curve fits in a fraction of the scope range
-        print(self.name)
         self.pid_DC.p = 1 / 5 * (2 / self.get_scanned_signal_amplitude(signal_name=self.error_signal_input))
         self.pid_DC.i = 0
         self.pid_DC.ival = 0
@@ -159,9 +160,12 @@ class PhaseController:
         self.pid_control.input = self.error_signal
         self.pid_control.output_direct = 'off'
         self.pid_control.inputfilter = [2e5, 2e5, 0, 0]
-        self.pid_control.p = 0.15
-        self.pid_control.i = 5
+        self.pid_control.p = 0.08
+        self.pid_control.i = 25
         self.pid_control.ival = 0
+        if self.name == "Relay Phase Controller":
+            self.pid_control.p = 0.05
+            self.pid_control.i = 15
 
     def enable_pid_control(self):
         if self.is_scanning:
@@ -188,15 +192,19 @@ class PhaseController:
         #    self.iq.acbandwidth = 0.8 * self.modulation_frequency
         #else:
         self.iq.acbandwidth = 0.3 * self.modulation_frequency
+        if self.name == "Relay Phase Controller":
+            self.iq.acbandwidth = 1.5e6
         self.iq.frequency = self.modulation_frequency
         self.iq.gain = 0
         self.iq.bandwidth = [1e3, 1e3]
+        if self.name == "Relay Phase Controller":
+            self.iq.bandwidth = [1.2e3, 6e2]
         #if self.modulation_frequency > 10**5:
         #    self.iq.quadrature_factor = 20
         #    self.iq.amplitude = 0.05
         #else:
         self.iq.quadrature_factor = 10
-        self.iq.amplitude = 0.02
+        self.iq.amplitude = 0.09
         self.iq.phase = 0
         if self.modulation_output_enabled:
             self.iq.output_direct = self.modulation_signal_output
@@ -205,7 +213,7 @@ class PhaseController:
         self.iq.output_signal = 'quadrature'
 
     def setup_scope(self):
-        self.scope.duration = 12 / self.scanning_frequency / 50
+        self.scope.duration = 24 / self.scanning_frequency / 50
         self.scope.trigger_source = self.asg_control.name
         self.scope.threshold = 0
         self.scope.input1 = self.error_signal_input
@@ -283,12 +291,12 @@ class PhaseController:
             trace = self.get_scope_curve(channel=2)
             amplitudes[i] = np.max(trace) - np.min(trace)
         self.iq.phase = x_phase[np.argmax(amplitudes)]
-        print("iq phase:", self.iq.phase)
 
         if was_not_scanning:
             self.turn_off_scan()
 
     def set_iq_qfactor(self):
+        plot = True
         was_not_scanning = not self.is_scanning
 
         self.scan()
@@ -296,7 +304,9 @@ class PhaseController:
         self.scope.input2 = self.iq.name
 
         amplitude_pid_DC = self.get_signal_amplitude(signal_name=self.DC_error_signal)
+        #print('Amplitude pid DC:', amplitude_pid_DC)
         amplitude_iq = self.get_signal_amplitude(signal_name=self.iq.name)
+        #print('Amplitude iq before calibration:', amplitude_iq)
         if amplitude_pid_DC == 0:
             print('DEBUG: Amplitude pid DC is zero')
             self.phase = 45*np.pi/180
@@ -306,7 +316,10 @@ class PhaseController:
             self.iq.quadrature_factor = amplitude_pid_DC
         if amplitude_iq != 0:
             self.iq.quadrature_factor *= amplitude_pid_DC / amplitude_iq
-        print('DEBUG: iq quadrature factor', self.iq.quadrature_factor)
+
+        amplitude_iq = self.get_signal_amplitude(signal_name=self.iq.name)
+        #print('Quadrature factor:', self.iq.quadrature_factor)
+        #print('Amplitude iq after calibration:', amplitude_iq)
 
         self.scope.input1 = self.AC_error_signal
         self.scope.input2 = self.DC_error_signal
@@ -320,13 +333,26 @@ class PhaseController:
         2. get the mean value
         3. set the setpoint of pid_DC to the mean value
         """
+        plot = False
         was_scanning = self.is_scanning
         was_locking = self.is_locking
         self.scope.input1 = self.error_signal_input
         self.scope.input2 = self.DC_error_signal
         self.scan()
-        trace = self.get_scope_curve(channel=1)
+        _trace = self.get_scope_curve(channel=1)
+        # There is a jump in the signal that I want to avoid
+        max_index = int(len(_trace)/2)
+        skip = 50
+        trace = _trace[0:max_index]
+        trace = trace[::skip]
         self.pid_DC.setpoint = (np.max(trace) + np.min(trace))/2
+        if plot:
+            plt.figure()
+            plt.plot(range(len(trace)), trace)
+            plt.axhline(y = np.max(trace), color = 'r', linestyle = 'dashed')
+            plt.axhline(y = np.min(trace), color = 'r', linestyle = 'dashed')
+            plt.title('pid DC')
+            plt.show()
         if not was_scanning:
             self.turn_off_scan()
         if was_locking:
@@ -356,16 +382,25 @@ class PhaseController:
             - return the amplitude of the error signal
         """
         # previous_scope_input = self.scope.input1
+        plot = False
         if signal_name is not None:
             self.scope.input1 = signal_name
         # Get trace
-        trace = self.get_scope_curve(channel=1)
+        _trace = self.get_scope_curve(channel=1)
+        # There is a jump in the signal that I want to avoid
+        max_index = int(len(_trace) / 2)
+        skip = 50
+        trace = _trace[0:max_index]
+        trace = trace[::5]
         # Compute the amplitude
         signal_amplitude = np.max(trace) - np.min(trace)
 
         if plot == True:
             plt.figure()
             plt.plot(numpy.linspace(1, len(trace), len(trace)), trace)
+            plt.axhline(y=np.max(trace), color='r', linestyle='dashed')
+            plt.axhline(y=np.min(trace), color='r', linestyle='dashed')
+            plt.title(signal_name)
             plt.show()
 
         return signal_amplitude
@@ -393,6 +428,10 @@ class PhaseController:
         if self.ival_jump == None:
             pass
         else:
+            #Fixed values for ival jump
+
+            #Calculate the voltage which makes the signal advance one period
+
             plot = True
 
             self.scan()
@@ -404,22 +443,27 @@ class PhaseController:
             Ts = self.scope.decimation/125e6
             time = Ts*numpy.array(numpy.arange(len(trace)))
 
-            def cos(x, amplitude, freq, phase, offset):
+            offset = (numpy.max(trace) + numpy.min(trace)) / 2
+            amplitude = (numpy.max(trace) - numpy.min(trace)) / 2
+
+            def cos(x, freq, phase):
                 return offset + amplitude * numpy.cos(freq * x + phase)
 
-            offset_guess = (numpy.max(trace) - numpy.min(trace))/2
-            amplitude_guess = (numpy.max(trace) + numpy.min(trace))/2
-            freq_guess = 220
+            #offset_guess = (numpy.max(trace) - numpy.min(trace))/2
+            #amplitude_guess = (numpy.max(trace) + numpy.min(trace))/2
+            freq_guess = 2500
             phase_guess = 0
-            fit_guess = [amplitude_guess, freq_guess, phase_guess, offset_guess]
+            fit_guess = [freq_guess, phase_guess]
             fit_params, fit_covar = optimize.curve_fit(f=cos, xdata = time, ydata=trace, p0=fit_guess)
-            amplitude, freq, phase, offset = fit_params
-            fitted_scan = cos(time, amplitude, freq, phase, offset)
+            freq, phase = fit_params
+            fitted_scan = cos(time, freq, phase)
 
             if plot:
                 plt.figure()
                 plt.plot(time, trace)
                 plt.plot(time, fitted_scan)
+                plt.axhline(y=np.max(trace), color='r', linestyle='dashed')
+                plt.axhline(y=np.min(trace), color='r', linestyle='dashed')
                 plt.xlabel('Time')
                 plt.ylabel('Data')
                 plt.show()
@@ -429,12 +473,13 @@ class PhaseController:
             voltage_period = period*self.asg_control.amplitude/((1/self.asg_control.frequency)/2)
             print('Voltage period:', voltage_period)
             print('Guessed parameters:', fit_guess)
-            print('Amplitude, Frequency, Phase, Offset:', fit_params)
+            print('Frequency, Phase:', fit_params)
 
             self.pid_control.ival_max_bound = 0.98
             self.pid_control.ival_min_bound = - self.pid_control.ival_max_bound
-            self.pid_control.ival_max_jump_dst = abs(voltage_period)
+            self.pid_control.ival_max_jump_dst = 4*abs(voltage_period)
             self.pid_control.ival_min_jump_dst = - self.pid_control.ival_max_jump_dst
+
 
     def get_ringing_frequency(self, signal_name):
         """
@@ -650,7 +695,11 @@ class PhaseController:
         #See Iyad's PhD thesis (Methods) for reference
         V_DC = self.get_scanned_signal_amplitude(signal_name=self.error_signal_input)
         P_DC = -np.sin(phase_rad) / V_DC
-        V_AC = self.get_scanned_signal_amplitude(signal_name=self.AC_error_signal)
+        V_AC = 0
+        while V_AC == 0: # In case it catches the moment in which iq is turned off
+            V_AC = self.get_scanned_signal_amplitude(signal_name=self.AC_error_signal)
+            if V_AC == 0:
+                print('Amplitude of AC error signal is zero')
         P_AC = np.cos(phase_rad) / V_AC
         self.pid_AC.p = P_AC
         self.pid_DC.p = P_DC

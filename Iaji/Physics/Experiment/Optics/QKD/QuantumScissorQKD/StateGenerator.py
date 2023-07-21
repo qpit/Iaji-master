@@ -26,6 +26,7 @@ class StateGenerator:
     # -------------------------------------------
     def __init__(self, eom_redpitaya_config_filename, \
                  aom_redpitaya_config_filename, \
+                 sample_hold_redpitaya_config_filename, \
                  #signal_enabler:SigilentSignalGenerator,
                  state_measurement: StateMeasurementController, name = "State Generator"):
         '''
@@ -37,15 +38,18 @@ class StateGenerator:
             state measurement controller object, for state calibration
         :param name: str
         '''
+        self.eom = False ## If change, edit line with string 20230713
         self.eom_redpitaya_config_filename = eom_redpitaya_config_filename
         self.aom_redpitaya_config_filename = aom_redpitaya_config_filename
+        self.sample_hold_redpitaya_config_filename = sample_hold_redpitaya_config_filename
+        self.state_measurement = state_measurement
         try:
             self.connect_to_redpitayas()
         except:
             print("Fanculo I couldn't connect to the state generation Pitayas!")
-        self.lock_eom_bias(setpoint=0.005)
+        if self.eom == True:
+            self.lock_eom_bias(setpoint=0.01)
         #self.signal_enabler = signal_enabler #signal generator controlling the state generator AOM driver
-        self.state_measurement = state_measurement
         self.name = name
         #Add the signal generator to the state measurement controller for fast vacuum quadrature measurements
         #self.state_measurement.signal_enabler = self.signal_enabler
@@ -54,7 +58,7 @@ class StateGenerator:
         self.devices = {}
         ##Instruments
         self.devices['aoms'] = {'instrument': self.pyrpl_obj_aom.rp.asg0}
-        self.devices['amplitude_eom'] = {'instrument': self.pyrpl_obj_eom.rp.asg0}
+        self.devices['amplitude_eom'] = {'instrument': None} #self.pyrpl_obj_eom.rp.asg0} ## Edit here if using eom
         #self.devices['phase_eom'] = {'instrument': self.pyrpl_obj_mod.rp.asg1}
         ##Set up devices configurations
         ###Levels
@@ -64,23 +68,27 @@ class StateGenerator:
         self.devices['aoms']['instrument_offset'] = 1
         self.devices['aoms']['amplification_gain'] = 1
         self.devices['amplitude_eom']['instrument_offset'] = 1
-        self.devices['amplitude_eom']['amplification_gain'] = 2.5
+        self.devices['amplitude_eom']['amplification_gain'] = 1 #Connect to an amplifier when using EOM
         # self.devices['phase_eom']['instrument_offset'] = 0
         self.aoms_high = 0.5
-        self.eom_high = None
+        self.eom_high = 1 #Change to None when using EOM
         self.amplitude_eom_low = 0
         #self.phase_eom_amplification_gain = 10
         self.devices['aoms']['levels']['lock'] = self.aoms_high
         self.devices['aoms']['levels']['state_generation'] = 0.1
-        self.devices['amplitude_eom']['levels']['state_generation'] = 5
+        self.devices['amplitude_eom']['levels']['state_generation'] = 0
         self.devices['aoms']['levels']['vacuum'] = 0
         self.devices['amplitude_eom']['levels']['vacuum'] = self.amplitude_eom_low
         #self.devices['phase_eom']['levels']['lock'] = 0
         ###Amplification gains
         self.devices['amplitude_eom']['levels']['lock'] = self.eom_high
         #self.devices['phase_eom']['amplification_gain'] = self.phase_eom_amplification_gain
-        self.time_multiplexing = {'duty_cycles': [0.6, 0.2, 0.2], 'frequency': 60, 'max_delay': 5e-4}
+        self.time_multiplexing = {'instrument': self.pyrpl_obj_sh.rp.asg1,'duty_cycles': [0.6, 0.2, 0.2], 'frequency': 60, 'max_delay': 5e-4}
         self.calibrations = {}
+        self.phase_calibration = None
+        self.calibrated = "no" #Flag if homodyne phase calibration has been performed
+        #Sent voltage to AOM
+        self.devices['aoms']['instrument'].offset = self.aoms_high/self.devices['aoms']['amplification_gain'] - self.devices['aoms']['instrument_offset']
     # -------------------------------------------
     #@property
     #def aoms_high(self):
@@ -152,31 +160,42 @@ class StateGenerator:
     #    del self._phase_eom_amplification_gain
     # -------------------------------------------
     def connect_to_redpitayas(self, show_pyrpl_GUI=True):
-        # Connect to AOMs and amplitude EOM bias calibration Pitaya
-        self.pyrpl_obj_eom = pyrpl.Pyrpl(config=self.eom_redpitaya_config_filename)
-        self.pyrpl_obj_eom.rp.asg0.offset = 0 # EOM RF
-        self.pyrpl_obj_eom.rp.asg0.output_direct = "off"
-        self.pyrpl_obj_eom.rp.asg1.offset = 0 # EOM BIAS
-        self.pyrpl_obj_eom.rp.asg1.output_direct = "off"
-        self.pyrpl_obj_eom.rp.scope.input1 = "out1"
-        self.pyrpl_obj_eom.rp.scope.input2 = "in1"
-        if show_pyrpl_GUI:
-            self.pyrpl_GUI_eom = QtGui.QApplication.instance()
-        # Connect to modulation Pitaya
+        # Connect to AOM Pitaya
         self.pyrpl_obj_aom = pyrpl.Pyrpl(config=self.aom_redpitaya_config_filename)
         if show_pyrpl_GUI:
             self.pyrpl_GUI_aom = QtGui.QApplication.instance()
         self.pyrpl_obj_aom.rp.asg0.offset = 0  # AOM MOD
-        self.pyrpl_obj_aom.rp.asg0.output_direct = "off"
-        self.pyrpl_obj_aom.rp.asg1.offset = 0  # Sample hold
-        self.pyrpl_obj_aom.rp.asg1.output_direct = "off"
+        self.pyrpl_obj_aom.rp.asg0.output_direct = "out1"
+        self.pyrpl_obj_aom.rp.asg1.offset = 1  # AOM Gate
+        self.pyrpl_obj_aom.rp.asg1.output_direct = "out2"
         self.pyrpl_obj_aom.rp.scope.input1 = "out1"
         self.pyrpl_obj_aom.rp.scope.input2 = "out2"
+        # Trigger scope to line
+        lecroy = self.state_measurement.hd_controller.acquisition_system.scope
+        lecroy.setup_trigger()
         #for channel in [0, 1]:
         #    getattr(self.pyrpl_obj_aom.rp, "asg%d" % channel).setup(waveform='dc', offset=0,
         #                                                            trigger_source='immediately')
         #    getattr(self.pyrpl_obj_aom.rp, "asg%d" % channel).output_direct = "off" * (channel == 0) + "out%d" % (
         #            channel + 1) * (channel == 1)
+        # Connect to sample hold pitaya
+        self.pyrpl_obj_sh = pyrpl.Pyrpl(config=self.sample_hold_redpitaya_config_filename)
+        self.pyrpl_obj_sh.rp.asg1.offset = 1  # Sample-hold signal
+        self.pyrpl_obj_sh.rp.asg1.output_direct = "out2"
+        self.pyrpl_obj_sh.rp.scope.input1 = "out2"
+        if show_pyrpl_GUI:
+            self.pyrpl_GUI_sh = QtGui.QApplication.instance()
+        # Connect to EOM Pitaya
+        if self.eom:
+            self.pyrpl_obj_eom = pyrpl.Pyrpl(config=self.eom_redpitaya_config_filename)
+            self.pyrpl_obj_eom.rp.asg0.offset = 0  # EOM RF
+            self.pyrpl_obj_eom.rp.asg0.output_direct = "off"
+            self.pyrpl_obj_eom.rp.asg1.offset = 0  # EOM BIAS
+            self.pyrpl_obj_eom.rp.asg1.output_direct = "off"
+            self.pyrpl_obj_eom.rp.scope.input1 = "out1"
+            self.pyrpl_obj_eom.rp.scope.input2 = "in1"
+            if show_pyrpl_GUI:
+                self.pyrpl_GUI_eom = QtGui.QApplication.instance()
     # -------------------------------------------
     def _n_level_step_function(self, frequency, levels, duty_cycles, n_points, Ts):
         assert len(levels) == len(duty_cycles), \
@@ -262,19 +281,26 @@ class StateGenerator:
     # ------------------------------------------
     def turn_off_time_multiplexing_signals(self):
         aom = self.devices['aoms']['instrument']
-        eom = self.devices['amplitude_eom']['instrument']
-        sample_hold = self.pyrpl_obj_aom.rp.asg1
+        if self.eom:
+            eom = self.devices['amplitude_eom']['instrument']
+        gate = self.pyrpl_obj_aom.rp.asg1
+        sample_hold = self.time_multiplexing['instrument']
 
-        aom_value = self.devices['aoms']['levels']['lock']
-        eom_value = self.devices['amplitude_eom']['levels']['lock']
+        aom_value = self.devices['aoms']['levels']['lock']/self.devices['aoms']['amplification_gain'] - self.devices['aoms']['instrument_offset']
+        if self.eom:
+            eom_value = self.devices['amplitude_eom']['levels']['lock']/self.devices['amplitude_eom']['amplification_gain'] - self.devices['amplitude_eom']['instrument_offset']
         sample_hold_value = 1
 
         aom.setup(waveform='dc', trigger_source="immediately", amplitude=1, offset=aom_value)
-        eom.setup(waveform='dc', trigger_source="immediately", amplitude=1, offset=eom_value)
+        if self.eom:
+            eom.setup(waveform='dc', trigger_source="immediately", amplitude=1, offset=eom_value)
+        gate.setup(waveform='dc', trigger_source="immediately", amplitude=1, offset=sample_hold_value)
         sample_hold.setup(waveform='dc', trigger_source="immediately", amplitude=1, offset=sample_hold_value)
 
         aom.output_direct = "out1"
-        eom.output_direct = "out1"
+        if self.eom:
+            eom.output_direct = "out1"
+        gate.output_direct = "out2"
         sample_hold.output_direct = "out2"
 
         lecroy = self.state_measurement.hd_controller.acquisition_system.scope
@@ -292,34 +318,41 @@ class StateGenerator:
         #self._setup_acquisition_calibration(channels=acquisition_channels)
 
         aom = self.devices['aoms']['instrument']
-        eom = self.devices['amplitude_eom']['instrument']
+        if self.eom:
+            eom = self.devices['amplitude_eom']['instrument']
+        sample_hold = self.time_multiplexing['instrument']
         aom_scope = self.pyrpl_obj_aom.rp.scope
-        sample_hold = self.pyrpl_obj_aom.rp.asg1
+        gate = self.pyrpl_obj_aom.rp.asg1
 
         n_points = 2 ** 14
         scope_decimation = int(numpy.ceil(125e6/(frequency*n_points)))
         Ts = scope_decimation / 125e6
 
-        amplification_gain = self.devices['aoms']['amplification_gain']
-        rp_offset = self.devices['aoms']['instrument_offset']
         real_aom_levels = aom_levels
         real_eom_levels = eom_levels
-        aom_levels = numpy.array(aom_levels) / amplification_gain - rp_offset
-        eom_levels = numpy.array(eom_levels) / 2.5 - rp_offset
-        sample_hold_levels = [1, -1]
-        sample_hold_duty_cycles = [0.8, 0.2]
+        aom_levels = numpy.array(aom_levels)/self.devices['aoms']['amplification_gain'] - self.devices['aoms']['instrument_offset']
+        eom_levels = numpy.array(eom_levels)/self.devices['amplitude_eom']['amplification_gain'] - self.devices['amplitude_eom']['instrument_offset']
+        gate_levels = [1, -1]
+        sample_hold_levels = gate_levels
+        gate_duty_cycles = [0.8, 0.2]
+        sample_hold_duty_cycles = [0.6, 0.4]
 
         aom.setup(trigger_source="ext_negative_edge", frequency = self.time_multiplexing['frequency'], amplitude=1, offset=0)
         aom.data = self._n_level_step_function(frequency, aom_levels, aom_duty_cycles, n_points, Ts)
         #aom.setup(waveform='dc', trigger_source="immediately", amplitude=1, offset=aom_levels[1])
         #eom.setup(trigger_source="ext_negative_edge", frequency=self.time_multiplexing['frequency'], amplitude=1, offset=0)
         #eom.data = self._n_level_step_function(frequency, eom_levels, eom_duty_cycles, n_points, Ts)
-        eom.setup(waveform='dc', trigger_source="immediately", amplitude=1, offset=eom_levels[1])
-        sample_hold.setup(trigger_source="ext_negative_edge", frequency=self.time_multiplexing['frequency'], amplitude=1, offset=0)
+        if self.eom:
+            eom.setup(waveform='dc', trigger_source="immediately", amplitude=1, offset=eom_levels[1])
+        gate.setup(trigger_source="ext_negative_edge", frequency=self.time_multiplexing['frequency'], amplitude=1, offset=0)
+        gate.data = self._n_level_step_function(frequency, gate_levels, gate_duty_cycles, n_points, Ts)
+        sample_hold.setup(trigger_source="ext_negative_edge", frequency = self.time_multiplexing['frequency'], amplitude=1, offset=0)
         sample_hold.data = self._n_level_step_function(frequency, sample_hold_levels, sample_hold_duty_cycles, n_points, Ts)
 
         aom.output_direct = "out1"
-        eom.output_direct = "out1"
+        if self.eom:
+            eom.output_direct = "out1"
+        gate.output_direct = "out2"
         sample_hold.output_direct = "out2"
 
         lecroy = self.state_measurement.hd_controller.acquisition_system.scope
@@ -441,7 +474,7 @@ class StateGenerator:
         time.sleep(1)
         """
     # -----------------------------------------
-    def _extract_quadrature_measurements(self, hd_output, time_multiplexing_signal, Ts, dead_time=0, measurement_time=-1,
+    def _extract_quadrature_measurements(self, hd_output, time_multiplexing_signal, Ts, dead_time=0.75e-3, measurement_time=-1,
                                         plot=False):
         '''
         Extract signal and vacuum quadrature measurements from raw homodyne detector
@@ -569,6 +602,13 @@ class StateGenerator:
             neg_peak_indices =  negative_peak_indices[numpy.where(numpy.logical_and( \
                 negative_peak_indices > start, \
                 negative_peak_indices < end))]
+            if len(neg_peak_indices) == 1:
+                vac_peak_time = neg_peak_indices[0]*Ts + self.time_multiplexing['duty_cycles'][1]/self.time_multiplexing['frequency']
+                vac_peak_indice = vac_peak_time/Ts
+                neg_peak_indices_list = neg_peak_indices.tolist()
+                neg_peak_indices_list.append(vac_peak_indice)
+                neg_peak_indices = numpy.array(neg_peak_indices_list)
+                print('Missing negative peaks were added.')
             #Debug printing
            # print("(start time, end time) = (%f, %f)"%(start*Ts, end*Ts))
            # print("negative peak times: %s"%(numpy.array(neg_peak_indices)*Ts))
@@ -667,8 +707,14 @@ class StateGenerator:
             print('trial: %d'%run)
             acq = self.state_measurement.hd_controller.acquisition_system
             phase_controller = self.state_measurement.hd_controller.phase_controller
-            # Calibration
-            phase_controller.calibrate()
+            #if self.phase_calibration == "once": # Phase calibration is only done once for all the measurements. It avoids moments in which iq demodulation phase is 180 deg apart.
+            #    if self.calibrated == "no":
+            #        # Calibration
+            #        phase_controller.calibrate()
+            #        self.calibrated = "yes"
+            #else:
+            #    # Calibration
+            #    phase_controller.calibrate()
             #Set homodyne detection phase
             phase_controller.set_phase(phase)
             #Lock the phase
@@ -720,6 +766,8 @@ class StateGenerator:
             range of voltages output from the signal generator that feeds into the AOM driver [V]
         :return:
         '''
+        self.phase_calibration = "once"
+        self.calibrated = "no"
         start_time = time.time()
         self.state_measurement.hd_controller.phase_controller.turn_off_scan()
         acq = self.state_measurement.hd_controller.acquisition_system
@@ -745,6 +793,8 @@ class StateGenerator:
         self.devices['aoms']['instrument'].offset = 0
         #define array of displacements
         self.displacements = []
+        self.turn_off_time_multiplexing_signals()
+        self.state_measurement.hd_controller.phase_controller.calibrate()
         for i in range(n_points):
             if self.calibration_stopped:
                 self.calibration_stopped = False
@@ -765,11 +815,11 @@ class StateGenerator:
             self.measure_quadrature_calibration(phase=phase, acquisition_channels=acquisition_channels)
             traces_q = {channel_names[0]: acq.scope.traces[channel_names[0]], \
                         channel_names[1]: acq.scope.traces[channel_names[1]]}
-            #generalized p quadrature
             #self.turn_off_time_multiplexing_signals()
+            #generalized p quadrature
             phase = phase + 90
             #self.lock(phase)
-            #self._time_multiplexing_signals(max_delay, aom_levels, eom_levels, frequency, aom_duty_cycles, eom_duty_cycles)
+            self._time_multiplexing_signals(max_delay, aom_levels, eom_levels, frequency, aom_duty_cycles, eom_duty_cycles)
             self._setup_acquisition_calibration(channels=acquisition_channels)
             self.measure_quadrature_calibration(phase=phase, acquisition_channels=acquisition_channels)
             traces_p = {channel_names[0]: acq.scope.traces[channel_names[0]], \
@@ -793,6 +843,7 @@ class StateGenerator:
             #Compute and save displacement
             self.displacements.append(numpy.exp(1j*phase_rad)/numpy.sqrt(2)*(q_mean+1j*p_mean))
 
+        self.phase_calibration = None
         #Skip the first point (we don't know why the first measurement is always bad!!)
         # Define polynomial for fitting
         fit_params = numpy.polyfit(aom_medium_array, numpy.abs(self.displacements), polynomial_fit_order)

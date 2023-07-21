@@ -43,7 +43,7 @@ if OPO2:
 
 #Relay interference phase controller
 relay_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(local_config_files_folder, "relay_phase_lock"),\
-                                frequency="calibration_frequency", name="Relay Phase Controller", enable_modulation_output=True, pid_autotune=False)
+                                frequency="calibration_frequency", name="Relay Phase Controller", enable_modulation_output=True, pid_autotune=False) # Change PhaseController if name is changed
 
 if MainScope:
 #Main scope
@@ -68,8 +68,10 @@ relay_state_measurement = StateMeasurementController(relay_hd)
 print('State generator')
 state_generator = StateGenerator(eom_redpitaya_config_filename=os.path.join(local_config_files_folder, "eom_pitaya"), \
                                 aom_redpitaya_config_filename=os.path.join(local_config_files_folder, "aom_pitaya"), \
+                                sample_hold_redpitaya_config_filename=os.path.join(local_config_files_folder, "sample_hold"), \
                                 state_measurement=Dr_Jacoby_state_measurement)
 #State checking
+print('Checking')
 state_checking = StateChecking(state_measurement=Blue_Velvet_state_measurement, state_generator=state_generator)
 
 #State generator widget

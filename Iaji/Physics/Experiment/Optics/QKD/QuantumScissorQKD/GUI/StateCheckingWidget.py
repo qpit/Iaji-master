@@ -243,7 +243,7 @@ class StateCheckingWidget(QWidget):
         #Add tab
         #Calibration button
         self.devices = ["aoms", "amplitude_eom"]#, "phase_eom"]
-        self.state_generator.voltage_ranges = [(1e-2, 1e-1), (3, 5), (-2, 2)]
+        self.state_generator.voltage_ranges = [(1e-2, 4e-2), (3, 5), (-2, 2)]
         for col in range(len(self.devices)):
             device = self.devices[col]
             voltage_range = self.state_generator.voltage_ranges[col]
@@ -343,8 +343,9 @@ class StateCheckingWidget(QWidget):
     # -------------------------------------------
     def amplitude_eom_voltage_linedit_changed(self, text):
         self.state_generator.devices['amplitude_eom']['levels']['state_generation'] = float(text)
-        self.state_generator.devices['amplitude_eom']['instrument'].offset = float(text)/self.state_generator.devices['amplitude_eom']['amplification_gain'] - self.state_generator.devices['amplitude_eom']['instrument_offset']
-        self.state_generator.pyrpl_obj_eom.rp.asg0.output_direct = 'out1'
+        if self.state_generator.eom:
+            self.state_generator.devices['amplitude_eom']['instrument'].offset = float(text)/self.state_generator.devices['amplitude_eom']['amplification_gain'] - self.state_generator.devices['amplitude_eom']['instrument_offset']
+            self.state_generator.pyrpl_obj_eom.rp.asg0.output_direct = 'out1'
     # -------------------------------------------
     '''
     def phase_eom_voltage_linedit_changed(self, text):
