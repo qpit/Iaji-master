@@ -109,7 +109,8 @@ class AliceStateMeasurementControllerWidget(QWidget):
 
     #-------------------------------------------
     def Dr_Jacoby_tomography_button_clicked(self):
-        self.Dr_Jacoby_state_measurement.tomography_measurement(phases=[0, 30, 60, 90, 120, 150])
+        #self.Dr_Jacoby_state_measurement.tomography_measurement(phases=[0, 30, 60, 90, 120, 150])
+        self.state_generator.tomography_mesaurement_for_calibration()
     # -------------------------------------------
     def Dr_Jacoby_scan_measure_button_clicked(self): #TODO
         self.Dr_Jacoby_state_measurement.scanned_measurement()

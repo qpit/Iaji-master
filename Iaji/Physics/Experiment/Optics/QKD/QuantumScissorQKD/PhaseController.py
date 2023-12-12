@@ -54,6 +54,8 @@ class PhaseController:
         self.pid_autotune = pid_autotune
         # Define some useful variables
         self.scanning_frequency = 15  # Hz
+        if self.name == "Relay Phase Controller":
+            self.scanning_frequency = 60
         #Setting modulation frequencies
         self.calibration_frequency = 120e3
         self.measurement_frequency = 50e3
@@ -160,12 +162,18 @@ class PhaseController:
         self.pid_control.input = self.error_signal
         self.pid_control.output_direct = 'off'
         self.pid_control.inputfilter = [2e5, 2e5, 0, 0]
-        self.pid_control.p = 0.08
-        self.pid_control.i = 25
+        self.pid_control.p = 0.1
+        self.pid_control.i = 16
         self.pid_control.ival = 0
         if self.name == "Relay Phase Controller":
-            self.pid_control.p = 0.05
-            self.pid_control.i = 15
+            # These parameters work well when sample hold is off
+            #self.pid_control.p = 0.054
+            #self.pid_control.i = 20
+
+            # These parameters work "better" when sample hold is on
+            self.pid_control.p = 0.075
+            self.pid_control.i = 45
+            self.pid_control.inputfilter = [6e2, 2.5e3, 7.8e4, 0]
 
     def enable_pid_control(self):
         if self.is_scanning:
@@ -179,6 +187,9 @@ class PhaseController:
         self.asg_control.trigger_source = 'immediately'
         self.asg_control.offset = 0
         self.asg_control.frequency = self.scanning_frequency
+        if self.name == "Relay Phase Controller":
+            self.asg_control.amplitude = 0.25
+            self.asg_control.offset = -0.75
 
     def setup_iq(self):
         """
@@ -192,19 +203,21 @@ class PhaseController:
         #    self.iq.acbandwidth = 0.8 * self.modulation_frequency
         #else:
         self.iq.acbandwidth = 0.3 * self.modulation_frequency
-        if self.name == "Relay Phase Controller":
-            self.iq.acbandwidth = 1.5e6
         self.iq.frequency = self.modulation_frequency
         self.iq.gain = 0
         self.iq.bandwidth = [1e3, 1e3]
+        self.iq.amplitude = 0.09
         if self.name == "Relay Phase Controller":
-            self.iq.bandwidth = [1.2e3, 6e2]
+            self.iq.acbandwidth = 4.8e3
+            self.iq.bandwidth = [2.4e3, 9.7e3]
+            self.iq.amplitude = 1
+        if self.name == "Dr. Jacoby Phase Controller":
+            self.iq.amplitude = 0.05
         #if self.modulation_frequency > 10**5:
         #    self.iq.quadrature_factor = 20
         #    self.iq.amplitude = 0.05
         #else:
         self.iq.quadrature_factor = 10
-        self.iq.amplitude = 0.09
         self.iq.phase = 0
         if self.modulation_output_enabled:
             self.iq.output_direct = self.modulation_signal_output
@@ -432,7 +445,7 @@ class PhaseController:
 
             #Calculate the voltage which makes the signal advance one period
 
-            plot = True
+            plot = False
 
             self.scan()
             self.scope.input1 = self.error_signal_input
@@ -471,13 +484,13 @@ class PhaseController:
             period = 1/freq
             self.ival_jump = period
             voltage_period = period*self.asg_control.amplitude/((1/self.asg_control.frequency)/2)
-            print('Voltage period:', voltage_period)
-            print('Guessed parameters:', fit_guess)
-            print('Frequency, Phase:', fit_params)
+            #print('Voltage period:', voltage_period)
+            #print('Guessed parameters:', fit_guess)
+            #print('Frequency, Phase:', fit_params)
 
-            self.pid_control.ival_max_bound = 0.98
+            self.pid_control.ival_max_bound = 0.9
             self.pid_control.ival_min_bound = - self.pid_control.ival_max_bound
-            self.pid_control.ival_max_jump_dst = 4*abs(voltage_period)
+            self.pid_control.ival_max_jump_dst = 2*abs(voltage_period)
             self.pid_control.ival_min_jump_dst = - self.pid_control.ival_max_jump_dst
 
 
@@ -540,7 +553,7 @@ class PhaseController:
         if self.phase == None:
             self.set_phase(0)
         phase = self.phase * 180/numpy.pi
-        print('Phase:', phase)
+        #print('Phase:', phase)
         if self.pid_autotune:
             #Get the amplitude of the scanned error signal
             self.error_signal_amplitude_scanned = self.get_scanned_signal_amplitude(signal_name=self.error_signal)

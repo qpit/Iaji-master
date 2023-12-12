@@ -2,6 +2,7 @@
 This module defines the GUI of the StateGenerator module.
 """
 #%%
+import matplotlib.pyplot as plt
 from PyQt5.QtCore import Qt, QRect
 from PyQt5.Qt import QFont
 from PyQt5.QtWidgets import (
@@ -104,10 +105,19 @@ class StateCheckingWidget(QWidget):
         self.stop_calibration_button.clicked.connect(self.stop_calibration_button_clicked)
         self.buttons_layout.addWidget(self.stop_calibration_button)
         #Send time-multiplexing signal checkbox
+        self.time_multiplexing_signals_layout = QHBoxLayout()
+        self.time_multiplexing_signals_widget = QWidget()
+        self.time_multiplexing_signals_widget.setLayout(self.time_multiplexing_signals_layout)
         self.time_multiplexing_signals_checkbox = QCheckBox("generate/terminate \n time multiplexing signals")
         self.time_multiplexing_signals_checkbox.setChecked(False)
         self.time_multiplexing_signals_checkbox.toggled.connect(self.time_multiplexing_signals_checkbox_toggled)
-        self.calibration_and_tomography_layout.addWidget(self.time_multiplexing_signals_checkbox)
+        self.time_multiplexing_signals_layout.addWidget(self.time_multiplexing_signals_checkbox)
+
+        self.two_time_multiplexing_signals_checkbox = QCheckBox("generate/terminate two-level \n time multiplexing signals")
+        self.two_time_multiplexing_signals_checkbox.setChecked(False)
+        self.two_time_multiplexing_signals_checkbox.toggled.connect(self.two_time_multiplexing_signals_checkbox_toggled)
+        self.time_multiplexing_signals_layout.addWidget(self.two_time_multiplexing_signals_checkbox)
+        self.calibration_and_tomography_layout.addWidget(self.time_multiplexing_signals_widget)
         #Find AOMS high button
         self.find_aoms_high_button = QPushButton("Find AOMS high")
         self.find_aoms_high_button.clicked.connect(self.find_aoms_high_button_clicked)
@@ -185,7 +195,7 @@ class StateCheckingWidget(QWidget):
         self.aoms_high_voltage_linedit.textEdited.connect(self.aoms_high_voltage_linedit_changed)
         self.voltages_layout.addWidget(self.aoms_high_voltage_linedit)
         # Default medium voltages
-        self.devices = ["aoms", "amplitude_eom"]#, "phase_eom"]
+        self.devices = ["aoms"]#, "amplitude_eom"]#, "phase_eom"] # Changed
         aoms_default = self.state_generator.devices['aoms']['levels']['state_generation']
         amplitude_eom_default = self.state_generator.devices['amplitude_eom']['levels']['state_generation']
         default_voltages = dict(zip(self.devices, [aoms_default, amplitude_eom_default, 0]))
@@ -242,8 +252,8 @@ class StateCheckingWidget(QWidget):
         self.calibration_widget.setLayout(self.calibration_layout)
         #Add tab
         #Calibration button
-        self.devices = ["aoms", "amplitude_eom"]#, "phase_eom"]
-        self.state_generator.voltage_ranges = [(1e-2, 4e-2), (3, 5), (-2, 2)]
+        self.devices = ["aoms"]#, "amplitude_eom"]#, "phase_eom"] # Changed
+        self.state_generator.voltage_ranges = [(5e-3, 2e-2), (3, 5), (-2, 2)]
         for col in range(len(self.devices)):
             device = self.devices[col]
             voltage_range = self.state_generator.voltage_ranges[col]
@@ -277,11 +287,23 @@ class StateCheckingWidget(QWidget):
                 getattr(self, "%s_n_points_label" % device))
             getattr(self, "%s_n_points_layout" % device).addWidget(
                 getattr(self, "%s_n_points_linedit" % device))
-            #Calibration button
+            #Calibration layout
+            setattr(self, "%s_calibr_layout" % device, QHBoxLayout())
             setattr(self, "%s_button"%device, QPushButton("calibrate"))
             button = getattr(self, "%s_button"%device)
             button.clicked.connect(getattr(self, "%s_button_clicked"%device))
-            self.calibration_layout.addWidget(button, 4, col + 1)
+            getattr(self, "%s_calibr_layout" % device).addWidget(button)
+            #self.calibration_layout.addWidget(button, 4, col + 1)
+            #Calibrate n times button
+            setattr(self, "%s_button" % device, QPushButton("calibrate n times"))
+            button = getattr(self, "%s_button" % device)
+            button.clicked.connect(getattr(self, "%s_n_times_button_clicked" % device))
+            getattr(self, "%s_calibr_layout" % device).addWidget(button)
+            #self.calibration_layout.addWidget(button, 4, col + 1)
+            setattr(self, "%s_iterations" % device, QLineEdit(str(5)))
+            getattr(self, "%s_calibr_layout" %device).addWidget(
+                getattr(self, "%s_iterations" %device))
+            self.calibration_layout.addLayout(getattr(self, "%s_calibr_layout" % device), 4, col + 1)
             #Uncomment if using phase EOM
             '''
             if device == "phase_eom":
@@ -335,7 +357,8 @@ class StateCheckingWidget(QWidget):
     # -------------------------------------------
     def aoms_high_voltage_linedit_changed(self, text):
         self.state_generator.aoms_high = float(text)
-        self.state_generator.devices['aoms']['instrument'].offset = float(text)/self.state_generator.aoms_amplification_gain - 1
+        self.state_generator.devices['aoms']['instrument'].offset = float(text)/self.state_generator.devices['aoms']['amplification_gain'] - 1
+        self.state_generator.devices['aoms']['levels']['lock'] = float(text)/self.state_generator.devices['aoms']['amplification_gain']
         self.state_generator.pyrpl_obj_aom.rp.asg0.output_direct = 'out1'
     # -------------------------------------------
     def aoms_voltage_linedit_changed(self, text):
@@ -359,6 +382,7 @@ class StateCheckingWidget(QWidget):
         self.state_generator.angle = float(text)
     # -------------------------------------------
     def state_generation_button_clicked(self):
+        '''
         self.state_generator.generate_state()
         for key, value in self.state_generator.calibrations.items():
             print(key)
@@ -367,18 +391,60 @@ class StateCheckingWidget(QWidget):
         self.state_generator.calibrations["amplitude_eom"]["function"](self.state_generator.amplitude)
         self.amplitude_eom_voltage_linedit.setText("%.2f"%self.state_generator.devices['amplitude_eom']['levels']['state_generation'])
         print("Amplitude EOM voltage: %.2f" %self.state_generator.devices['amplitude_eom']['levels']['state_generation'])
+        '''
+        # Set amplitude
+        # First, invert function
+        def inverse(values, amp):
+            sqrt = numpy.sqrt(values[1] ** 2 - 4 * values[0]*(values[2] - amp))
+            return (sqrt - values[1])/(2*values[0])
+
+        if len(self.state_generator.calibrations) == 0:
+            print('No AOM calibration was made. Using default parameters.')
+            params = numpy.ndarray([6.17637427e+02, 9.21515583e+00, -1.36959470e-02])
+        else:
+            print('DEBUG:', len(self.state_generator.calibrations), self.state_generator.calibrations)
+            params = self.state_generator.calibrations['aoms']['parameters']
+        if len(params) != 3:
+            print('Function cannot be inverted!')
+        else:
+            voltage = inverse(params,self.state_generator.amplitude)
+            self.state_generator.devices['aoms']['levels']['state_generation'] = voltage
+            # I'm also considering vacuum period as a state generation period, so the input state is never vacuum when taking measurements
+            self.state_generator.devices['aoms']['levels']['vacuum'] = voltage
+        print('Voltage for desired amplitude is %.3f' %voltage)
+
         #Set angle
-        #TODO
-        #Angle should be set by phase of relay lock
-        '''
-        self.state_generator.devices['phase_eom']['levels']['state_generation'] = self.state_generator.calibrations["phase_eom"]["function"](self.state_generator.angle)
-        self.phase_eom_voltage_linedit.setText("%.2f"%self.state_generator.devices['phase_eom']['levels']['state_generation'])
-        print("Phase EOM voltage: %.2f" %self.state_generator.devices['phase_eom']['levels']['state_generation'])
-        alpha, theta = (self.state_generator.amplitude, self.state_generator.angle)
-        q, p = ( (alpha*numpy.exp(-1j*theta) + numpy.conj(alpha)*numpy.exp(1j*theta))/numpy.sqrt(2),\
-                 1j*(alpha*numpy.exp(-1j*theta) - numpy.conj(alpha)*numpy.exp(1j*theta))/numpy.sqrt(2) )
-        self.state_generation_plot_widget.figure.axes[0].plot(q, p, linestyle="None", marker="o", markersize=10)
-        '''
+        # First time multiplexing needs to be off, so relay may be properly calibrated
+        self.state_generator.turn_off_time_multiplexing_signals()
+
+        # Angle is set by locking phase of relay
+        phase_controller = self.relay_lock.hd_controller.phase_controller
+        phase_controller.calibrate()
+        phase_controller.set_phase(self.state_generator.angle)
+        phase_controller.lock()
+
+        # Sample-hold is turned on for desired voltages
+        aom_levels = [self.state_generator.devices['aoms']['levels'][x] for x in
+                      ['lock', 'state_generation', 'vacuum']]
+        eom_levels = [self.state_generator.devices['amplitude_eom']['levels'][x] for x in
+                      ['lock', 'state_generation', 'vacuum']]
+        duty_cycles = self.state_generator.time_multiplexing['duty_cycles']
+        frequency = self.state_generator.time_multiplexing['frequency']
+        max_delay = self.state_generator.time_multiplexing['max_delay']
+        self.state_generator._time_multiplexing_signals(max_delay=max_delay, aom_levels=aom_levels,
+                                                        eom_levels=eom_levels, \
+                                                        frequency=frequency, aom_duty_cycles=duty_cycles,
+                                                        eom_duty_cycles=duty_cycles, gate_flag = False)
+
+        # Plot figure
+        axis = self.state_generation_plot_widget.figure.axes[0]
+
+        p = self.state_generator.amplitude*numpy.sin(self.state_generator.angle*numpy.pi/180)
+        q = self.state_generator.amplitude*numpy.cos(self.state_generator.angle*numpy.pi/180)
+        shot_noise = 1/2
+
+        circle = plt.Circle((q, p), shot_noise, color = 'r')
+        axis.add_patch(circle)
     # -------------------------------------------
     def aoms_clear_button_clicked(self):
         axis = self.aoms_plot.figure.axes[0]
@@ -408,13 +474,42 @@ class StateCheckingWidget(QWidget):
         max_voltage = float(self.aoms_max_voltage_linedit.text())
         n_points = int(self.aoms_n_points_linedit.text())
         self.time_multiplexing_signals_checkbox.setChecked(True)
-        x, y, x_fit, y_fit = self.state_generator.calibrate_aoms(voltage_range=[min_voltage, max_voltage], n_points=n_points)
-        axis.plot(x, numpy.abs(y), linestyle="None", marker="o", markersize=10, \
+        x, y, x_fit, y_fit, y_error = self.state_generator.calibrate_aoms(voltage_range=[min_voltage, max_voltage], n_points=n_points)
+        axis.errorbar(x, numpy.abs(y), yerr = y_error, linestyle="None", marker="o", markersize=10, \
                 label=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         axis.plot(x_fit, y_fit, label="polynomial fit", linewidth=3.5)
         axis.legend(loc="upper right", prop=fonts["legend"])
         axis.legend(prop={"family":"Times New Roman"})
         self.aoms_plot.update()
+
+    # -------------------------------------------
+    def aoms_n_times_button_clicked(self):
+        '''
+        :return:
+        '''
+        number_of_iterations = int(self.aoms_iterations.text())
+        # Dummy test behavior
+        axis = self.aoms_plot.figure.axes[0]
+        # Calibrate the aoms
+        min_voltage = float(self.aoms_min_voltage_linedit.text())
+        max_voltage = float(self.aoms_max_voltage_linedit.text())
+        n_points = int(self.aoms_n_points_linedit.text())
+        self.time_multiplexing_signals_checkbox.setChecked(True)
+        x, y, x_fit, y_fit, sdev = self.state_generator.calibrate_aoms_n_times(num_of_iterations=number_of_iterations, voltage_range=[min_voltage, max_voltage], n_points=n_points)
+        axis.errorbar(x, numpy.abs(y), sdev, linestyle="None", marker="o", markersize=10, \
+                  label=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        #axis.plot(x, numpy.abs(y), linestyle="None", marker="o", markersize=10, \
+        #          label=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        axis.plot(x_fit, y_fit, label="polynomial fit", linewidth=3.5)
+        axis.legend(loc="upper right", prop=fonts["legend"])
+        axis.legend(prop={"family": "Times New Roman"})
+        self.aoms_plot.update()
+    # -------------------------------------------
+    def amplitude_eom_n_times_button_clicked(self):
+        '''
+        :return:
+        '''
+        pass
     # -------------------------------------------
     """
     def phase_eom_button_clicked(self):
@@ -525,6 +620,44 @@ class StateCheckingWidget(QWidget):
             max_delay = self.state_generator.time_multiplexing['max_delay']
             self.state_generator._time_multiplexing_signals(max_delay=max_delay, aom_levels=aom_levels, eom_levels=eom_levels, \
                                                             frequency=frequency, aom_duty_cycles=duty_cycles, eom_duty_cycles=duty_cycles)
+
+    # -------------------------------------------
+    def two_time_multiplexing_signals_checkbox_toggled(self):
+        was_on = not self.time_multiplexing_signals_checkbox.isChecked()
+        if was_on:
+            self.state_generator.turn_off_time_multiplexing_signals()
+            # aom = self.state_generator.devices['aoms']['instrument']
+            # eom = self.state_generator.devices['amplitude_eom']['instrument']
+            # sample_hold = self.state_generator.pyrpl_obj_aom.rp.asg1
+
+            # aom_value = float(self.aoms_high_voltage_linedit.text())
+            # print(aom_value)
+            # eom_value = float(self.amplitude_eom_voltage_linedit.text())
+            # sample_hold_value = 1
+
+            # aom.setup(trigger_source="immediately", amplitude=1, offset=aom_value)
+            # eom.setup(trigger_source="immediately", amplitude=1, offset=eom_value)
+            # sample_hold.setup(trigger_source="immediately", amplitude=1, offset=sample_hold_value)
+
+            # for name in ['aoms', 'amplitude_eom']:
+            #    self.devices[name]['instrument'].output_direct = 'off'
+            #    n_points = 2**14
+            #    self.devices[name]['instrument'].data = numpy.zeros(n_points)
+            #    self.state_generator.devices[name]['instrument'].offset = self.state_generator.devices[name]['levels']['lock']
+            #    self.state_generator.pyrpl_obj_aom.rp.asg0.output_direct = 'out1'
+            #    self.state_generator.pyrpl_obj_eom.rp.asg0.output_direct = 'out1'
+        else:
+            aom_levels = [self.state_generator.devices['aoms']['levels'][x] for x in
+                          ['lock', 'state_generation', 'state_generation']]
+            eom_levels = [self.state_generator.devices['amplitude_eom']['levels'][x] for x in
+                          ['lock', 'state_generation', 'state_generation']]
+            duty_cycles = self.state_generator.time_multiplexing['duty_cycles']
+            frequency = self.state_generator.time_multiplexing['frequency']
+            max_delay = self.state_generator.time_multiplexing['max_delay']
+            self.state_generator._time_multiplexing_signals(max_delay=max_delay, aom_levels=aom_levels,
+                                                            eom_levels=eom_levels, \
+                                                            frequency=frequency, aom_duty_cycles=duty_cycles,
+                                                            eom_duty_cycles=duty_cycles, gate_flag = False)
     # --------------------------------------------
     def set_style(self, theme):
         self.setStyleSheet(self.style_sheets["main"][theme])

@@ -35,15 +35,15 @@ In PhaseController, set frequency to either "calibration_frequency" for modulati
 '''
 
 Dr_Jacoby_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(folder, "HD_Dr_Jacoby"),\
-                                frequency="calibration_frequency", name="Dr. Jacoby Phase Controller", enable_modulation_output=False, pid_autotune=False)
+                                frequency="calibration_frequency", name="Dr. Jacoby Phase Controller", enable_modulation_output=True, pid_autotune=False)
 Blue_Velvet_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(folder, "HD_Blue_Velvet"),\
-                                        frequency="measurement_frequency", name="Blue Velvet Phase Controller", enable_modulation_output=True, pid_autotune=False)
+                                        frequency="measurement_frequency", name="Blue Velvet Phase Controller", enable_modulation_output=False, pid_autotune=False)
 if OPO2:
     pass
 
 #Relay interference phase controller
 relay_phase_controller = PhaseController(redpitaya_config_filename=os.path.join(local_config_files_folder, "relay_phase_lock"),\
-                                frequency="calibration_frequency", name="Relay Phase Controller", enable_modulation_output=True, pid_autotune=False) # Change PhaseController if name is changed
+                                frequency="measurement_frequency", name="Relay Phase Controller", enable_modulation_output=True, pid_autotune=False) # Change PhaseController if name is changed
 
 if MainScope:
 #Main scope

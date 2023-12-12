@@ -4,6 +4,7 @@ This module generates an input state for quantum scissor QKD.
 # In[imports]
 import matplotlib.pyplot as plt
 import numpy
+import pandas as pd
 import time
 from time import sleep
 import pyrpl
@@ -49,6 +50,9 @@ class StateGenerator:
             print("Fanculo I couldn't connect to the state generation Pitayas!")
         if self.eom == True:
             self.lock_eom_bias(setpoint=0.01)
+        # Trigger scope to C4, digital pause signal
+        lecroy = self.state_measurement.hd_controller.acquisition_system.scope
+        lecroy.setup_trigger(trigger_source='C4', trigger_level=1.36)
         #self.signal_enabler = signal_enabler #signal generator controlling the state generator AOM driver
         self.name = name
         #Add the signal generator to the state measurement controller for fast vacuum quadrature measurements
@@ -70,7 +74,7 @@ class StateGenerator:
         self.devices['amplitude_eom']['instrument_offset'] = 1
         self.devices['amplitude_eom']['amplification_gain'] = 1 #Connect to an amplifier when using EOM
         # self.devices['phase_eom']['instrument_offset'] = 0
-        self.aoms_high = 0.5
+        self.aoms_high = 0.2
         self.eom_high = 1 #Change to None when using EOM
         self.amplitude_eom_low = 0
         #self.phase_eom_amplification_gain = 10
@@ -84,6 +88,7 @@ class StateGenerator:
         self.devices['amplitude_eom']['levels']['lock'] = self.eom_high
         #self.devices['phase_eom']['amplification_gain'] = self.phase_eom_amplification_gain
         self.time_multiplexing = {'instrument': self.pyrpl_obj_sh.rp.asg1,'duty_cycles': [0.6, 0.2, 0.2], 'frequency': 60, 'max_delay': 5e-4}
+        self.devices['sspd_aom'] = {'instrument': self.pyrpl_obj_sh.rp.asg0}
         self.calibrations = {}
         self.phase_calibration = None
         self.calibrated = "no" #Flag if homodyne phase calibration has been performed
@@ -170,9 +175,6 @@ class StateGenerator:
         self.pyrpl_obj_aom.rp.asg1.output_direct = "out2"
         self.pyrpl_obj_aom.rp.scope.input1 = "out1"
         self.pyrpl_obj_aom.rp.scope.input2 = "out2"
-        # Trigger scope to line
-        lecroy = self.state_measurement.hd_controller.acquisition_system.scope
-        lecroy.setup_trigger()
         #for channel in [0, 1]:
         #    getattr(self.pyrpl_obj_aom.rp, "asg%d" % channel).setup(waveform='dc', offset=0,
         #                                                            trigger_source='immediately')
@@ -182,7 +184,8 @@ class StateGenerator:
         self.pyrpl_obj_sh = pyrpl.Pyrpl(config=self.sample_hold_redpitaya_config_filename)
         self.pyrpl_obj_sh.rp.asg1.offset = 1  # Sample-hold signal
         self.pyrpl_obj_sh.rp.asg1.output_direct = "out2"
-        self.pyrpl_obj_sh.rp.scope.input1 = "out2"
+        self.pyrpl_obj_sh.rp.scope.input1 = "out1"
+        self.pyrpl_obj_sh.rp.scope.input2 = "out2"
         if show_pyrpl_GUI:
             self.pyrpl_GUI_sh = QtGui.QApplication.instance()
         # Connect to EOM Pitaya
@@ -304,9 +307,9 @@ class StateGenerator:
         sample_hold.output_direct = "out2"
 
         lecroy = self.state_measurement.hd_controller.acquisition_system.scope
-        lecroy.setup_trigger()
+        lecroy.setup_trigger(trigger_source='C4', trigger_level=1.36)
     # ------------------------------------------
-    def _time_multiplexing_signals(self, max_delay, aom_levels, eom_levels, frequency, aom_duty_cycles, eom_duty_cycles):
+    def _time_multiplexing_signals(self, max_delay, aom_levels, eom_levels, frequency, aom_duty_cycles, eom_duty_cycles, gate_flag = True):
         '''
         Generate the 3 level sample hold for the AOM and 2 level for the EOM, with the delay optimization between them.
         :return:
@@ -317,25 +320,33 @@ class StateGenerator:
         #channel_names = list(acquisition_channels.keys())
         #self._setup_acquisition_calibration(channels=acquisition_channels)
 
-        aom = self.devices['aoms']['instrument']
+        aom = self.devices['aoms']['instrument'] # AOMs controlling input state
         if self.eom:
             eom = self.devices['amplitude_eom']['instrument']
-        sample_hold = self.time_multiplexing['instrument']
+        sample_hold = self.time_multiplexing['instrument'] # OPO probe and pid gate signal
+        sspd_aom = self.devices['sspd_aom']['instrument'] # AOMs that protect SSPD
         aom_scope = self.pyrpl_obj_aom.rp.scope
-        gate = self.pyrpl_obj_aom.rp.asg1
+        gate = self.pyrpl_obj_aom.rp.asg1 # Gate for input state AOMs
 
         n_points = 2 ** 14
         scope_decimation = int(numpy.ceil(125e6/(frequency*n_points)))
         Ts = scope_decimation / 125e6
 
         real_aom_levels = aom_levels
+        print('AOM levels:', real_aom_levels)
         real_eom_levels = eom_levels
         aom_levels = numpy.array(aom_levels)/self.devices['aoms']['amplification_gain'] - self.devices['aoms']['instrument_offset']
         eom_levels = numpy.array(eom_levels)/self.devices['amplitude_eom']['amplification_gain'] - self.devices['amplitude_eom']['instrument_offset']
         gate_levels = [1, -1]
-        sample_hold_levels = gate_levels
         gate_duty_cycles = [0.8, 0.2]
+        sample_hold_levels = [1, -1]
         sample_hold_duty_cycles = [0.6, 0.4]
+        sspd_aom_levels = [-1, 1, -1]
+        sspd_aom_duty_cycles_begin = [0.7, 0.2]
+        sspd_aom_duty_cycles = [*sspd_aom_duty_cycles_begin, 1-numpy.sum(sspd_aom_duty_cycles_begin)] #Had to do it like this, because for some dumb reason [0.7, 0.2, 0.1] add up to 0.9999999999999999
+
+        if gate_flag == False:
+            gate_levels = [1, 1]
 
         aom.setup(trigger_source="ext_negative_edge", frequency = self.time_multiplexing['frequency'], amplitude=1, offset=0)
         aom.data = self._n_level_step_function(frequency, aom_levels, aom_duty_cycles, n_points, Ts)
@@ -348,16 +359,20 @@ class StateGenerator:
         gate.data = self._n_level_step_function(frequency, gate_levels, gate_duty_cycles, n_points, Ts)
         sample_hold.setup(trigger_source="ext_negative_edge", frequency = self.time_multiplexing['frequency'], amplitude=1, offset=0)
         sample_hold.data = self._n_level_step_function(frequency, sample_hold_levels, sample_hold_duty_cycles, n_points, Ts)
+        sspd_aom.setup(trigger_source="ext_negative_edge", frequency = self.time_multiplexing['frequency'], amplitude=1, offset=0)
+        sspd_aom.data = self._n_level_step_function(frequency, sspd_aom_levels, sspd_aom_duty_cycles, n_points, Ts)
 
         aom.output_direct = "out1"
         if self.eom:
             eom.output_direct = "out1"
         gate.output_direct = "out2"
         sample_hold.output_direct = "out2"
+        sspd_aom.output_direct = 'out1'
 
         lecroy = self.state_measurement.hd_controller.acquisition_system.scope
-        lecroy.setup_trigger(trigger_source='C2', trigger_level=0.9*real_aom_levels[0])
+        lecroy.setup_trigger(trigger_source='C4', trigger_level=1.36)#0.5*real_aom_levels[0])
 
+        print("If sample-hold doesn't work, check if FG sending the synch signal is turned on.")
         #plt.figure()
         #plt.plot(numpy.arange(len(asg0.data)), asg0.data, 'm')
         #plt.title('asg 0')
@@ -754,7 +769,7 @@ class StateGenerator:
         for name in channel_names:
             acq.scope.channels[name].enable(True)
     # ----------------------------------------
-    def calibrate_aoms(self, voltage_range=[1e-2, 0.1], n_points = 6, polynomial_fit_order = 2, acquisition_channels={"hd": 1, "time-multiplexing": 2}):
+    def calibrate_aoms(self, voltage_range=[1e-2, 0.1], n_points = 6, polynomial_fit_order = 2, acquisition_channels={"hd": 1, "time-multiplexing": 2}, sample_hold = True, fit = True):
         '''
         Calibrates the state generation AOMs with respect to the induced amplitude variation.
         The aim is to draw a functional dependence of the induced amplitude variation on the voltage output from the
@@ -793,7 +808,7 @@ class StateGenerator:
         self.devices['aoms']['instrument'].offset = 0
         #define array of displacements
         self.displacements = []
-        self.turn_off_time_multiplexing_signals()
+        #self.turn_off_time_multiplexing_signals()
         self.state_measurement.hd_controller.phase_controller.calibrate()
         for i in range(n_points):
             if self.calibration_stopped:
@@ -806,8 +821,7 @@ class StateGenerator:
             eom_levels = [eom_high, eom_medium, eom_low]
             phase = 45
             #self.lock(phase)
-            self._time_multiplexing_signals(max_delay, aom_levels, eom_levels, frequency, aom_duty_cycles,
-                                       eom_duty_cycles)
+            self._time_multiplexing_signals(max_delay, aom_levels, eom_levels, frequency, aom_duty_cycles, eom_duty_cycles)
             self._setup_acquisition_calibration(channels=acquisition_channels)
             #Lock the homodyne detector and measure its output, together with the AOM time multiplexing signal
             #phase = 45
@@ -819,7 +833,7 @@ class StateGenerator:
             #generalized p quadrature
             phase = phase + 90
             #self.lock(phase)
-            self._time_multiplexing_signals(max_delay, aom_levels, eom_levels, frequency, aom_duty_cycles, eom_duty_cycles)
+            #self._time_multiplexing_signals(max_delay, aom_levels, eom_levels, frequency, aom_duty_cycles, eom_duty_cycles)
             self._setup_acquisition_calibration(channels=acquisition_channels)
             self.measure_quadrature_calibration(phase=phase, acquisition_channels=acquisition_channels)
             traces_p = {channel_names[0]: acq.scope.traces[channel_names[0]], \
@@ -830,18 +844,21 @@ class StateGenerator:
             #Analyze generalized q quadrature
             vac, sig = self._extract_quadrature_measurements(hd_output=traces_q[channel_names[0]][2][0, :], \
                                                              time_multiplexing_signal=traces_q[channel_names[1]][2][0, :], \
-                                                             Ts=Ts, dead_time=0.5e-3, plot = True)
+                                                             Ts=Ts, dead_time=0.5e-3, plot = False)
             vac_std = numpy.std(vac)
             q_mean = numpy.mean(sig)/(vac_std / (1/numpy.sqrt(2)))
             #Analyze generalized p quadrature
             vac, sig = self._extract_quadrature_measurements(hd_output=traces_p[channel_names[0]][2][0, :], \
                                                              time_multiplexing_signal=traces_p[channel_names[1]][2][0, :], \
-                                                             Ts=Ts, dead_time=0.5e-3, plot = True)
+                                                             Ts=Ts, dead_time=0.5e-3, plot = False)
             vac_std = numpy.std(vac)
             p_mean = numpy.mean(sig) / (vac_std / (1/numpy.sqrt(2)))
             phase_rad = phase*numpy.pi/180
             #Compute and save displacement
             self.displacements.append(numpy.exp(1j*phase_rad)/numpy.sqrt(2)*(q_mean+1j*p_mean))
+
+        if fit == False:
+            return aom_medium_array, self.displacements
 
         self.phase_calibration = None
         #Skip the first point (we don't know why the first measurement is always bad!!)
@@ -888,8 +905,72 @@ class StateGenerator:
         minutes = time_spent//60
         seconds = round(time_spent%60)
         print('Time for AOM calibration: %d min %d sec'%(minutes, seconds))
+        print('DEBUG: params', fit_params)
         return aom_medium_array, self.displacements, aom_medium_fit, aom_fitted
-    # -------------------------------------------
+
+        # --------------------------------------------
+    def calibrate_aoms_n_times(self, num_of_iterations=5, polynomial_fit_order=2, voltage_range=[1e-2, 0.1], n_points = 6, acquisition_channels={"hd": 1, "time-multiplexing": 2}):
+        '''
+        Calibrates the state generation AOMs num_of_iterations times with respect to the induced amplitude variation.
+        Consequently, mean and std values are calculated over all datasets.
+        Data saved to .csv file
+        '''
+        start_n_time = time.time()
+        aom_medium_arrays = []
+        displacements_arrays = []
+
+        # Running AOM calibration n times
+        for i in range(num_of_iterations):
+            print('Iteration number', i)
+            aom_medium_array, displacements = self.calibrate_aoms(voltage_range, n_points, fit = False)
+            aom_medium_arrays.append([aom_medium_array]) #Check if rectangular brackets are fine
+            displacements_arrays.append([numpy.abs(displacements)])
+        # Calculating statistics with data
+        displacement_mean = numpy.mean(displacements_arrays, axis=0)
+        displacement_mean = numpy.array(displacement_mean)
+        displacement_mean = displacement_mean.flatten()
+        displacement_mean = numpy.abs(displacement_mean)
+        displacement_sdev = numpy.std(displacements_arrays, axis=0)
+        displacement_sdev = numpy.array(displacement_sdev)
+        displacement_sdev = displacement_sdev.flatten()
+        aom_medium_mean = numpy.mean(aom_medium_arrays, axis=0)
+        aom_medium_mean = numpy.array(aom_medium_mean)
+        aom_medium_mean = aom_medium_mean.flatten()
+
+        # Fitting parameters to the mean values
+        fit_params = numpy.polyfit(aom_medium_mean, displacement_mean, polynomial_fit_order)
+        aom_medium_fit = numpy.linspace(*voltage_range, 1000)
+        aom_fitted = numpy.poly1d(fit_params)(aom_medium_fit)
+
+        # Sacinf mean values and std of data
+        df_disps_mean_sdev = pd.DataFrame(
+            {"displacement_mean": displacement_mean, "displacement_sdev": displacement_sdev})
+        displacement_abs = {'Calibration ' + str(i): displacements_arrays[i][0] for i in range(len(displacements_arrays))}
+        df_raw_data = pd.DataFrame(displacement_abs) #pd.DataFrame({"displacements": displacement_abs, "aom_medium_vals": aom_medium_arrays})
+
+        save_csv = self.state_measurement.hd_controller.acquisition_system.host_save_directory
+        df_disps_mean_sdev.to_csv(save_csv + "\displacements_mean_sdev.csv", index=True)
+        df_raw_data.to_csv(save_csv + "\displacements_raw_data.csv", index=True)
+
+        # Define the function that fits the measured data
+        def calibration_function(amplitude):
+            poly_coefficients = fit_params.copy()
+            poly_coefficients[0] -= amplitude
+            roots = numpy.roots(poly_coefficients)
+            print('AOM calibration parameters', roots)
+            return numpy.array([r for r in roots if numpy.isreal(r) and numpy.real(r) >= 0])[0]
+
+        self.calibrations["aoms"] = {"function": calibration_function,
+                                     "parameters": fit_params}
+        stop_n_time = time.time()
+        time_spent = stop_n_time - start_n_time
+        minutes = time_spent // 60
+        seconds = round(time_spent % 60)
+        print('Time for n times AOM calibration: %d min %d sec' % (minutes, seconds))
+
+        numpy.savetxt(save_csv + "fit_params.txt", fit_params)
+        return aom_medium_mean, displacement_mean, aom_medium_fit, aom_fitted, displacement_sdev
+        # --------------------------------------------
     def _find_aoms_high(self):
         '''
         Find a value for the high voltage for the AOMs without saturating the detector.
@@ -1461,7 +1542,7 @@ class StateGenerator:
         :return:
         '''
     # -------------------------------------------
-    def tomography_mesaurement_for_calibration(self, aom_voltage, amplitude_eom_voltage, phases=15+numpy.array([0, 30, 60, 90, 120, 150]), \
+    def tomography_mesaurement_for_calibration(self, phases=15+numpy.array([0, 30, 60, 90, 120, 150]), \
                                                acquisition_channels={"hd": 1, "time-multiplexing": 2}):
         '''
         Performs a homodyne tomography measurement with the time-multiplexing sch
@@ -1487,7 +1568,6 @@ class StateGenerator:
         self.devices['aoms']['instrument'].waveform = "dc"
         self.devices['aoms']['instrument'].offset = 1
         self.state_measurement.hd_controller.phase_controller.calibrate()
-        self.state_measurement.hd_controller.set_iq_qfactor()
         self.devices['aoms']['instrument'].offset = 0
         #Generate time-multiplexing signals for AOM and amplitude EOM
         aom_levels = [aom_high, aom_medium, aom_low]
@@ -1517,7 +1597,6 @@ class StateGenerator:
         #%%
         # Plot the raw power spectral densities
         figure_PSD_raw = pyplot.figure()
-
         figure_PSD_raw.subplots_adjust(wspace=0.4, hspace=0.7)
         axis = figure_PSD_raw.add_subplot(111)
         axis.set_xlabel("frequency (MHz)")
@@ -1530,15 +1609,14 @@ class StateGenerator:
         axis.plot(frequency*1e-6, 10*numpy.log10(abs(PSD)/1e-3), label='electronic noise', marker=default_marker)
         PSDs_raw['electronic noise'] = PSD
         '''
-        frequency, PSD = signal.welch(vac[phases[0]], fs=1 / Ts, nperseg=len(vac[phases[0]]) / 100, noverlap=20)
+        frequency, PSD = signal.welch(vac[phases[0]], fs=1 / Ts, nperseg=len(vac[phases[0]]) / 100, noverlap=len(vac[phases[0]]) / 200)
         axis.plot(frequency * 1e-6, 10 * numpy.log10(abs(PSD) / 1e-3), label='vacuum quadrature', marker=".")
         PSDs_raw['vacuum quadrature'] = PSD
-
         PSDs_raw['frequency'] = frequency
 
         for phase in phases:
             trace = sig[phase]
-            frequency, PSD = signal.welch(trace, fs=1 / Ts, nperseg=len(trace) / 100, noverlap=20)
+            frequency, PSD = signal.welch(trace, fs=1 / Ts, nperseg=len(trace) / 100, noverlap=len(trace) / 200)
             axis.plot(frequency * 1e-6, 10 * numpy.log10(abs(PSD) / 1e-3), label="phase = %.1f$^\\circ$" % phase,
                       marker=".")
             PSDs_raw[phase] = PSD
@@ -1548,7 +1626,7 @@ class StateGenerator:
 
         # Do tomography
         ## Prefilter the data
-        b = signal.firwin(501, cutoff=20e6, fs=1 / Ts, pass_zero="lowpass")
+        b = signal.firwin(501, cutoff=1/(3*Ts), fs=1 / Ts, pass_zero="lowpass") #cutoff used to be 20e6
         for phase in phases:
             sig[phase] = signal.filtfilt(b, 1, sig[phase])
             vac[phase] = signal.filtfilt(b, 1, vac[phase])
